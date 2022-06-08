@@ -1,0 +1,42 @@
+Registering a user into the TELL database for the MAIL system.
+
+In order to update SYS:TELL.INI with a new user name the following steps should
+be taken.
+
+1) Get a reasonable name from the user and a PPN to be equated to it. It is
+   suggested that the form of name be initial and surname separated by a dot eg.
+   A.Brown  In fact any alpha-numeric sequence starting with a letter and
+   excluding spaces and graphic characters other than '.' will do. It must
+   be unique in the first 12 characters but can be up to 25 characters long.
+
+2) Do a "WHO A.Brown" to determine that the name is not already present in
+   SYS:TELL.INI.  If it is then try adding other initials or expand the first
+   name eg. A.D.Brown  or  Arthur.Brown
+
+3) When a unique name has been found, enter it into SYS:TELL.INI as a line
+   of the form eg.
+    /group(A.Brown=[16,17])   - in numeric order of PPNs for ease of searching.
+
+NOTE:
+
+   Only one name per PPN is recommended as the user will always be identified
+   for outgoing mail, with the first match of the PPN in the file, but would be
+   able to receive mail on any of the given names. However it obviously makes
+   the file large to have aliases for individuals.
+
+NB:
+
+   Lines containing wildcard characters in the PPN fields are ignored
+   by the mail programs.
+
+   It is also possible to have multiple PPNs assigned to the same name
+   eg. /group(A.Brown=[16,17]+[12,13])
+   doing so would cause incoming mail to be sent to each of these PPNs. This is
+   not usually desired and so is also not recommended.
+
+NOTE WELL:
+   The post program will ignore all lines in SYS:TELL.INI which use account names
+   in the group line e.g.
+   tell/group:(fred=fred#a+john#b)
+   as the only reliable piece of information the program has when searching this
+   file is the user's ppn because the account name nay have been changed by LOGIN.

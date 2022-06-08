@@ -1,0 +1,6387 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+
+3B35D                                                     Page 1
+                                                          Nov 78
+
+
+
+
+
+
+
+
+
+
+                     THE IMP LIBRARY MANUAL
+
+
+
+
+
+This document describes fully the IMP System Library facilities.
+It  is  part  of  a  set of two documents which describe the IMP
+Language on the DECsystem-10/20 computers.  The  other  document
+is:-
+
+3B35C    IMP ON THE DECsystem-10/20
+
+ The Language definition contained also separately in:-
+
+3B35B    THE IMP-77 LANGUAGE REFERENCE MANUAL.
+
+
+OTHER MANUALS REFERRED TO IN THIS DOCUMENT ARE:-
+
+   DECSYSTEM-10 OPERATING SYSTEM COMMANDS MANUAL.
+   DECSYSTEM-10 MONITOR CALLS MANUAL. 
+   DECSYSTEM-10 HARDWARE REFERENCE MANUAL. 
+
+
+                        CONTENTS                            page
+
+
+1  LIBRARY ENTRIES  .. .. .. ..  .. .. .. .. .. .. .. .. .. 2
+
+2  DATE-TIME FORMATS .. .. .. .. .. .. .. .. .. .. .. .. .. 107
+
+3  DEFINITION OF THE FILE SPECIFICATION RECORD  .. .. .. .. 108
+
+4  SYSTEM LIBRARY PROCEDURES SUMMARY   .. .. .. .. .. .. .. 109
+
+INDEX OF LIBRARY PROCEDURES   .. .. .. .. .. .. .. .. .. .. 113
+<HR>
+3B35D                                                     Page 2
+                                                          Nov 78
+
+
+1.  LIBRARY ENTRIES
+
+
+                             ACCPER
+
+DEFINITION:  This integer function  returns  the  value  of  the
+        accounting period into which the given time falls.
+
+SPEC:   %EXTERNALINTEGERFN ACCPER(%INTEGER udt)
+
+USE:    period=ACCPER(udt)
+
+        udt     is an integer expression being the date-time  in
+                question,  given  in the DEC universal date-time
+                format.
+
+        the accounting period of the given date is returned as a
+        four digit integer of the form YYMM, via %RESULT.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR,   TIME,   GET   TIME,  FROM  TIME,  TO  TIME,
+        TIMETOSTR,  DATETIME,  GET  NOW,  FROM  UDT,   TO   UDT,
+        UDTTOSTR, DAY, DAYTOSTR, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+                              ADDR
+
+DEFINITION:  This integer function gives the absolute address of
+        a %NAME variable.
+
+SPEC:   Not required
+
+USE:    n=ADDR(x)
+
+        x       is the name  of  a  variable  whose  address  is
+                required.
+
+        The absolute address of x is returned via %RESULT
+
+ASSOCIATED PROCEDURES:  BYTE INTEGER,  SHORT  INTEGER,  INTEGER,
+        REAL, STRING, RECORD
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                     Page 3
+                                                          Nov 78
+
+
+                            ASCTOSTR
+
+DEFINITION:  This string function converts an ASCIZ string to an
+        IMP string.
+
+SPEC:   %EXTERNALSTRING(255)%FN ASCTOSTR(%name adr)
+
+USE:    s=ASCTOSTR(adr)
+
+        adr     is the name of a variable containing  the  start
+                of the ASCIZ string
+
+        an ASCIZ type string (7-bit bytes, terminated by a  zero
+        byte)  is  converted  to an IMP type string and returned
+        via %RESULT.
+
+ASSOCIATED PROCEDURES:  STRTOASC
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            BINTOSTR
+
+DEFINITION:  This string function gives the value of  the  given
+        number as a string of binary digits.
+
+SPEC:   %EXTERNALSTRING(36)%FN BINTOSTR(%INTEGER num)
+
+USE:    s=BINTOSTR(num)
+
+        num     is  an  integer  expression  which  is   to   be
+                converted to binary.
+
+        the given integer number is returned as a string  of  36
+        binary digits with leading zeros.
+
+ASSOCIATED PROCEDURES:  OCTTOSTR, HEXTOSTR, INTTOSTR
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                     Page 4
+                                                          Nov 78
+
+
+                              BLT
+
+DEFINITION:  This routine copies data from one area of store  to
+        another en bloc.
+
+SPEC:   %SYSTEMROUTINE BLT(%name from,to, %INTEGER len)
+
+CALL:   BLT(from,to,len)
+
+        from    is the name of the variable from which  data  is
+                to start being copied.
+        to      is the name of the variable to which data is  to
+                start being copied.
+        len     is an integer expression  being  the  amount  of
+                data to be copied.
+
+        a block of data of length len, starting  at  'from',  is
+        copied to another area of store starting at 'to'.
+
+ASSOCIATED PROCEDURES:  ZERO
+
+ERROR CONDITIONS:  fatal illegal memory references may occur  if
+        attempts  are  made  to  write  to addresses outwith the
+        current addressing space.
+
+
+
+
+                          BYTE INTEGER
+
+DEFINITION:  This map enables the  user  to  access  directly  a
+        particular byte whose address is specified.
+
+SPEC:   Not required
+
+CALL:   BYTE INTEGER(adr)
+
+        adr     is an integer expression giving the  address  of
+                the required location.
+
+        This map allows the user to read or write directly to  a
+        location  in store by specifying the absolute address in
+        'adr'.
+
+ASSOCIATED PROCEDURES:  SHORT INTEGER,  INTEGER,  REAL,  STRING,
+        RECORD
+
+ERROR CONDITIONS:  If  the  value  of  'adr'  lies  outside  the
+        current  addressing space the following fatal error will
+        occur:-
+
+        ?IMP: Ill Mem Ref at user pc  'addr'
+<HR>
+3B35D                                                     Page 5
+                                                          Nov 78
+
+
+                           CALL (0-9)
+
+DEFINITION:  These routines call the FORTRAN  routine  named  as
+        the  first  parameter with the necessary arguments given
+        as the succeeding parameters.
+
+SPEC:   %EXTERNALROUTINE CALL (0-9)(%name rtn, %name arg1, ..
+        %name arg9)
+
+CALL:   CALL (0-9)(rtn,arg1, .. arg9)
+
+        rtn     is the name of a external FORTRAN routine.   For
+                ease  of  handling, it is required that the spec
+                given  in   the   IMP   program   is   that   of
+                %EXTERNALINTEGERSPEC.
+        arg1    is the name of the  first  argument  if  one  is
+                needed
+        and so on up to
+        arg9    is the name of the  ninth  argument  if  one  is
+                needed
+
+        these are a set of IMP  routines  called  CALL0,  CALL1,
+        etc.   up  to CALL9.  The number refers to the number of
+        arguments which the FORTRAN routine requires.   See  the
+        following example:-
+
+        %BEGIN
+        %EXTERNALINTEGERSPEC FNOARG
+              !A FORTRAN ROUTINE WITH NO ARGUMENTS
+        %EXTERNALINTEGERSPEC F3ARGS
+              !A FORTRAN ROUTINE WITH THREE ARGUMENTS
+        
+        %EXTERNALROUTINESPEC CALL0(%NAME RT)
+        %EXTERNALROUTINESPEC CALL3(%NAME RT, %NAME A,B,C)
+        
+        %INTEGER ARG1,ARG2,ARG3
+        
+        ARG1=1; ARG2=2; ARG3=3
+        CALL0(FNOARG);                 !CALL FORTRAN
+        CALL3(F3ARGS,ARG1,ARG2,ARG3);  !CALL FORTRAN
+        
+        %ENDOFPROGRAM
+
+        The %INCLUDE  file  "IMP:FORTRA.INC"  contains  all  the
+        specs for the CALL routines.
+
+ASSOCIATED PROCEDURES:  ICALL (0-9), RCALL (0-9)
+
+ERROR CONDITIONS:  Depending on the FORTRAN routine called.
+
+
+
+
+<HR>
+3B35D                                                     Page 6
+                                                          Nov 78
+
+
+                             CALLI1
+
+DEFINITION:   This  routine  performs  the  DECsystem-10   CALLI
+        Monitor  Call  for  the  simple case where the CALLI has
+        only one return address.
+
+SPEC:   %EXTERNALROUTINE CALLI1(%INTEGER num, %INTEGERname ac)
+
+CALL:   CALLI1(num,ac)
+
+        num     is an integer expression being the CALLI number.
+        ac      is the name of an  integer  variable  containing
+                any  required  argument for the Monitor Call and
+                in which any result will be returned.
+
+        The given CALLI  Monitor  Call  is  performed  with  the
+        location  required  for  either  the argument, result or
+        both.  The form of argument and result varies  from  one
+        CALLI   to   another,   and   the  user  must  read  the
+        DECsystem-10 MONITOR CALLS Manual, for  the  appropriate
+        values.   It  should  be  noted that this routine should
+        only be used for those CALLIS which have only one RETURN
+        address.
+
+        e.g.   PJOB  (CALLI 30)
+
+ASSOCIATED PROCEDURES:  CALLI2, CALLI3
+
+ERROR CONDITIONS:  None
+
+
+
+
+                             CALLI2
+
+DEFINITION:  This  predicate  performs  the  DECsystem-10  CALLI
+        Monitor  Call  for the usual case where the CALLI has an
+        normal skip return and a non-skip error return.
+
+SPEC:   %EXTERNALPREDICATE CALLI2(%INTEGER num, %INTEGERname ac)
+
+USE:    %IF CALLI2(num,ac) %THEN ...
+
+        num     is an integer expression being the CALLI number.
+        ac      is the name of an  integer  variable  containing
+                any  required  argument for the Monitor Call and
+                in which any result will be returned.
+
+        The given CALLI  Monitor  Call  is  performed  with  the
+        location  required  for  either  the argument, result or
+        both.  The predicate returns  a  value  %TRUE  when  the
+        normal  skip return is taken from the Monitor Call and a
+        value %FALSE otherwise.  The form of argument and result
+        varies from one CALLI to another, and the user must read
+        the  DECsystem-10  MONITOR   CALLS   Manual,   for   the
+        appropriate  values.   It  should  be  noted  that  this
+<HR>
+3B35D                                                     Page 7
+                                                          Nov 78
+
+
+        predicate should only be used  for  those  CALLIS  which
+        have the normal skip return.
+
+ASSOCIATED PROCEDURES:  CALLI1, CALLI3
+
+ERROR CONDITIONS:  When the value %FALSE is returned,  an  error
+        code may be returned in the integer 'ac'.
+
+
+
+
+                             CALLI3
+
+DEFINITION:  This  predicate  performs  the  DECsystem-10  CALLI
+        Monitor  Call for the case where the CALLI has an normal
+        non-skip return and a skip error return.
+
+SPEC:   %EXTERNALPREDICATE CALLI3(%INTEGER num, %INTEGERname ac)
+
+USE:    %IF CALLI3(num,ac) %THEN ...
+
+        num     is an integer expression being the CALLI number.
+        ac      is the name of an  integer  variable  containing
+                any  required  argument for the Monitor Call and
+                in which any result will be returned.
+
+        The given CALLI  Monitor  Call  is  performed  with  the
+        location  required  for  either  the argument, result or
+        both.  The predicate returns  a  value  %TRUE  when  the
+        normal  skip return is taken from the Monitor Call and a
+        value %FALSE otherwise.  The form of argument and result
+        varies from one CALLI to another, and the user must read
+        the  DECsystem-10  MONITOR   CALLS   Manual,   for   the
+        appropriate  values.   It  should  be  noted  that  this
+        predicate should only be used  for  those  CALLIS  which
+        have the normal skip return.
+
+ASSOCIATED PROCEDURES:  CALLI1, CALLI2
+
+ERROR CONDITIONS:  When the value %FALSE is returned,  an  error
+        code may be returned in the integer 'ac'.
+
+
+
+
+<HR>
+3B35D                                                     Page 8
+                                                          Nov 78
+
+
+                             CHARNO
+
+DEFINITION:  This byteinteger function gives the  value  of  the
+        specified seven-bit byte of a given string.
+
+SPEC:   Not required
+
+USE:    ch=CHARNO(s,n)
+
+        s       is the name  (of  type  %STRING)  of  the  given
+                string.
+        n       is  an  integer  expression   indicating   which
+                character of the string is to be returned.
+
+        The value of the n'th character of string s is  returned
+        as a seven-bit byte via %RESULT.
+
+        If n=0 the string length is returned as the result.
+
+        If n&lt;0 or n&gt;LENGTH(s)  then  zero  is  returned  as  the
+        result.
+
+ASSOCIATED PROCEDURES:  LENGTH, SUB STRING, TO STRING
+
+ERROR CONDITIONS:  None
+
+
+
+
+                           CHECKPOINT
+
+DEFINITION:  This routine makes a permanent copy on the external
+        medium  of  all  the output done so far on the currently
+        selected output stream.
+
+SPEC:   %EXTERNALROUTINE CHECKPOINT
+
+CALL:   CHECKPOINT
+
+        No parameters
+
+        The current output stream is closed  then  reopened  and
+        all  pointers  reset  back  to their previous values, so
+        that, to the user the stream is unaffected.
+
+        For non-disk devices, no action is taken.
+
+ASSOCIATED PROCEDURES:  (X)DEFINE OUTPUT,  CLOSE  OUTPUT,  RESET
+        OUTPUT
+
+ERROR  CONDITIONS:   For  a  hardware  transmission  error   the
+        following event occurs:-
+
+        %SIGNAL 10, 14, n, "Checkpoint failure"
+
+        Where n is an error code as listed in appendix E of  the
+<HR>
+3B35D                                                     Page 9
+                                                          Nov 78
+
+
+        DECsystem-10 MONITOR CALLS Manual.
+
+
+
+
+                             CLOSE
+
+DEFINITION:  This routine  closes  the  given  physical  channel
+        number.
+
+SPEC:   %SYSTEMROUTINE CLOSE(%INTEGER chan)
+
+CALL:   CLOSE(chan)
+
+        chan    is an integer  expression  giving  the  physical
+                channel number of a currently open device.
+
+        The device associated with the  given  physical  channel
+        number is closed but not released.  The physical channel
+        number for a stream or DA/SQ channel is found in the SCB
+        (Stream Control Block) for that stream or channel.  (See
+        %INCLUDE file "IMP:IOLIB.INC" for a description  of  the
+        SCB)
+
+ASSOCIATED PROCEDURES:  RELEASE, IOUUO, FILOP, TAPOP
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            CLOSE DA
+
+DEFINITION:  This routine closes the direct access file  on  the
+        channel specified.
+
+SPEC:   %EXTERNALROUTINE CLOSE DA(%INTEGER n)
+
+CALL:   CLOSE DA(n)
+
+        n       is an integer expression lying in the range 1 to
+                15 which specifies the channel number associated
+                with a currently open device or file.
+
+        The file or device associated  with  the  given  channel
+        number  is  closed  and  cannot  be  used  again without
+        re-opening.
+
+ASSOCIATED PROCEDURES:  (X)OPEN DA, READ DA, WRITE DA
+
+ERROR CONDITIONS:  Unless 1 &lt;= n &lt;= 15 then the following  event
+        occurs:-
+
+        %SIGNAL  10, 28, n, "Closing illegal DA/SQ channel"
+
+        Or if the channel has not been opened previously:-
+<HR>
+3B35D                                                    Page 10
+                                                          Nov 78
+
+
+        %SIGNAL 10, 28, n "Closing DA/SQ channel before OPENing
+        it"
+
+        If the channel is not of the appropriate type (i.e.   an
+        SQ channel) the following event is signaled.
+
+        %SIGNAL 10, 29, n, "Closing DA/SQ channel with the wrong
+        routine"
+
+
+
+
+                          CLOSE INPUT
+
+DEFINITION:  This routine closes the  currently  selected  input
+        stream.
+
+SPEC:   Not required
+
+CALL:   CLOSE INPUT
+
+        No parameters
+
+        The currently selected input stream is closed and  reset
+        to be a null stream.
+
+ASSOCIATED PROCEDURES:   (X)DEFINE  INPUT,  SDEF  INPUT,  SELECT
+        INPUT
+
+ERROR CONDITIONS:  None
+
+
+
+
+                          CLOSE OUTPUT
+
+DEFINITION:  This routine closes the currently  selected  output
+        stream.
+
+SPEC:   Not required
+
+CALL:   CLOSE OUTPUT
+
+        No parameters
+
+        The currently selected output stream is closed and reset
+        to be a null stream.
+
+ASSOCIATED PROCEDURES:  (X)DEFINE OUTPUT,  SDEF  OUTPUT,  SELECT
+        OUTPUT
+
+ERROR CONDITIONS:  None
+<HR>
+3B35D                                                    Page 11
+                                                          Nov 78
+
+
+                            CLOSE SQ
+
+DEFINITION:  This routine closes  the  sequential  file  on  the
+        channel specified.
+
+SPEC:   %EXTERNALROUTINE CLOSE SQ(%INTEGER n)
+
+CALL:   CLOSE SQ(n)
+
+        n       is an integer expression lying in the range 1 to
+                15 which specifies the channel number associated
+                with a currently open device or file.
+
+        The file or device associated  with  the  given  channel
+        number  is  closed  and  cannot  be  used  again without
+        re-opening.
+
+ASSOCIATED PROCEDURES:  (X)OPEN SQ, READ SQ, WRITE SQ
+
+ERROR CONDITIONS:  Unless 1 &lt;= n &lt;= 15 then the following  event
+        occurs:-
+
+        %SIGNAL  10, 28, n, "Closing illegal DA/SQ channel"
+
+        Or if the channel has not been opened previously:-
+
+        %SIGNAL 10, 28, n "Closing DA/SQ channel before OPENing
+        it"
+
+        If the channel is not of the appropriate type (i.e.   an
+        DA channel) the following event is signaled.
+
+        %SIGNAL 10, 29, n, "Closing DA/SQ channel with the wrong
+        routine"
+
+
+
+
+<HR>
+3B35D                                                    Page 12
+                                                          Nov 78
+
+
+                              COPY
+
+DEFINITION:  This routine copies one file into another.
+
+SPEC:   %EXTERNALROUTINE COPY(%STRING(255) orig, new)
+
+CALL:   COPY(orig, new)
+
+        orig    is  a  string  containing  the   original   file
+                specification
+        new     is a string containing  the  file  specification
+                for the copied file.
+
+        the file specified in 'orig' is copied to  another  file
+        whose name is specified in 'new'.
+
+ASSOCIATED PROCEDURES:  XCOPY, (X)RENAME, (X)DELETE, (X)ISFILE
+
+ERROR CONDITIONS:  see OPEN DA and also, when  the  I/O  channel
+        capacity is full:-
+
+        %SIGNAL  2,  5,  0,  "No  free  channels   for   COPYing
+        'filespec'"
+
+
+
+
+                            CPUTIME
+
+DEFINITION:   This  integer  function  gives   the   number   of
+        milliseconds  of processor time that the current job has
+        used since it logged in.
+
+SPEC:   %EXTERNALINTEGERFN CPUTIME
+
+USE:    cpu=CPUTIME
+
+        No parameters
+
+        The amount  of  CPU  time  in  milliseconds,  since  the
+        current job logged in, is returned via %RESULT.
+
+ASSOCIATED PROCEDURES:  JOBNUM, PPN, TIME
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 13
+                                                          Nov 78
+
+
+                           CUSP FILES
+
+DEFINITION:  This routine will read a CUSP style command  string
+        from  the  current  input  stream and return the decoded
+        file-specifications
+
+SPEC:   %EXTERNALROUTINE CUSP FILES(%RECORD(FILESPEC)%name
+        out,aux,in,run, %INTEGER n, %INTEGERname found)
+
+CALL:   CUSP FILES(out,aux,in,run,n,found)
+
+        out     is the name of a  record  containing  an  output
+                file specification if one is given
+        aux     is the name of a record containing an auxilliary
+                output file specification if one is given
+        in      is the name of a record containing an input file
+                specification if one is given
+        run     is the  name  of  a  record  containing  a  file
+                specification for a file to be RUN using the RUN
+                command, if one is given
+        n       is an integer expression used  for  an  indirect
+                command file stream, if one is needed
+        found   is the name of an  integer  variable  indicating
+                whether or not a command string was found
+
+                found  =  -1   indicates   that   a   RUN   file
+                specification was present.
+
+                found   &gt;   0   indicates   that    some    file
+                specifications were found.
+
+        If the command input stream  is  the  users  console,  a
+        prompt '*' is output.
+
+        The following forms of command line are parsed:-
+
+        OUTFILE, AUXFILE = INFILE (,INFILE1 . . . )
+        OUTFILE = INFILE (,INFILE1 . . . )
+        INFILE (,INFILE1 . . . )
+        @CMDFILE
+        CMDFILE@
+        RUNFILE!
+
+        They  are  parsed  into  the  corresponding   (FILESPEC)
+        records,  the  user  being  responsible  for  subsequent
+        application of  any  necessary  defaults.   The  command
+        stream  parameter  'n'  is used when an indirect command
+        file is given on the input stream.   All  error  reports
+        are output on the users console and if the current input
+        stream is the users  console,  a  prompt  is  output  to
+        indicate  that  another  command  line is required.  The
+        existence of further input file specifications which can
+        be  read  using  the  EXTERNAL routine READFS, is tested
+        thus:-
+
+        e.g.
+<HR>
+3B35D                                                    Page 14
+                                                          Nov 78
+
+
+        %IF NEXTSYMBOL = ',' %THEN SKIPSYMBOL %AND
+        READFS(fsrecord)
+
+        See the description of READFS routine.
+
+ASSOCIATED PROCEDURES:  SET STREAMS, READ FS, DEFAULT, WRITE FS
+
+ERROR CONDITIONS:  Syntax errors are reported as follows and the
+        rest of the line is typed out and ignored.
+
+        Command error: "rest of line"
+
+        If the input command stream is the  users  console,  the
+        user  is  reprompted,  otherwise  the following error is
+        caused:-
+
+        %SIGNAL 10, 9, 0, "Bad file specification 'filespec'"
+
+
+
+
+                              DATE
+
+DEFINITION:  This string function returns todays date as a  nine
+        character string.
+
+SPEC:   %EXTERNALSTRING(9)%FN DATE
+
+USE:    s=DATE
+
+        No parameters
+
+        todays date is returned as a nine  character  string  of
+        the form DD-MON-YY via %RESULT.
+
+ASSOCIATED PROCEDURES:  GET DATE, FROM DATE, TO DATE, DATETOSTR,
+        TIME, GET TIME, FROM TIME, TO TIME, TIMETOSTR, DATETIME,
+        GET NOW, FROM UDT,  TO  UDT,  UDTTOSTR,  DAY,  DAYTOSTR,
+        ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 15
+                                                          Nov 78
+
+
+                           DATE TIME
+
+DEFINITION:  This string function returns the current  date  and
+        time an eighteen character string via %RESULT.
+
+SPEC:   %EXTERNALSTRING(18)%FN DATE TIME
+
+USE:    s=DATE TIME
+
+        No parameters
+
+        the current date and time are returned  as  an  eighteen
+        character  string  of  the  form  HH:MM:SS DD-MON-YY via
+        %RESULT.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR,   TIME,   GET   TIME,  FROM  TIME,  TO  TIME,
+        TIMETOSTR, GET NOW, FROM UDT,  TO  UDT,  UDTTOSTR,  DAY,
+        DAYTOSTR, ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+                           DATETOSTR
+
+DEFINITION:  This string function returns the given  date  as  a
+        nine character string.
+
+SPEC:   %EXTERNALSTRING(9)%FN DATETOSTR(%INTEGER date)
+
+USE:    s=DATETOSTR(date)
+
+        date    is an integer expression being  a  date  in  DEC
+                internal format
+
+        the given date is returned as a nine character string of
+        the form DD-MON-YY via %RESULT.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        TIME, GET TIME, FROM TIME, TO TIME, TIMETOSTR, DATETIME,
+        GET NOW, FROM UDT,  TO  UDT,  UDTTOSTR,  DAY,  DAYTOSTR,
+        ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 16
+                                                          Nov 78
+
+
+                              DAY
+
+DEFINITION:  This string function gives the value of the day  of
+        the week as a string of up to nine characters.
+
+SPEC:   %EXTERNALSTRING(9)%FN DAY
+
+USE:    s=DAY
+
+        No parameters
+
+        the un-abreviated day of the week is  returned  with  no
+        filling characters via %RESULT.
+
+ASSOCIATED PROCEDURES:  DAYTOSTR
+
+ERROR CONDITIONS:  None
+
+
+
+
+        <B>n</B>ap;.f;.c DAYTOSTR
+
+DEFINITION:  This string function gives the value of the day  of
+        the  week  as a string of up to nine characters, for the
+        given date.
+
+SPEC:   %EXTERNALSTRING(9)%FN DAYTOSTR(%INTEGER udt)
+
+USE:    s=DAYTOSTR(udt)
+
+        udt     is  an  integer  expression  being  a  date   in
+                universal date-time format
+
+        the day of the week which corresponds to the given  date
+        is returned as an un-abreviated, non-filled string of up
+        to 9 characters, via %RESULT
+
+ASSOCIATED PROCEDURES:  DAY, UDTTOSTR, TOUDT
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 17
+                                                          Nov 78
+
+
+                              DDT
+
+DEFINITION:  This routine will enter DDT from a running program,
+        when DDT is loaded.
+
+SPEC:   %SYSTEMROUTINE DDT(%name x)
+
+CALL:   DDT(x)
+
+        x       is the name of a variable which can be used  for
+                identification  of  the  particular  call of the
+                routine.
+
+        If DDT is loaded the call of this routine causes DDT  to
+        be  entered.   Thus  it acts as a breakpoint from a main
+        program.  The  registers  are  left  unaltered  and  the
+        address   of  the  variable  pointed  to  by  the  %NAME
+        parameters is kept in the integer DDARG.
+
+        The program can be continued from DDT by typeing:-
+
+        DDCONT$G
+
+        which effectively returns from the DDT routine.
+
+ERROR CONDITIONS:  When DDT is not loaded the following  message
+        is output:-
+
+        DDT not loaded - continuing
+
+        and the program continues execution.
+
+
+
+
+                             DECODE
+
+DEFINITION:  This routine outputs a given  address  and  machine
+        instruction.
+
+SPEC:   %EXTERNALROUTINE DECODE(%INTEGER instr, adr)
+
+CALL:   DECODE(instr,adr)
+
+        instr   is  an  integer  expression  being   a   machine
+                instruction
+        adr     is an integer expression which  is  an  absolute
+                address
+
+        the given address is output to  the  currently  selected
+        output stream followed by the instruction argument which
+        is also decoded  into  its  various  fields  and  opcode
+        mnemonics.   The  layout  is shown below and all numbers
+        are in octal.
+
+        DECODE(INTEGER(8_400010),ADDR(8_400010))
+<HR>
+3B35D                                                    Page 18
+                                                          Nov 78
+
+
+        produces the  first  instruction  of  a  program's  high
+        segment, thus:-
+
+        400010   254000 400224   JRST    0, 400224
+
+ERROR CONDITIONS:  see PRINTSYMBOL.
+
+
+
+
+                            DEFAULT
+
+DEFINITION:  This routine allows default settings to be  applied
+        to a file specification record.
+
+SPEC:   %EXTERNALROUTINE DEFAULT(%RECORD(FILESPEC)%name fs1,fs2)
+
+CALL:   DEFAULT(fs1,fs2)
+
+        fs1     is the name of the file specification record  to
+                which defaults are to be applied
+        fs2     is a similar  record  containing  the  neccesary
+                default values
+
+        The items of the first record are  examined  and  if  an
+        item  is  null  then it is set equal to the value of the
+        corresponding item in the second record.
+
+        e.g.
+        FS1 contains  the spec. "myfile[11,22]"
+        FS2 contains  the spec. "dsk:fred.rel[10,12]/buffers:5"
+        a call of DEFAULT(FS1,FS2) results in:-
+        FS1 containing  the spec.
+        "dsk:myfile.rel[11,22]/buffers:5"
+        FS2 remains unchanged
+
+ASSOCIATED PROCEDURES:  READ FS, WRITE FS, CUSP FILES
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 19
+                                                          Nov 78
+
+
+                          DEFINE INPUT
+
+DEFINITION:  This routine associates a given device or file with
+        a  given stream number and opens that device or file for
+        input.
+
+SPEC:   Not required
+
+CALL:   DEFINE INPUT(n,spec)
+
+        n       is an integer expression whose  value  must  lie
+                between  1 and 15 and which represents the input
+                stream number to be used.
+        spec    is a string containing a full DECsystem-10  file
+                specification  including  switches,  a  list  of
+                which is given in section 3 of this document.
+
+        The given device or file is opened and  associated  with
+        the  logical input stream number 'n'.  It is selected as
+        the current input stream by  calling  SELECT  INPUT  for
+        that stream.
+
+        The device TMP:  is  allowed  using  a  three  character
+        file-name.   It  reads  a temporary file residing in the
+        users store,  which  exists  for  the  duration  of  the
+        current  job.  (See the description of the TMPCOR UUO in
+        the DECsystem-10 Monitor Calls  manual).   If  the  file
+        does   not   exist   in  the  current  TMPCOR  space,  a
+        job-specific file is looked for on disk  with  the  name
+        'xxxNAM.TMP', where 'xxx' is the current job-number.
+
+ASSOCIATED PROCEDURES:   JOBFILE,  XDEFINE  INPUT,  SDEF  INPUT,
+        SELECT INPUT, CLOSE INPUT, RESET INPUT
+
+ERROR CONDITIONS:  When a syntax error is found  in  the  string
+        parameter the following event occurs:-
+
+        %SIGNAL 10, 9, n, "Bad file specification  'filespec'"
+
+        A stream number lying outside the range 1 to  15  causes
+        event
+
+        %SIGNAL 10, 1, n, "Defining illegal stream"
+
+        Trying to re-define a previously defined  stream  causes
+        event
+
+        %SIGNAL 10, 2, n, "Stream/channel already defined"
+
+        When an unknown switch is found in the specification:-
+
+        %SIGNAL 5, 10, 0, "Unknown switch / ...  "
+
+        And when  an  illegal  switch  argument  is  passed  the
+        following event occurs
+<HR>
+3B35D                                                    Page 20
+                                                          Nov 78
+
+
+        %SIGNAL 5, 9, arg, "Incorrect argument for switch / ...
+        "
+
+        Trying to open an unknown type of device causes event
+
+        %SIGNAL 10, 3, 0, "Unknown device 'device'"
+
+        The following indicates that there is not  enough  store
+        availble  for  buffer  space  and  that a larger heap is
+        required
+
+        %SIGNAL 2, 5, reqd.  space, "heap space full"
+
+        An error occuring while trying  to  open  a  file  cause
+        events
+
+        %SIGNAL 10, 6, 0, "Cannot open device 'device'"
+          or (for MAGtapes only)
+        %SIGNAL 10, 15, err, "Tapop failure"
+          or
+        %SIGNAL 10, 4, err, "Lookup error for 'filespec'"
+
+        where err is an error  code  listed  in  appendix  E  of
+        DECsystem-10  MONITOR  CALLS Manual.  (Note that error 0
+        indicates that the file was not found.)
+
+
+
+
+                         DEFINE OUTPUT
+
+DEFINITION:  This routine associates a given device or file with
+        a  given stream number and opens that device or file for
+        output.
+
+SPEC:   Not required
+
+CALL:   DEFINE OUTPUT(n,spec)
+
+        n       is an integer expression whose  value  must  lie
+                between 1 and 15 and which represents the output
+                stream number to be used.
+        spec    is a string containing a full DECsystem-10  file
+                specification  including  switches,  a  list  of
+                which is given in section 3 of this document.
+
+        The given device or file is opened and  associated  with
+        the logical output stream number 'n'.  It is selected to
+        be the current output stream by  calling  SELECT  OUTPUT
+        for that stream.
+
+        The device TMP:  is  allowed  using  a  three  character
+        file-name.   It creates a temporary file residing in the
+        users store,  which  exists  for  the  duration  of  the
+        current  job.  (See the description of the TMPCOR UUO in
+        the DECsystem-10 Monitor Calls manual).  If the file  is
+<HR>
+3B35D                                                    Page 21
+                                                          Nov 78
+
+
+        too  large  for the current TMPCOR space, a job-specific
+        file is created on  disk  with  the  name  'xxxNAM.TMP',
+        where 'xxx' is the current job-number.
+
+ASSOCIATED PROCEDURES:  JOBFILE, XDEFINE  OUTPUT,  SDEF  OUTPUT,
+        SELECT OUTPUT, CLOSE OUTPUT, RESET OUTPUT
+
+ERROR CONDITIONS:  When a syntax error is found  in  the  string
+        parameter the following event occurs:-
+
+        %SIGNAL 10, 9, 0, "Bad file spec:-  'filespec'"
+
+        A stream number lying outside the range 1 to  15  causes
+        event
+
+        %SIGNAL 10, 1, n, "Defining illegal stream"
+
+        Trying to re-define a previously defined  stream  causes
+        event
+
+        %SIGNAL 10, 2, n, "Stream/channel already defined"
+
+        When an unknown switch is found in the specification:-
+
+        %SIGNAL 5, 10, 0, "Unknown switch / ...  "
+
+        And when  an  illegal  switch  argument  is  passed  the
+        following event occurs
+
+        %SIGNAL 5, 9, arg, "Incorrect argument for switch / ...
+        "
+
+        Trying to open an unknown type of device causes event
+
+        %SIGNAL 10, 3, 0, "Unknown device 'device'"
+
+        The following indicates that there is not  enough  store
+        availble  for  buffer  space  and  that a larger heap is
+        required
+
+        %SIGNAL 2, 5, reqd.  space, "heap space full"
+
+        An error occuring while trying  to  open  a  file  cause
+        events
+
+        %SIGNAL 10, 6, 0, "Cannot open device 'device'"
+          or (for MAGtapes only)
+        %SIGNAL 10, 15, err, "Tapop failure"
+          or
+        %SIGNAL 10, 4, err, "Enter error for 'filespec'"
+
+        where err is an error  code  listed  in  appendix  E  of
+        DECsystem-10 MONITOR CALLS Manual.
+<HR>
+3B35D                                                    Page 22
+                                                          Nov 78
+
+
+                             DELETE
+
+DEFINITION:  This routine deletes  the  file  specified  in  the
+        string parameter.
+
+SPEC:   %EXTERNALROUTINE DELETE(%STRING(255) spec)
+
+CALL:   DELETE(spec)
+
+        spec    is a string containing a full DECsystem-10 style
+                file  specification  indicating  a  file  to  be
+                deleted
+
+        The file specified in the string is deleted.
+
+ASSOCIATED PROCEDURES:  XDELETE, (X)RENAME, (X)COPY, (X)ISFILE
+
+ERROR CONDITIONS:   If  the  deletion  is  not  successful,  the
+        following event occurs
+
+        %SIGNAL 10, 4, err, "Cannot RENAME/DELETE 'filespec'"
+
+        The meaning of  err  is  given  in  appendix  E  of  the
+        DECsystem-10 MONITOR CALLS Manual.
+
+        Other possible errors are:-
+
+        %SIGNAL 10, 9, 0, "Bad file specification - 'filespec'"
+        %SIGNAL 10, 6, 0, "Cannot open device for 'filespec'"
+        %SIGNAL 2, 5, 0, "All I/O channels in use"
+
+
+
+
+                              ECHO
+
+DEFINITION:  This routine turns  on  character  echoing  on  the
+        users console (it is the converse of NOECHO).
+
+SPEC:   %EXTERNALROUTINE ECHO
+
+CALL:   ECHO
+
+        No parameters
+
+        Echoing of  characters  typed  to  the  DECsystem-10  in
+        full-duplex mode on the users console is enabled.  It is
+        normally only disabled by a call of NOECHO.
+
+ASSOCIATED PROCEDURES:  NOECHO
+
+ERROR CONDITIGNS:  None
+<HR>
+3B35D                                                    Page 23
+                                                          Nov 78
+
+
+                          ENDOFPERIOD
+
+DEFINITION:  This integer function returns the date and time  in
+        universal  date-time  format  of  the  end  of the given
+        accounting period.
+
+SPEC:   %EXTERNALINTEGERFN ENDOFPERIOD(%INTEGER period)
+
+USE:    udt=ENDOFPERIOD(period)
+
+        period  is an integer  expression  being  a  four  digit
+                accounting   period   whose   end  date-time  is
+                required
+
+        the final date and time of the given accounting  period,
+        is   returned  as  a  universal  date-time  integer  via
+        %RESULT.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR,   TIME,   GET   TIME,  FROM  TIME,  TO  TIME,
+        TIMETOSTR,  DATETIME,  GET  NOW,  FROM  UDT,   TO   UDT,
+        UDTTOSTR, DAY, DAYTOSTR, ACCPER, STARTOFPERIOD
+
+ERROR CONDITIONS:  when the parameters is not of the  form  YYMM
+        or  is  an  impossible  value,  the  following  event is
+        caused:-
+
+        %SIGNAL 11, 22, period, "Accounting period incorrectly
+        specified"
+
+
+
+
+                              ESC
+
+DEFINITION:  This integer constant gives the internal ASCII code
+        value for the escape character.
+
+SPEC:   Not required
+
+USE:    n=ESC
+
+        The numerical value of the escape character is given.
+
+ASSOCIATED CONSTANTS:  SP, TAB, NL, FF
+
+
+
+
+<HR>
+3B35D                                                    Page 24
+                                                          Nov 78
+
+
+                             EVENT
+
+DEFINITION:  This integer function gives the value of  the  last
+        class  of  event  to  have been trapped by an %ON %EVENT
+        block.
+
+SPEC:   Not required
+
+USE:    n=EVENT
+
+        No parameters
+
+        when a series of possible events have been trapped, this
+        integer  function  returns the number of the event which
+        caused the trap, via %RESULT.
+
+ASSOCIATED PROCEDURES:  SUB EVENT, EVENT INFO
+
+ERROR CONDITIONS:  None
+
+
+
+
+                           EVENT INFO
+
+DEFINITION:  This integer function gives the value of the  extra
+        information   associated   with  the  last  event  which
+        occurred.
+
+SPEC:   Not required
+
+USE:    n=EVENT INFO
+
+        No parameters
+
+        when an event has been trapped,  the  extra  information
+        associated with the event is returned via %RESULT
+
+ASSOCIATED PROCEDURES:  EVENT, SUB EVENT
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 25
+                                                          Nov 78
+
+
+                               FF
+
+DEFINITION:  This integer constant gives the internal ASCII code
+        value for the form-feed character.
+
+SPEC:   Not required
+
+USE:    n=FF
+
+        The numerical value of the form-feed character is given.
+
+ASSOCIATED CONSTANTS:  SP, TAB, ESC, NL
+
+
+
+
+                             FILOP
+
+DEFINITION:  This predicate performs operations like  opening  a
+        device  or  file,  by  using  the  'FILOP'  UUO or using
+        equivalent Monitor Calls.
+
+SPEC:   %SYSTEMPREDICATE FILOP(%RECORD(SCB)%name scb,
+        %INTEGERname err)
+
+USE:    %IF FILOP(scb,err) %THEN . . .
+
+        scb     is the name of a  Stream  Control  Block  record
+                which  has been completely set up, including the
+                required 'FILOP' function code
+        err     is  the  name  of  an  integer  variable   which
+                contains  -1  if  the function was successful or
+                else an error code whose  values  are  given  in
+                appendix  E  of  the  DECsystem-10 MONITOR CALLS
+                Manual.
+
+        The FILOP Function specified in the given Stream Control
+        Block  is  performed  either  by a 'FILOP' UUO or by its
+        equivalents depending on the  Monitor  version  and  the
+        function required.
+
+        On successful execution the procedure  returns  a  value
+        %TRUE and 'err' = -1
+
+        On failure it returns a value %FALSE and 'err'  contains
+        the error code.
+
+ASSOCIATED PROCEDURES:  TAPOP, IOUUO
+
+ERROR CONDITIONS:  As well as returning any of the  error  codes
+        mentioned above the following two events may occur:-
+
+        %SIGNAL 10, 6, 0, "Cannot open device 'device'"
+<HR>
+3B35D                                                    Page 26
+                                                          Nov 78
+
+
+                             FINIT
+
+DEFINITION:  This routine closes any streams  which  use  TMPCOR
+        files,  and  is  used  by  the  run  time  system at the
+        termination of a program prior to  the  closing  of  all
+        other streams.
+
+SPEC:   %SYSTEMROUTINE FINIT
+
+CALL:   FINIT
+
+        No parameters
+
+        Streams associated with TMPCOR files are  special  cases
+        and  require  to  be  closed  explicitly by the program.
+        This routine closes  any  currenty  open  TMPCOR  output
+        files  and  is  used  by  the  run  time system prior to
+        releasing all assigned channels at the termination of  a
+        run.
+
+ASSOCIATED PROCEDURES:  INITIO, CLOSE OUTPUT, DEFINE OUTPUT
+
+ERROR CONDITIONS:  Any of those  errors  associated  with  CLOSE
+        OUTPUT and DEFINE OUTPUT could, but should not occur.
+
+
+
+
+                             FLOAT
+
+DEFINITION:  This real function returns the value of  the  given
+        integer as a floating point number.
+
+SPEC:   Not required
+
+USE:    r=FLOAT(n)
+
+        n       is  an  integer  expression  which  is   to   be
+                converted to a real
+
+        the integer parameter is  converted  to  a  real  number
+        whose value is returned via %RESULT.
+
+ASSOCIATED PROCEDURES:  INT, INT PT, FRAC PT
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 27
+                                                          Nov 78
+
+
+                            FRAC PT
+
+DEFINITION:  This longreal  function  gives  the  value  of  the
+        fractional part of the given longreal expression.
+
+SPEC:   Not required
+
+USE:    r=FRAC PT(x)
+
+        x       is  a  longreal   expression   for   which   the
+                fractional part is to be returned
+
+        The fractional part of 'x' is returned as  a  long  real
+        via %RESULT.
+
+        e.g.  the FRAC PT(3.14159)  is 0.14159
+
+ASSOCIATED PROCEDURES:  INT, INT PT, FLOAT
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            FREE VEC
+
+DEFINITION:  This routine returns a given  vector  back  to  the
+        Heap.
+
+SPEC:   %SYSTEMROUTINE FREE VEC(%INTEGER n,m)
+
+CALL:   FREE VEC(n,m)
+
+        n       is an integer expression being start address  of
+                the vector to be returned
+        m       is an integer expression  which  represents  the
+                length of the vector to be returned.
+
+        The space claimed from the Heap is returned  using  this
+        routine.    It  is  used  by  the  run-time  system  for
+        returning I/O buffer space.
+
+ASSOCIATED PROCEDURES:  GET VEC, INIT HEAP
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 28
+                                                          Nov 78
+
+
+                           FROM DATE
+
+DEFINITION:  This routine takes a date in  DEC  internal  format
+        and returns the day, month and year as integers.
+
+SPEC:   %EXTERNALROUTINE FROM DATE(%INTEGERname d, m, y)
+
+CALL:   FROM DATE(d,m,y)
+
+        d       is the name of an integer  variable  which  will
+                contain the returned day of the month
+        m       is the name of an integer  variable  which  will
+                contain the returned month of the year
+        y       is the name of an integer  variable  which  will
+                contain the returned year including centuries
+
+        the date in DEC internal date  format  is  converted  to
+        three integers representing the day, month and year, and
+        these are returned in the integername parameters  given.
+        The year is returned as a four digit number.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE,  GET  DATE,  TO  DATE,  DATETOSTR,
+        TIME, GET TIME, FROM TIME, TO TIME, TIMETOSTR, DATETIME,
+        GET NOW, FROM UDT,  TO  UDT,  UDTTOSTR,  DAY,  DAYTOSTR,
+        ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+                           FROM TIME
+
+DEFINITION:  This routine converts  time  in  milliseconds  (DEC
+        internal form), into hours, minutes and seconds.
+
+SPEC:   %EXTERNALROUTINE FROM TIME(%INTEGER time, %INTEGERname
+        h, m, s)
+
+CALL:   FROM TIME(time,h,m,s)
+
+        time    is an  integer  expression  being  the  time  in
+                milliseconds
+        h       is the name of an integer  variable  which  will
+                contain the returned number of hours
+        m       is the name of an integer  variable  which  will
+                contain  the returned number of minutes past the
+                hour
+        s       is the name of an integer  variable  which  will
+                contain  the retruned number of seconds past the
+                minute
+
+        the time in milliseconds  past  midnight  (DEC  internal
+<HR>
+3B35D                                                    Page 29
+                                                          Nov 78
+
+
+        form)  is  converted  to hours, minutes and seconds past
+        midnight and returned in the given name type parameters.
+
+        No parameter checking is done  so  that  the  result  is
+        calculated for any number of milliseconds.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR, TIME, GET TIME, TO TIME, TIMETOSTR, DATETIME,
+        GET NOW, FROM UDT,  TO  UDT,  UDTTOSTR,  DAY,  DAYTOSTR,
+        ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            FROM UDT
+
+DEFINITION:  This routine converts date and  time  specified  in
+        universal  date-time  format,  to  date  and time in DEC
+        internal format.
+
+SPEC:   %EXTERNALROUTINE FROM UDT(%INTEGER udt, %INTEGERname
+        date, time)
+
+CALL:   FROM UDT(udt,date,time)
+
+        udt     is an integer expression being date and time  in
+                universal date-time format
+        date    is the name of an integer  variable  which  will
+                contain the returned date in DEC internal form
+        time    is the name of an integer  variable  which  will
+                contain the returned time in DEC internal form
+
+        the date and time specified in the  universal  date-time
+        form  is  returned  as date and time in the DEC internal
+        form in the the name type parameters
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR,   TIME,   GET   TIME,  FROM  TIME,  TO  TIME,
+        TIMETOSTR, DATETIME, GET NOW,  TO  UDT,  UDTTOSTR,  DAY,
+        DAYTOSTR, ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 30
+                                                          Nov 78
+
+
+                            FSTOSTR
+
+DEFINITION:   This  string  function  converts  a   given   file
+        specification record into a string.
+
+SPEC:   %EXTERNALSTRING(255)%FN FSTOSTR (%RECORD(FILESPEC)%name
+        fs)
+
+USE:    s=FSTOSTR(fs)
+
+        fs      is the name of a file specification record to be
+                converted
+
+        The given record is  converted  to  an  IMP  string  and
+        returned via %RESULT
+
+ASSOCIATED PROCEDURES:  STRTOFS, READ FS, WRITE FS, DEFAULT
+
+ERROR CONDITIONS:  None
+
+
+
+
+                          GET CHANNEL
+
+DEFINITION:  This integer function gives the value of  the  next
+        free physical channel.
+
+SPEC:   %SYSTEMINTEGERFN GET CHANNEL
+
+USE:    n=GET CHANNEL
+
+        No parameters
+
+        The next free physical channel number  is  returned  via
+        %RESULT.   The  run-time  system uses this function when
+        defining streams and opening DA or SQ channels.
+
+ASSOCIATED PROCEDURES:  GETSTS, SETSTS, CLOSE, RELEASE, IOUUO
+
+ERROR CONDITIONS:  When all I/O channels are in use (i.e.   when
+        15  streams  or  channels  are  open simultaneously) the
+        following event occurs:-
+
+        %SIGNAL 2, 5, 0, "All I/O channels in use"
+
+
+
+
+<HR>
+3B35D                                                    Page 31
+                                                          Nov 78
+
+
+                            GET DATE
+
+DEFINITION:  This  integer  function  gives  the  value  of  the
+        current date in DEC internal form
+
+SPEC:   %EXTERNALINTEGERFN GET DATE
+
+USE:    d=GET DATE
+
+        No parameters
+
+        the current date in DEC internal form  is  returned  via
+        %RESULT.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, FROM  DATE,  TO  DATE,  DATETOSTR,
+        TIME, GET TIME, FROM TIME, TO TIME, TIMETOSTR, DATETIME,
+        GET NOW, FROM UDT,  TO  UDT,  UDTTOSTR,  DAY,  DAYTOSTR,
+        ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            GET NOW
+
+DEFINITION:  This  integer  function  gives  the  value  of  the
+        current date and time in universal date-time format
+
+SPEC:   %EXTERNALINTEGERFN GET NOW
+
+USE:    udt=GET NOW
+
+        No parameters
+
+        the current date and  time  are  returned  in  universal
+        date-time format via %RESULT.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR,   TIME,   GET   TIME,  FROM  TIME,  TO  TIME,
+        TIMETOSTR, DATETIME, FROM UDT, TO  UDT,  UDTTOSTR,  DAY,
+        DAYTOSTR, ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 32
+                                                          Nov 78
+
+
+                           GET PAGES
+
+DEFINITION:  This routine gets a number of free pages  from  the
+        DECsystem-10 Monitor
+
+SPEC:   %SYSTEMROUTINE GET PAGES(%INTEGER first, last)
+
+CALL:   GET PAGES(first,last)
+
+        first   is an integer expression being the  page  number
+                of the first page required
+        last    is an integer expression being the  page  number
+                of the last page required
+
+        a number of consecutive pages in store are obtained from
+        the  monitor.  If necessary and if possible, the routine
+        will get virtual store if  no  more  physical  store  is
+        available.
+
+        On a DECsystem-20 this routine just returns.
+
+        It is up to the user to know what they are doing and not
+        to obtain pages that the run time system may require for
+        stack space.
+
+ERROR CONDITIONS:  when core cannot be obtained for  any  reason
+        the following event is caused:-
+
+        %SIGNAL 2, 1, fault, "Cannot get store"
+
+        where fault is a page fault number whose meaning can  be
+        found in the DECsystem-10 MONITOR CALLS Manual.
+
+
+
+
+                             GETSEG
+
+DEFINITION:  This  routine  has  the  effect  of  replacing  the
+        current  high segment of a program by the one specified,
+        whilst leaving the low segment data unaltered.
+
+SPEC:   %EXTERNALROUTINE GETSEG(%STRING(6) dev,file, %STRING(3)
+        ext, %INTEGER ppn)
+
+CALL:   GETSEG(dev,file,ext,ppn)
+
+        dev     is a string containing the name  of  the  device
+                from which the new high segment is to be taken
+        file    is a string containing the file name of the file
+                from which the new high segment is to be taken
+        ext     is a string specifying the extension to the file
+                name  (If  an extension .SAV is given, .EXE will
+                be tried first)
+        ppn     is  an  integer  expression  giving  the   octal
+                representation  of  the  project-programmer pair
+<HR>
+3B35D                                                    Page 33
+                                                          Nov 78
+
+
+                for the new high-segment file (If zero is given,
+                the users own area is assumed.)
+
+        This routine allows the user to use  a  number  of  code
+        segments to operate on the same data segment.  It leaves
+        the registers unaltered and returns control to the start
+        of the new program segment.
+
+ASSOCIATED PROCEDURES:  RUN
+
+ERROR CONDITIONS:  The monitor may produce one of the  following
+        messages:-
+
+        ?NOT A SAVE FILE
+        ? ... .SAV NOT FOUND
+        ?TRANSMISSION ERROR
+        ?LOOKUP FAILURE 'N'
+        ?'N'P OF CORE NEEDED
+        ?NO START ADDRESS
+
+
+
+
+                             GETSTS
+
+DEFINITION:  This integer function gives the value of the status
+        word  for  the  device  associated with a given physical
+        channel number.
+
+SPEC:   %SYSTEMINTEGERFN GETSTS(%INTEGER n)
+
+USE:    n=GETSTS(n)
+
+        n       is an integer expression giving  the  number  of
+                the physical channel number to be looked at (the
+                left-half of the FILOPFN item in an SCB record)
+
+        Each physical channel has associated with it  a  set  of
+        status  bits  which  this function reads and returns via
+        %RESULT.  Note that the meaning of these bits depend  on
+        the   particular   device   being   examined   (see  the
+        DECsystem-10 MONITOR CALLS  Manual  for  the  particular
+        device in question).
+
+ASSOCIATED PROCEDURES:  INSTATUS, OUTSTATUS, SETSTS
+
+ERROR CONDITIONS:  When the channel number refers to  a  channel
+        which  has  no  device  associated  with it, the monitor
+        gives the following fatal error:-
+
+        ?I/O TO UNASSIGNED CHANNEL AT USER addr
+
+
+
+
+<HR>
+3B35D                                                    Page 34
+                                                          Nov 78
+
+
+                             GETTAB
+
+DEFINITION:    This   predicate   returns    information    from
+        DECsystem-10 Monitor tables.
+
+SPEC:   %SYSTEMPREDICATE GETTAB(%INTEGER table,index,
+        %INTEGERname result)
+
+USE:    %IF GETTAB(table,index,result) %THEN . . .
+
+        table   is an integer expression giving the table number
+                to be examined
+        index   is an integer expression giving the  index  into
+                that table
+        result  is  the  name  of  an  integer  variable   which
+                contains  the  resultant  value if the predicate
+                was successful, otherwise is contains zero
+
+        This predicate uses the Monitor GETTAB UUO  which  is  a
+        way  of  examining the tables in which the Monitor keeps
+        information about jobs and itself.  (see the  decription
+        of  the  GETTAB  UUO  in  the DECsystem-10 MONITOR CALLS
+        Manual for a list  of  its  possible  argument  values).
+        When the predicate is %TRUE the result is passed back in
+        the third parameter, otherwise that parameter is set  to
+        zero.
+
+ASSOCIATED PROCEDURES:  CALLI1, CALLI2, CALLI3
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            GET TIME
+
+DEFINITION:  This integer function returns the time  of  day  in
+        milliseconds since midnight.
+
+SPEC:   %EXTERNALINTEGERFN GET TIME
+
+USE:    t=GET TIME
+
+        No parameters
+
+        The time of  day  in  milliseconds  past  midnight  (DEC
+        internal form) is returned via %RESULT.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR,   TIME,   GET   TIME,  FROM  TIME,  TO  TIME,
+        TIMETOSTR, DATETIME, FROM UDT, TO  UDT,  UDTTOSTR,  DAY,
+        DAYTOSTR, ACCPER, STARTOFPERIOD, ENDOFPERIOD
+<HR>
+3B35D                                                    Page 35
+                                                          Nov 78
+
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            GET VEC
+
+DEFINITION:  This integer function allocates space in  the  HEAP
+        and returns the start address of the required vector.
+
+SPEC:   %SYSTEMINTEGERFN GET VEC(%INTEGER size)
+
+USE:    n=GET VEC(size)
+
+        size    is an integer expression specifying the  ammount
+                of HEAP space required
+
+        The HEAP is  scanned  until  a  hole  the  size  of  the
+        required  length  is  found.   This  is  then flagged as
+        allocated  and  the  start  address  of  the  vector  is
+        returned via %RESULT.
+
+        The system uses this routine whenever space is  required
+        for  I/O  e.g.  DEFINE INPUT, OPEN SQ etc.  But together
+        with FREE VEC it is useful whenever dynamic  storage  is
+        required.
+
+ASSOCIATED PROCEDURES:  FREE VEC, INIT HEAP
+
+ERROR CONDITIONS:  When no hole large enough  is  found  in  the
+        heap the following event occurs:-
+
+        %SIGNAL 2, 4, size, "Heap space full"
+
+
+
+
+<HR>
+3B35D                                                    Page 36
+                                                          Nov 78
+
+
+                            HEXTOSTR
+
+DEFINITION:  This string function returns  a  string  containing
+        the represention of an unsigned hexidecimal integer as a
+        string of digits.
+
+SPEC:   %EXTERNALSTRING(9)%FN HEXTOSTR(%INTEGER n)
+
+USE:    s=HEXTOSTR(n)
+
+        n       is  an  integer   expression   representing   an
+                hexidecimal number
+
+        An  integer  expression  is  treated  as   an   unsigned
+        hexidecimal  number  and returned as a string of up to 9
+        digits and letters without leading zeroes or spaces  via
+        %RESULT.
+
+ASSOCIATED PROCEDURES:  READ HEX, WRITE HEX, STRTOHEX
+
+ERROR CONDITIONS:  None
+
+
+
+
+                          ICALL (0-9)
+
+DEFINITION:  These integer functions call the  FORTRAN  function
+        named   as   the  first  parameter  with  the  necessary
+        arguments given as the succeeding parameters.
+
+SPEC:   %EXTERNALINTEGERFN ICALL (0-9)(%name ifn, %name arg1, ..
+        %name arg9)
+
+USE:    N = ICALL (0-9)(ifn,arg1, .. arg9)
+
+        ifn     is  the  name  of  a  external  FORTRAN  integer
+                function.   For ease of handling, it is required
+                that the spec given in the IMP program  is  that
+                of %EXTERNALINTEGERSPEC.
+        arg1    is the name of the  first  argument  if  one  is
+                needed
+        and so on up to
+        arg9    is the name of the  ninth  argument  if  one  is
+                needed
+
+        there are a set of IMP integer functions called  ICALL0,
+        ICALL1,  etc.   up  to ICALL9.  The number refers to the
+        number of arguments which the FORTRAN function requires.
+        See the following example:-
+
+        %BEGIN
+        %EXTERNALINTEGERSPEC FNOARG
+              !A FORTRAN FUNCTION WITH NO ARGUMENTS
+        %EXTERNALINTEGERSPEC F3ARGS
+              !A FORTRAN FUNCTION WITH THREE ARGUMENTS
+<HR>
+3B35D                                                    Page 37
+                                                          Nov 78
+
+
+        
+        %EXTERNALINTEGERFNSPEC ICALL0(%NAME FN)
+        %EXTERNALINTEGERFNSPEC ICALL3(%NAME FN, %NAME A,B,C)
+        
+        %INTEGER ARG1,ARG2,ARG3
+        %INTEGER N,M
+        
+        ARG1=1; ARG2=2; ARG3=3
+        N = ICALL0(FNOARG);                 !CALL FORTRAN
+        M = ICALL3(F3ARGS,ARG1,ARG2,ARG3);  !CALL FORTRAN
+        WRITE(N,0) %IF M &lt; 0
+        
+        %ENDOFPROGRAM
+
+        The %INCLUDE  file  "IMP:FORTRA.INC"  contains  all  the
+        specs for the ICALL functions.
+
+ASSOCIATED PROCEDURES:  CALL (0-9), RCALL (0-9)
+
+ERROR CONDITIONS:  Depending on the FORTRAN function called.
+
+
+
+
+                              IMOD
+
+DEFINITION:  This  integer  function  gives  the  value  of  the
+        modulus  (i.e.  the absolute value) of the given integer
+        quantity.
+
+SPEC:   Not required
+
+USE:    m=IMOD(n)
+
+        n       is an integer expression 
+
+        The integer value of the modulus of 'n' is returned  via
+        %RESULT.
+
+ASSOCIATED PROCEDURES:  MOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 38
+                                                          Nov 78
+
+
+                             INDEV
+
+DEFINITION:  This integer function gives the value of the device
+        type associated with the current input stream.
+
+SPEC:   %EXTERNALINTEGERFN INDEV
+
+USE:    n=INDEV
+
+        No parameters
+
+        A number indicating  the  generic  type  of  the  device
+        associated with the current input stream is returned via
+        %RESULT.
+
+        Below is listed the current range of possible values and
+        their meanings.
+
+        %CONSTINTEGER Name  Value Device Type
+
+           TMPDEV   = -2  a TMPCOR file residing in core
+           NULDEV   = -1  a null device
+                    (default value for unassigned streams)
+           DSKDEV   =  0  a Disk device
+           DTADEV   =  1  a DEC tape
+           MTADEV   =  2  a magnetic tape
+           TTYDEV   =  3  a teletype
+           XDSKDEV &gt;=  4  any other Disk-type device
+
+ASSOCIATED PROCEDURES:  INSTREAM, SELECT INPUT, INSTATUS
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            INITFOR
+
+DEFINITION:  This  routine  initialises  FOROTS  -  the  FORTRAN
+        Runtime system.
+
+SPEC:   %SYSTEMROUTINE INITFOR
+
+CALL:   INITFOR
+
+        No parameters
+
+        When calling FORTRAN Procedures from IMP, the  user  may
+        want  to  use  the  facilities  of FOROTS (e.g.  FORTRAN
+        I/O).  this routine causes  the  FOROTS  library  to  be
+        searched  at load time and initialises the FOROTS system
+        for subsequent use.  It is inadvisable to  mix  IMP  and
+        FORTRAN  I/O to anything other than the user's terminal,
+        but if the FORTRAN streams are set  up  before  any  IMP
+        streams then no trouble should be experienced.
+<HR>
+3B35D                                                    Page 39
+                                                          Nov 78
+
+
+ASSOCIATED PROCEDURES:  CALL, ICALL, RCALL
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            INITHEAP
+
+DEFINITION:  This routine initialises the heap space for IMP.
+
+SPEC:   %SYSTEMROUTINE INITHEAP
+
+CALL:   INITHEAP
+
+        No parameters
+
+        the heap which IMP uses for I/O buffer space is normally
+        set  up  by  an IMP main program.  When calling IMP from
+        another language,  and  heap  space  is  required,  this
+        routine  will  need  to  be  called  to  set up the list
+        structure of the heap.  The heap is set up by default to
+        start  at the top of the low segment and allowed to grow
+        upwards dynamically.  The heap can be fixed in  size  by
+        declaring  an external integer HEAPSIZE and brought into
+        the low segment by declaring an array called HEAP.
+
+        For a full desciption of the  memory  management  system
+        see  that  section  in  the  'IMP  on  the DEC-10 - User
+        Guide'.
+
+ASSOCIATED PROCEDURES:  INITSTACK, GETVEC,  FREEVEC,  SAVE  ACS,
+        RESTORE, INITIO
+
+ERROR CONDITIONS:  if the store is being set up dynamically  and
+        there  is  not  enough  space  the  following  event  is
+        caused:-
+
+        %SIGNAL 2, 4, reqd size, "Cannot get store for heap"
+
+
+
+
+<HR>
+3B35D                                                    Page 40
+                                                          Nov 78
+
+
+                             INITIO
+
+DEFINITION:  This routine sets up the input and  output  streams
+        at the start of program execution.
+
+SPEC:   %SYSTEMROUTINE INITIO
+
+CALL:   INITIO
+
+        No parameters
+
+        The system uses this routine to set all streams to  null
+        except  streams  zero which are set to the users console
+        and  are  selected  as  the  current  input  and  output
+        streams.
+
+        This  routine  is  implicitly  called  by  an  IMP  main
+        program,  and need only be called explicitly when IMP is
+        being called from a main program in another language and
+        IMP requires to do input or output.
+
+ASSOCIATED PROCEDURES:  INITHEAP, INITSTACK, SAVE ACS, RESTORE
+
+ERROR CONDITIONS:  None
+
+
+
+
+                           INITSTACK
+
+DEFINITION:  This routine sets up the IMP stack.
+
+SPEC:   %SYSTEMROUTINE INITSTACK
+
+CALL:   INITSTACK
+
+        No parameters
+
+        IMP uses a stack for return addresses  from  procedures,
+        the  previous  stack  base  address  and  for local data
+        storage.  The stack is set up automatically by  the  IMP
+        main  program,  however  if  an  IMP  procedure is being
+        called from another language, the stack may need  to  be
+        set  up.   This  routine sets up the stack by default to
+        lie at the top  of  the  user's  high  segment,  and  is
+        allowed  to  grow  upwards.   It  can however be made of
+        fixed size by declaring the external  integer  STACKSIZE
+        and  can be brought into the low segment by declaring an
+        external array STACK.
+
+        For a full desciption of the  memory  management  system
+        see  that  section  in  the  'IMP  on  the DEC-10 - User
+        Guide'.
+<HR>
+3B35D                                                    Page 41
+                                                          Nov 78
+
+
+ASSOCIATED PROCEDURES:  INITHEAP, INITIO, SAVE ACS, RESTORE
+
+ERROR CONDITIONS:  if no store can be allocated for the  dynamic
+        stack, the following event is caused:-
+
+        %SIGNAL 2, 4, fault, "Cannot get store"
+
+
+
+
+                             INPUT
+
+DEFINITION:  This routine causes the next input  buffer  on  the
+        currently selected input stream to be read.
+
+SPEC:   %SYSTEMROUTINE INPUT
+
+CALL:   INPUT
+
+        No parameters
+
+        this routine performs the DECsystem-10  Monitor  IN  UUO
+        which  causes all subsequent input to come from the next
+        buffer available on the currently selected input stream.
+
+        When called on a teletype or null stream, no  action  is
+        performed.
+
+ASSOCIATED PROCEDURES:  OUTPUT, USETI, USETO, READ SYMBOL, PRINT
+        SYMBOL
+
+ERROR CONDITIONS:  see READ SYMBOL
+
+
+
+
+                         INPUT PENDING
+
+DEFINITION:  This predicate returns the value %TRUE  when  there
+        is any input pending on the current input stream.
+
+SPEC:   %EXTERNALPREDICATE INPUT PENDING
+
+USE:    %IF INPUT PENDING %THEN . . .
+
+        No parameters
+
+        A value of %TRUE is  returned  when  the  current  input
+        stream is associated with a device other than a teletype
+        type or when there are characters waiting  to  be  input
+        from  the  users  console.  It returns %FALSE when there
+        are no characters waiting to be input from  the  current
+        input stream and that stream is the users console.
+<HR>
+3B35D                                                    Page 42
+                                                          Nov 78
+
+
+ASSOCIATED PROCEDURES:  PROMPT
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            INSTATUS
+
+DEFINITION:  This integer function gives the value of the status
+        word  for  the  device  associated  with  the  currently
+        selected input stream.
+
+SPEC:   %EXTERNALINTEGERFN INSTATUS
+
+USE:    n=INSTATUS
+
+        No parameters
+
+        each device has associated with it a set of status bits,
+        which  this function reads and returns via %RESULT.  The
+        meaning of  these  bits  is  device  dependent  and  are
+        described in the DECsystem-10 MONITOR CALLS Manual.
+
+        Zero is returned if the currently selected input  stream
+        is the nul device or the teletype.
+
+ASSOCIATED  PROCEDURES:   OUTSTATUS,  GETSTS,   SETSTS,   INDEV,
+        INSTREAM
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            INSTREAM
+
+DEFINITION:  This integer  function  gives  the  number  of  the
+        currently selected input stream.
+
+SPEC:   Not required
+
+USE:    n=INSTREAM
+
+        No parameters
+
+        The number (between 0 and 15) of the currently  selected
+        input stream is returned via %RESULT.
+
+ASSOCIATED PROCEDURES:  INDEV, SELECT INPUT
+
+ERROR CONDITIONS:  None
+<HR>
+3B35D                                                    Page 43
+                                                          Nov 78
+
+
+                              INT
+
+DEFINITION:  This  integer  function  gives  the  value  of  the
+        nearest integer to the long real quantity specified
+
+SPEC:   Not required
+
+USE:    n=INT(a)
+
+        a       is a longreal expression 
+
+        The value of the nearest integer to a  is  returned  via
+        %RESULT.  It is equivalent to INTPT (a+0.5).
+
+ASSOCIATED PROCEDURES:  INT PT, FRAC PT, FLOAT
+
+ERROR CONDITIONS:  See INT PT.
+
+
+
+
+                            INTEGER
+
+DEFINITION:  This map enables the  user  to  access  directly  a
+        particular location whose address is specified.
+
+SPEC:   Not required
+
+CALL:   INTEGER(adr)
+
+        adr     is an integer expression giving the  address  of
+                the required location.
+
+        This map allows the user to read or write directly to  a
+        location  in store by specifying the absolute address in
+        'adr'.
+
+ASSOCIATED  PROCEDURES:   BYTE  INTEGER,  SHORT  INTEGER,  REAL,
+        STRING, RECORD
+
+ERROR CONDITIONS:  If  the  value  of  'adr'  lies  outside  the
+        current  addressing space the following fatal error will
+        occur:-
+
+        ?IMP: Ill Mem Ref at user pc  'addr'
+
+
+
+
+<HR>
+3B35D                                                    Page 44
+                                                          Nov 78
+
+
+                             INT PT
+
+DEFINITION:  This  integer  function  gives  the  value  of  the
+        integral part of the given long real expression.
+
+SPEC:   Not required
+
+USE:    n=INT PT(a)
+
+        a       is a longreal expression 
+
+        The integral part of a is returned via %RESULT.
+
+        The integral part is the integer that is  less  than  or
+        equal to the expression.  Hence INT PT (-3.6) is -4.
+
+ASSOCIATED PROCEDURES:  INT, FRAC PT, FLOAT
+
+ERROR CONDITIONS:  If a is less than 34359738367 or greater than
+        -34359738368   then  the  Monitor  gives  the  following
+        error:-
+
+        ?arithmetic overflow at user PC 'addr'
+
+
+
+
+                            INTTOSTR
+
+DEFINITION:  This string function gives the value of  the  given
+        integer as a string of decimal digits.
+
+SPEC:   %EXTERNALSTRING(12)%FN INTTOSTR(%INTEGER n)
+
+USE:    s=INTTOSTR(n)
+
+        n       is an integer expression 
+
+        An integer expression is treated as a decimal number and
+        returned  as  a  signed string of digits with no leading
+        spaces via %RESULT.
+
+ASSOCIATED PROCEDURES:  OCTTOSTR, HEXTOSTR, BINTOSTR,  SIXTOSTR,
+        FSTOSTR, STRTOINT
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 45
+                                                          Nov 78
+
+
+                             IOUUO
+
+DEFINITION:  This predicate will perform one of the DECsystem-10
+        Monitor  calls  associated with input and output, namely
+        OPEN, LOOKUP, ENTER and RENAME.
+
+SPEC:   %SYSTEMPREDICATE IOUUO(%INTEGER op,chan, %NAME adr)
+
+USE:    %IF IOUUO(op,chan,adr) %THEN . . .
+
+        op      is an integer expression giving the  op-code  of
+                the required I/O function
+        chan    is an integer  expression  giving  the  physical
+                channel number
+        adr     is the name of a variable containing the address
+                of  the  block  of information that the specific
+                function requires.
+
+        The predicate has the value %TRUE when the  function  is
+        sucessfully completed and %FALSE otherwise.  
+
+ASSOCIATED  PROCEDURES:   GET  CHANNEL,  FILOP,  TAPOP,   CLOSE,
+        RELEASE
+
+ERROR CONDITIONS:  Any of the Monitor errors associated with the
+        given  function  may  occur.  For the appropriate action
+        following a value  of  %FALSE  the  user  will  need  to
+        consult  the DECsystem-10 MONITOR CALLS Manual under the
+        appropriate section.
+
+
+
+
+                              IOWD
+
+DEFINITION:  This integer function gives the  value  of  a  word
+        generated  by  an  eqivalent  to  the  Macro  type  IOWD
+        pseudo-op.
+
+SPEC:   %SYSTEMINTEGERFN IOWD(%INTEGER len, %INTEGERname adr)
+
+USE:    n=IOWD(len,adr)
+
+        len     is an integer expression giving the length of  a
+                block
+        adr     is the name of an  integer  variable  being  the
+                address of the start of the block
+
+        This equivalent to the MACRO pseudo-op IOWD has the same
+        function.   It  generates  the  form of word required by
+        BLKI, BLKO and all four pushdown instructions, from  the
+        two  pieces  of  information  supplied  relating  to the
+        length and location of a block of data.   The  generated
+        word is returned via %RESULT.
+<HR>
+3B35D                                                    Page 46
+                                                          Nov 78
+
+
+ASSOCIATED PROCEDURES:  ADDR, INTEGER
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            IS FILE
+
+DEFINITION:  This predicate tests to see whether  the  specified
+        file exists or not.
+
+SPEC:   %EXTERNALPREDICATE IS FILE(%STRING(255) spec)
+
+USE:    %IF IS FILE(spec) %THEN . . .
+
+        spec    is a string containing the specification of  the
+                file to be tested
+
+        The predicate has the value %TRUE if the file exists and
+        %FALSE  if  it  does not, or cannot be accessed for some
+        reason.
+
+ASSOCIATED PROCEDURES:  XISFILE, (X)COPY, (X)DELETE, (X)RENAME
+
+ERROR CONDITIONS:   The  errors  which  may  occur  during  this
+        predicate are:-
+
+        When a syntax error is found in the string parameter the
+        following event occurs:-
+
+        %SIGNAL 10, 9, n, "Bad file specification  'filespec'"
+
+           (when the full I/O capacity is being used)
+        %SIGNAL 2, 5, 0, "All I/O channels in use"
+           or (usually when a bad device is given)
+        %SIGNAL 10, 6, 0, "Cannot open device 'device'"
+
+
+
+
+<HR>
+3B35D                                                    Page 47
+                                                          Nov 78
+
+
+                            JOBFILE
+
+DEFINITION:  This string function generates six  character  file
+        name of the form 'XXXNAM' where xxx is the job number as
+        a three digit number and 'NAM' is a name  given  as  the
+        parameter.
+
+SPEC:   %EXTERNALSTRING(6)%FN JOBFILE(%STRING(3) s)
+
+USE:    st=JOBFILE(s)
+
+        s       is a string for the last part of the file name
+
+        There are times when one wishes to create  files  having
+        unique  file names, depending on which job created them.
+        This  function  concatenates  a   three   digit   string
+        representing  the job number, to the string given to the
+        function.  The resultant job specific name  is  returned
+        via %RESULT.
+
+ASSOCIATED  PROCEDURES:   (X)DEFINE  INPUT,  (X)DEFINE   OUTPUT,
+        (X)ISFILE, (X)COPY, (X)DELETE, (X)RENAME
+
+ERROR CONDITIONS:  None
+
+
+
+
+                             JOBNUM
+
+DEFINITION:  This integer function gives the job number  of  the
+        users job.
+
+SPEC:   %EXTERNALINTEGERFN JOBNUM
+
+USE:    n=JOBNUM
+
+        No parameters
+
+        the job number of the users current job is returned  via
+        %RESULT.
+
+ASSOCIATED PROCEDURES:  PPN, CPUTIME, TIME, JOBFILE
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 48
+                                                          Nov 78
+
+
+                           JSYS(0-4)
+
+DEFINITION:  These routines perform JSYS Monitor  calls  on  the
+        DECsystem-20 operating system.
+
+SPEC:   %EXTERNALROUTINE JSYS(0-4)(%INTEGER n, %INTEGERname ac1,
+        ... ac4)
+
+CALL:   JSYS(0-4)(n,ac1, ... ac4)
+
+        n       is an integer expression being the JSYS number
+        ac1     is the name of an  integer  variable  containing
+                the value required in AC1 by the JSYS.
+        and so on up to
+        ac4     is the name of an  integer  variable  containing
+                the value required in AC4 by the JSYS.
+
+        the  given  JSYS  Monitor  call  is  executed  with  the
+        appropriate values provided in the arguments.  There are
+        five routines  provided,  depending  on  the  number  of
+        arguments  required.   JSYS0,  JSYS1,  JSYS2,  JSYS3 and
+        JSYS4.  They all have the first parameter, but  vary  in
+        the  number  of  %INTEGERNAME arguments which they take.
+        There is an INCLUDE  file  called  "IMP:JSYS.INC"  which
+        contains specifications for them.
+
+ASSOCIATED PROCEDURES:  
+
+ERROR CONDITIONS:  on an error return from a JSYS, the following
+        event is caused:-
+        %SIGNAL 11, 0, n, "JSYS error return"
+
+
+
+
+                             LENGTH
+
+DEFINITION:  This byteinteger function gives length of the given
+        string
+
+SPEC:   Not required
+
+USE:    n=LENGTH(s)
+
+        s       is the name of a string whose length is required
+
+        The length of the string s is returned via %RESULT.
+
+ASSOCIATED PROCEDURES:  CHARNO, SUB STRING, TO STRING
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 49
+                                                          Nov 78
+
+
+                             MATCH
+
+DEFINITION:  This  integer  function  gives  the  value  of  the
+        starting  character  position  in  a  named  string of a
+        matching sub-string.
+
+SPEC:   %EXTERNALINTEGERFN MATCH(%STRINGNAME s, %STRING(255) t)
+
+USE:    n=MATCH(s,t)
+
+        s       is the name of a string in which  the  occurence
+                of a sub-string is to be tested
+        t       is a  string  containing  the  sub-string  whose
+                occurrence is questioned
+
+        The occurrence of the sub-string 't' is  tested  in  the
+        string  named  in  's'.   If  a  match is found then the
+        character position of the start of this match in 's'  is
+        returned via %RESULT.
+
+        If no match is found then a value of zero is returned.
+
+ASSOCIATED PROCEDURES:  LENGTH, SUB STRING, TO STRING
+
+ERROR CONDITIONS:  None
+
+
+
+
+                              MOD
+
+DEFINITION:  This longreal  function  gives  the  value  of  the
+        modulus (i.e.  the absolute value) of the quantity given
+        on entry.
+
+SPEC:   Not required
+
+USE:    b=MOD(a)
+
+        a       is a longreal expression 
+
+        The long real value of the modulus of a is returned  via
+        %RESULT.
+
+ASSOCIATED PROCEDURES:  IMOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 50
+                                                          Nov 78
+
+
+                            NEWLINE
+
+DEFINITION:  This routine causes a newline (cr-lf)  sequence  to
+        be output on the currently selected output stream.
+
+SPEC:   Not required
+
+CALL:   NEWLINE
+
+        No parameters
+
+        A newline is sent to the output stream.
+
+ASSOCIATED PROCEDURES:  NEWLINES, NEWPAGE, SPACE, SPACES
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+                            NEWLINES
+
+DEFINITION:  This routine causes a specified number  of  newline
+        (cr-lf)   character   sequences  to  be  output  on  the
+        currently selected output stream.
+
+SPEC:   Not required
+
+CALL:   NEWLINES(n)
+
+        n       is an integer expression specifying  the  number
+                of newlines required
+
+        'n' newline character sequences are sent to  the  output
+        stream.
+
+ASSOCIATED PROCEDURES:  NEWLINE, NEWPAGE, SPACE, SPACES
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+<HR>
+3B35D                                                    Page 51
+                                                          Nov 78
+
+
+                            NEWPAGE
+
+DEFINITION:  This routine causes the 'form-feed' character to be
+        output to the currently selected output stream.
+
+SPEC:   Not required
+
+CALL:   NEWPAGE
+
+        No parameters
+
+        a 'form-feed' character is sent to  the  current  output
+        stream.
+
+ASSOCIATED PROCEDURES:  NEWLINE, NEWLINES, SPACE, SPACES
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+                           NEXT ITEM
+
+DEFINITION:  This string function returns the next  symbol  from
+        the  currently selected input stream, as a one-character
+        string.
+
+SPEC:   Not required
+
+USE:    s=NEXT ITEM
+
+        No parameters
+
+        A string of length one, consisting  of  the  next  ASCII
+        character  on  the  current input stream is returned via
+        %RESULT.
+
+        The file pointers are not affected and the character may
+        be  read  again  by NEXT ITEM, READ ITEM, NEXT SYMBOL or
+        READ SYMBOL.
+
+ASSOCIATED PROCEDURES:  READ ITEM,  READ  SYMBOL,  NEXT  SYMBOL,
+        SKIP SYMBOL
+
+ERROR CONDITIONS:  See READ SYMBOL.
+
+
+
+
+<HR>
+3B35D                                                    Page 52
+                                                          Nov 78
+
+
+                          NEXT SYMBOL
+
+DEFINITION:  This integer function gives the value of  the  next
+        symbol on the currently selected input stream.
+
+SPEC:   Not required
+
+USE:    n=NEXT SYMBOL
+
+        No parameters
+
+        The value of the next symbol on the current input stream
+        is returned via %RESULT.
+
+        The file pointers are not altered, so  the  same  symbol
+        may be obtained from a subsequent call of NEXT SYMBOL or
+        READ SYMBOL.
+
+ASSOCIATED PROCEDURES:  READ SYMBOL,  SKIP  SYMBOL,  READ  ITEM,
+        NEXT ITEM
+
+ERROR CONDITIONS:  See READ SYMBOL.
+
+
+
+
+                               NL
+
+DEFINITION:  This integer constant gives the internal ASCII code
+        value for the newline character.
+
+SPEC:   Not required
+
+USE:    n=NL
+
+        The numerical value of the  newline  (lf)  character  is
+        given.
+
+ASSOCIATED CONSTANTS:  SP, ESC, TAB, FF
+
+
+
+
+<HR>
+3B35D                                                    Page 53
+                                                          Nov 78
+
+
+                            NO ECHO
+
+DEFINITION:  This routine has the  effect  of  turning  off  the
+        echoing of characters from the DECsystem-10 to the users
+        console.
+
+SPEC:   %EXTERNALROUTINE NO ECHO
+
+CALL:   NO ECHO
+
+        No parameters
+
+        Characters typed on the users  console  are  not  echoed
+        after this routine is called.  Echoing may be re-enabled
+        by calling the routine ECHO.
+
+ASSOCIATED PROCEDURES:  ECHO
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            OCTTOSTR
+
+DEFINITION:  This string function returns  a  string  containing
+        the  represention  of  an  unsigned  octal  integer as a
+        string of digits.
+
+SPEC:   %EXTERNALSTRING(12)%FN OCTTOSTR(%INTEGER n)
+
+USE:    s=OCTTOSTR(n)
+
+        n       is an integer expression representing  an  octal
+                number
+
+        An integer expression is treated as  an  unsigned  octal
+        number  and  returned  as  a  string  of up to 12 digits
+        without leading zeroes or spaces via %RESULT.
+
+ASSOCIATED PROCEDURES:  READ OCT, WRITE OCT, STRTOOCT
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 54
+                                                          Nov 78
+
+
+                            OPEN DA
+
+DEFINITION:  This routine opens a direct access  channel  for  a
+        specified file on a given channel number.
+
+SPEC:   %EXTERNALROUTINE OPEN DA(%INTEGER n, %STRING(255) spec)
+
+CALL:   OPEN DA(n,spec)
+
+        n       is  an  integer  expression  being  the  logical
+                channel   number   to  be  associated  with  the
+                specified file.  It must lie in the range  1  to
+                15.
+        spec    is a string containing a DECsystem-10 style file
+                specification for the file to be opened
+
+        The specified file is opened for both reading or writing
+        and is associated with the given logical channel number.
+
+ASSOCIATED PROCEDURES:  XOPEN DA, READ DA, WRITE DA, CLOSE DA
+
+ERROR CONDITIONS:  The most common error is:-
+
+        %SIGNAL 10, 21, err, "Cannot OPEN DA/SQ file 'filespec'
+        error: 'err'"
+        Where err is an error code listed in appendix E  of  the
+        DECsystem-10 MONITOR CALLS Manual.
+
+        Or on a syntax error in the file specification
+
+        %SIGNAL 10, 9, 0, "Bad file specification:- 'filespec'"
+
+        Other possible errors are:-
+        %SIGNAL 10, 20, 0, "Not a DA or SQ device 'dev'"
+        %SIGNAL 10, 22, n, "OPENing already open DA/SQ channel
+        for 'filespec'"
+
+
+
+
+<HR>
+3B35D                                                    Page 55
+                                                          Nov 78
+
+
+                            OPEN SQ
+
+DEFINITION:  This routine opens a sequential file channel for  a
+        specified file on a given channel number.
+
+SPEC:   %EXTERNALROUTINE OPEN SQ(%INTEGER n, %STRING(255) spec)
+
+CALL:   OPEN SQ(n,spec)
+
+        n       is  an  integer  expression  being  the  logical
+                channel   number   to  be  associated  with  the
+                specified file.  It must lie in the range  1  to
+                15.
+        spec    is a string containing a full DECsystem-10 style
+                file specification for the file to be opened
+
+        The specified file  is  opened  for  either  reading  or
+        writing and is associated with the given logical channel
+        number.  But note  that  both  options  of  reading  and
+        writing  may not be exercised and that the first call of
+        either READ SQ or WRITE  SQ  determines  the  subsequent
+        type of access.
+
+ASSOCIATED PROCEDURES:  XOPEN SQ, READ SQ, WRITE SQ
+
+ERROR CONDITIONS:  See OPEN DA.
+
+
+
+
+                             OUTDEV
+
+DEFINITION:  This integer function gives the value of the device
+        type  associated  with  the  currently  selected  output
+        stream.
+
+SPEC:   %EXTERNALINTEGERFN OUTDEV
+
+USE:    n=OUTDEV
+
+        No parameters
+
+        A number indicating  the  generic  type  of  the  device
+        associated  with  the  current output stream is returned
+        via %RESULT.
+
+        Below is listed the current range of possible values and
+        their meanings.
+
+        %CONSTINTEGER Name  Value Device Type
+
+           TMPDEV   = -2  a TMPCOR file residing in core
+           NULDEV   = -1  a null device
+                    (default value for unassigned streams)
+           DSKDEV   =  0  a Disk device
+           DTADEV   =  1  a DEC tape
+<HR>
+3B35D                                                    Page 56
+                                                          Nov 78
+
+
+           MTADEV   =  2  a magnetic tape
+           TTYDEV   =  3  a teletype
+           XDSKDEV &gt;=  4  any other Disk-type device
+
+ASSOCIATED PROCEDURES:  OUTSTREAM, SELECT OUTPUT, OUTSTATUS
+
+ERROR CONDITIONS:  None
+
+
+
+
+                             OUTPUT
+
+DEFINITION:  This routine causes the current  output  buffer  on
+        the currently selected output stream to be sent.
+
+SPEC:   %SYSTEMROUTINE OUTPUT
+
+CALL:   OUTPUT
+
+        No parameters
+
+        this routine performs the DECsystem-10 Monitor  OUT  UUO
+        which  causes  the contents of the current output buffer
+        to be  forced  out  on  the  currently  selected  output
+        stream.
+
+        When called on a teletype or null stream, no  action  is
+        performed.
+
+ASSOCIATED PROCEDURES:  INPUT, USETI, USETO, READ SYMBOL,  PRINT
+        SYMBOL
+
+ERROR CONDITIONS:  see PRINT symbol
+
+
+
+
+<HR>
+3B35D                                                    Page 57
+                                                          Nov 78
+
+
+                           OUTSTATUS
+
+DEFINITION:  This integer function gives the value of the status
+        word  for  the  device  associated  with  the  currently
+        selected output stream.
+
+SPEC:   %EXTERNALINTEGERFN OUTSTATUS
+
+USE:    n=OUTSTATUS
+
+        No parameters
+
+        each device has associated with it a set of status bits,
+        which  this function reads and returns via %RESULT.  The
+        meaning of  these  bits  is  device  dependent  and  are
+        described in the DECsystem-10 MONITOR CALLS Manual.
+
+        Zero is returned if the currently selected output stream
+        is the nul device or the teletype.
+
+ASSOCIATED  PROCEDURES:   INSTATUS,  GETSTS,   SETSTS,   OUTDEV,
+        OUTSTREAM
+
+ERROR CONDITIONS:  None
+
+
+
+
+                           OUTSTREAM
+
+DEFINITION:  This integer  function  gives  the  number  of  the
+        currently selected output stream.
+
+SPEC:   Not required
+
+USE:    n=OUTSTREAM
+
+        No parameters
+
+        The number (between 0 and 15) of the currently  selected
+        output stream is returned via %RESULT.
+
+ASSOCIATED PROCEDURES:  OUTDEV, SELECT OUTPUT, OUTSTATUS
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 58
+                                                          Nov 78
+
+
+                               PI
+
+DEFINITION:  This longreal constant gives the value of pi.
+
+SPEC:   Not required
+
+USE:    r=PI
+
+        The value of pi (3.141592653589793238) is given.
+
+
+
+
+                              PPN
+
+DEFINITION:  This  integer  function  gives  the  value  of  the
+        project-programmer  number  associated  with the current
+        job.
+
+SPEC:   %EXTERNALINTEGERFN PPN
+
+USE:    p=PPN
+
+        No parameters
+
+        the  project-programmer  number  associated   with   the
+        current job is returned via %RESULT.
+
+ASSOCIATED PROCEDURES:  JOBNUM, CPUTIME, TIME
+
+ERROR CONDITIONS:  None
+
+
+
+
+                             PRINT
+
+DEFINITION:  This routine prints the value of the specified long
+        real  number  on the currently selected output stream in
+        fixed-point form.
+
+SPEC:   Not required
+
+CALL:   PRINT(x,n,m)
+
+        x       is a longreal expression which is to be output
+        n       is an integer  expression  indicating  how  many
+                printing  positions,  including the sign, are to
+                be output before the decimal point
+        m       is an integer  expression  indicating  how  many
+                digits to be output after the decimal point
+
+        x is printed on the current output stream in fixed-point
+        form,  with 'n' printing positions before and 'm' digits
+        after the decimal point.  The digits before the  decimal
+        point are right justified and leading zeros are replaced
+<HR>
+3B35D                                                    Page 59
+                                                          Nov 78
+
+
+        by spaces.  The positive sign is represented by a space.
+
+        If more than  n  significant  digits  occur  before  the
+        decimal point, these will be printed and the rest of the
+        digits will be displaced to the right.  If 'n' is  zero,
+        no leading spaces or positive sign will be output.
+
+        If 'x' is &gt; 34359738367 then the routine PRINT FL(x,n+m)
+        will be used.
+
+ASSOCIATED PROCEDURES:  WRITE, PRINT FL
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+                            PRINT FL
+
+DEFINITION:  This routine prints the specified long  real  value
+        on    the    currently   selected   output   stream   in
+        floating-point form.
+
+SPEC:   Not required
+
+CALL:   PRINT FL(x,n)
+
+        x       is a longreal expression which is to be  printed
+                out
+        n       is an integer expression indicating  the  number
+                of digits to be printed after the decimal point
+
+        A floating-point long real number is printed  out  using
+        n+7  printing positions, with n digits after the decimal
+        point.   The  number  is  standardised  in   the   range
+        1&lt;=x&lt;=10.
+        e.g.   PRINT FL(pi,5)  gives 3.14159@ 0
+
+ASSOCIATED PROCEDURES:  WRITE, PRINT
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+<HR>
+3B35D                                                    Page 60
+                                                          Nov 78
+
+
+                          PRINT STRING
+
+DEFINITION:  This routine outputs  a  string  on  the  currently
+        selected output stream.
+
+SPEC:   Not required
+
+CALL:   PRINT STRING(s)
+
+        s       is a string expression to be output
+
+        The string s is printed on the current output stream.
+
+ASSOCIATED PROCEDURES:  PRINT SYMBOL, REPORT, PROMPT
+
+ERROR CONDITIONS:  SEE PRINT SYMBOL.
+
+
+
+
+                          PRINT SYMBOL
+
+DEFINITION:  This routine  prints  the  symbol  whose  value  is
+        given, on the currently selected output stream.
+
+SPEC:   Not required
+
+CALL:   PRINT SYMBOL(s)
+
+        s       is an integer expression being the value of  the
+                symbol to be printed
+
+        The symbol whose value is given is output to the current
+        output stream.  Note that number of bits actually output
+        depend on the mode of the output stream (e.g.   ascii  =
+        7, binary = 36 ).
+
+ASSOCIATED PROCEDURES:  SPACE, NEWLINE, NEWPAGE
+
+ERROR  CONDITIONS:   If  an  error  occurs  during  output,  the
+        following event occurs:-
+
+        %SIGNAL 4, 1, status, "I/O transmission error"
+
+        where 'status' is a device dependent status  word  whose
+        meaning  is  described in the DECsystem-10 MONITOR CALLS
+        Manual under the section  dealing  with  the  particular
+        device  in question.  It should be noted that the status
+        will be  output  as  a  decimal  number  but  should  be
+        interpreted in octal.
+
+
+
+
+<HR>
+3B35D                                                    Page 61
+                                                          Nov 78
+
+
+                             PROMPT
+
+DEFINITION:  This routine outputs the given prompt string to the
+        users  console  if the users console is also selected as
+        the current input stream.
+
+SPEC:   %EXTERNALROUTINE PROMPT(%STRING(255) pr)
+
+CALL:   PROMPT(pr)
+
+        pr      is a string to be output as a prompt
+
+        This routine allows the user  to  output  a  prompt  for
+        input  which will only be output if it is relevant, that
+        is if the input is coming from the users console.
+
+ASSOCIATED PROCEDURES:  INPUT PENDING, PRINT STRING, REPORT
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+                             RAD50
+
+DEFINITION:  This integer function gives the  integer  value  of
+        the   DECsystem-10   Radix-50   reprentation  of  a  six
+        character string.
+
+SPEC:   %EXTERNALINTEGERFN RAD50(%STRING(6) s)
+
+USE:    n=RAD50(s)
+
+        s       is a six character string containing the word to
+                be encoded
+
+        The Radix-50 representation allows up to six  characters
+        to  be  represented  by  a  single integer which is here
+        returned via %RESULT.
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 62
+                                                          Nov 78
+
+
+                          RCALL (0-9)
+
+DEFINITION:  These real  functions  call  the  FORTRAN  function
+        named   as   the  first  parameter  with  the  necessary
+        arguments given as the succeeding parameters.
+
+SPEC:   %EXTERNALREALFN RCALL (0-9)(%name rfn, %name arg1, ..
+        %name arg9)
+
+USE:    R = RCALL (0-9)(rfn,arg1, .. arg9)
+
+        rfn     is the name of a external FORTRAN real function.
+                For  ease  of  handling, it is required that the
+                spec  given  in  the  IMP  program  is  that  of
+                %EXTERNALINTEGERSPEC.
+        arg1    is the name of the  first  argument  if  one  is
+                needed
+        and so on up to
+        arg9    is the name of the  ninth  argument  if  one  is
+                needed
+
+        there are a set of IMP  real  functions  called  RCALL0,
+        RCALL1,  etc.   up  to RCALL9.  The number refers to the
+        number of arguments which the FORTRAN function requires.
+        See the following example:-
+
+        %BEGIN
+        %EXTERNALINTEGERSPEC FNOARG
+              !A FORTRAN FUNCTION WITH NO ARGUMENTS
+        %EXTERNALINTEGERSPEC F3ARGS
+              !A FORTRAN FUNCTION WITH THREE ARGUMENTS
+        
+        %EXTERNALREALFNSPEC RCALL0(%NAME FN)
+        %EXTERNALREALFNSPEC RCALL3(%NAME FN, %NAME A,B,C)
+        
+        %INTEGER ARG1,ARG2,ARG3
+        %REAL R,P
+        
+        ARG1=1; ARG2=2; ARG3=3
+        R = RCALL0(FNOARG);                 !CALL FORTRAN
+        P = RCALL3(F3ARGS,ARG1,ARG2,ARG3);  !CALL FORTRAN
+        PRINT(P,2,3) %IF R &lt; 0.0
+        
+        %ENDOFPROGRAM
+
+        The %INCLUDE  file  "IMP:FORTRA.INC"  contains  all  the
+        specs for the RCALL functions.
+
+ASSOCIATED PROCEDURES:  CALL (0-9), ICALL (0-9)
+
+ERROR CONDITIONS:  Depending on the FORTRAN function called.
+
+
+
+
+<HR>
+3B35D                                                    Page 63
+                                                          Nov 78
+
+
+                              READ
+
+DEFINITION:  This routine reads data of the appropriate type  as
+        specified  by  the type of the name type parameter, from
+        the currently selected input stream.
+
+SPEC:   Not required
+
+CALL:   READ(a)
+
+        a       is the name of any type  except  records,  which
+                determines  the  nature of the reading procedure
+                used
+
+        This routine may result in  numerical  data  being  read
+        into  a BYTE, SHORT or full length INTEGER, or a REAL of
+        LONG REAL variable or into a STRING,  depending  on  the
+        type of the %NAME parameter given when called.
+
+        When reading numbers, characters are read up to, but not
+        including the first non-numeric character.  Thus reading
+        an integer from 12.34 would return the  integer  12  and
+        leave  the  decimal  point  as  the next character to be
+        read.
+
+ASSOCIATED PROCEDURES:  READ STRING, READ TEXT, READ  OCT,  READ
+        HEX, WRITE, PRINT, PRINT FL
+
+ERROR CONDITIONS:  As well as the errors which may  result  from
+        the  READSYMBOL routine (See READ SYMBOL), the following
+        may also occur, depending on  the  type  of  data  being
+        read.
+
+        %SIGNAL 1, 1, 0, "Integer too large"
+        %SIGNAL 1, 1, n, "Integer too large for short or byte
+        integer"
+        %SIGNAL 3, 1, symbol, "Number not found"
+        %SIGNAL 3, 1, symbol, "Integer not found"
+        %SIGNAL 3, 2, symbol, "No opening string quote"
+            where 'symbol' is the value of the first illegal
+        symbol found.
+        %SIGNAL 5, 6, type, "Illegal %NAME type parameter"
+        %SIGNAL 6, 1, 0, "String capacity exceeded"
+
+
+
+
+<HR>
+3B35D                                                    Page 64
+                                                          Nov 78
+
+
+                            READ DA
+
+DEFINITION:  This routine reads data from  the  file  associated
+        with  the given logical channel number into an specified
+        area, starting from a specified block of the file.
+
+SPEC:   %EXTERNALROUTINE READ DA(%INTEGER n, %INTEGERname block,
+        %NAME begin,end)
+
+CALL:   READ DA(n,block,begin,end)
+
+        n       is  an  integer  expression  being  the  logical
+                channel number and lying in the range 1 to 15
+        block   is the name of  an  integer  variable  which  on
+                entry   specifies  the  block  number  at  which
+                reading is to start and  on  exit  contains  the
+                block number of the last block read from
+        begin   is the name of a variable specifying  the  first
+                data item into which data is to be read
+        end     is the name of a variable  specifying  the  last
+                dat item into which data is to be read
+
+        Data from the  file  associated  with  a  given  logical
+        channel  number  n,  starting  at block block is written
+        into an area starting at begin  and  finishing  at  end.
+        This  area  is  normally an array but may be any type of
+        data item including records.
+
+        Data is stored on the external medium  in  multiples  of
+        fixed  length  blocks  (for disk it is 200 octal words).
+        Incomplete  blocks  read  are  filled  out  with   words
+        containing  zero.   It is the users responsibility, when
+        reading, to know the starting block and length  of  data
+        record  to be read, as reading always starts at the head
+        of the block specified and continues until the  required
+        data  area is filled or the end-of-file condition occurs
+        (%EVENT 9).
+
+ASSOCIATED PROCEDURES:  (X)OPEN DA, WRITE DA, CLOSE DA
+
+ERROR CONDITIONS:  The following events may occur:-
+
+        %SIGNAL 20, 23, chan, "Read/write to illegal DA/SQ
+        channel"
+        %SIGNAL 20, 23, chan, "Read/write to DA/SQ channel
+        before OPENing it"
+        %SIGNAL 20, 24, chan, "Accessing DA channel by SQ
+        routine or vice versa"
+        %SIGNAL 20, 25, 0, "Storage area for DA/SQ routine
+        inside out"
+        %SIGNAL 20, 26, block, "Illegal block number for DA
+        read/write routine"
+        %SIGNAL 9, 0, chan, "EOF on DA or SQ channel"
+<HR>
+3B35D                                                    Page 65
+                                                          Nov 78
+
+
+                            READ FS
+
+DEFINITION:    This   routine   reads   a   DECsystem-10    file
+        specification  from  the currently selected input stream
+        and parses it into a file specification record.
+
+SPEC:   %EXTERNALROUTINE READ FS(%RECORD(FILESPEC)%name fs)
+
+CALL:   READ FS(fs)
+
+        fs      is the name of a file specification record which
+                will  contain  the  specification  read from the
+                input stream
+
+        A DECsystem-10 type file specification is read from  the
+        current  input  stream  and  parsed into the form a file
+        specification record (see section 3).
+
+
+ASSOCIATED PROCEDURES:  STRTOFS, FSTOSTR, WRITE FS, DEFAULT
+
+ERROR  CONDITIONS:   If  a  syntax  error  is   found   in   the
+        specification, the following event is caused:-
+
+        %SIGNAL 10, 9, 0, "Bad file spec:-  'filespec'"
+
+
+
+
+                            READ HEX
+
+DEFINITION:  This routine reads an hexidecimal number  from  the
+        currently selected input stream.
+
+SPEC:   %EXTERNALROUTINE READ HEX(%INTEGERname n)
+
+CALL:   READ HEX(n)
+
+        n       is the name of an integer variable in  which  an
+                hexidecimal number is returned
+
+        A signed hex number  is  read  from  the  current  input
+        stream and returned in 'n'.
+
+        If a non-leading non-hexidecimal character is found in a
+        series  of digits then the number read will only include
+        the digits up to that point.
+
+        e.g.  a  number  '-1FA73J5'  will  give  an  hexidecimal
+        number  '-1FA73'  and  the  next character available for
+        input will be 'J'
+
+ASSOCIATED PROCEDURES:  HEXTOSTR, WRITE HEX, READ OCT
+<HR>
+3B35D                                                    Page 66
+                                                          Nov 78
+
+
+ERROR CONDITIONS:  If a  leading  non-hexidecimal  character  is
+        found the following event occurs:-
+
+        %SIGNAL 3, 1, symbol, "Hex integer not found"
+
+
+
+
+                           READ ITEM
+
+DEFINITION:   This  routine  reads  the  next  symbol  from  the
+        currently  selected input stream into a single-character
+        string.
+
+SPEC:   Not required
+
+CALL:   READ ITEM(s)
+
+        s       is the name of a string in which the  symbol  is
+                stored
+
+        The  next  symbol  on  the  current  input   stream   is
+        constructed  into a one-character string and returned in
+        s.
+
+ASSOCIATED PROCEDURES:  NEXT ITEM,  NEXT  SYMBOL,  READ  SYMBOL,
+        SKIP SYMBOL
+
+ERROR CONDITIONS:  See READ SYMBOL.
+
+
+
+
+                           READ OCTAL
+
+DEFINITION:   This  routine  reads  an  octal  number  from  the
+        currently selected input stream.
+
+SPEC:   %EXTERNALROUTINE READ OCTAL(%INTEGERname n)
+
+CALL:   READ OCTAL(n)
+
+        n       is the name of an integer variable in  which  an
+                octal number is returned
+
+        A signed octal number is read  from  the  current  input
+        stream and returned in 'n'.
+
+        If a non-leading non-octal digit is found in a series of
+        digits then the number read will only include the digits
+        up to that point.
+
+        e.g.  a number '-1067389'  will  give  an  octal  number
+        '-10673' and the next character available for input will
+        be '8'
+<HR>
+3B35D                                                    Page 67
+                                                          Nov 78
+
+
+ASSOCIATED PROCEDURES:  OCTTOSTR, WRITE OCT, READ HEX
+
+ERROR CONDITIONS:  If a leading non-octal  digit  is  found  the
+        following event occurs:-
+
+        %SIGNAL 3, 1, symbol, "Octal integer not found"
+
+
+
+
+                            READ PPN
+
+DEFINITION:   This  routine  reads  a  pair  of  octal   numbers
+        separated  by  a comma from the currently selected input
+        stream and returns an integer having the first number in
+        the left half and the second number in the right half.
+
+SPEC:   %EXTERNALROUTINE READ PPN(%INTEGERname ppn)
+
+CALL:   READ PPN(ppn)
+
+        ppn     is the name of an integer variable in which  the
+                pair of octal numbers are returned
+
+        A pair of octal numbers separated by a  comma  are  read
+        from  the  the  current  input  stream.   An  integer is
+        returned with the first number in the left half and  the
+        second number in the right half.
+
+ASSOCIATED PROCEDURES:  WRITE PPN, READ OCTAL, WRITE OCTAL
+
+ERROR CONDITIONS:  If no comma is found after the  first  number
+        only  that  first  number  is  read.  Otherwise see READ
+        OCTAL
+
+
+
+
+<HR>
+3B35D                                                    Page 68
+                                                          Nov 78
+
+
+                            READ SQ
+
+DEFINITION:  This routine reads data from  the  file  associated
+        with  the  given logical channel number into a specified
+        area.
+
+SPEC:   %EXTERNALROUTINE READ SQ(%INTEGER n, %NAME begin,end)
+
+CALL:   READ SQ(n,begin,end)
+
+        n       is  an  integer  expression  being  the  logical
+                channel number and lying in the range 1 to 15
+        begin   is the name of a variable specifying  the  first
+                data item into which data is to be read
+        end     is the name of a variable  specifying  the  last
+                data item into which data is to be read
+
+        Data from the  file  associated  with  a  given  logical
+        channel  number n is read into an area starting at begin
+        and finishing at end.  This area is  normally  an  array
+        but may be any type of data item including records.  The
+        first call of this routine after  a  sequential  channel
+        has been opened determines that all subsequent access on
+        that channel must be for reading unless the  channel  is
+        re-opened.
+
+        Data is stored on the external medium as an unstructured
+        sequence  of  words.   It is the users responsibility to
+        know the nature of the data stored  because  once  read,
+        data  cannot  be reread unless the channel is re-opened.
+        Once started, reading continues until the required  area
+        is  filled  or  the end-of-file condition occurs (%EVENT
+        9).
+
+ASSOCIATED PROCEDURES:  (X)OPEN SQ, WRITE SQ, CLOSE SQ
+
+ERROR CONDITIONS:  The following events may occur:-
+
+        %SIGNAL 20, 23, chan, "Read/write to illegal DA/SQ
+        channel"
+        %SIGNAL 20, 23, chan, "Read/write to DA/SQ channel
+        before OPENing it"
+        %SIGNAL 20, 24, "Accessing DA channel by SQ routine or
+        vice versa"
+        %SIGNAL 20, 25, 0, "Storage area for DA/SQ routine
+        inside out"
+        %SIGNAL 20, 26, block, "Illegal block number for DA
+        read/write routine"
+        %SIGNAL 20, 27, chan, "Inputting from SQ channel set for
+        output"
+        %SIGNAL 9, 0, chan, "EOF on DA or SQ channel"
+
+
+
+
+<HR>
+3B35D                                                    Page 69
+                                                          Nov 78
+
+
+                          READ STRING
+
+DEFINITION:  This routine reads  a  string  from  the  currently
+        selected input stream.
+
+SPEC:   Not required
+
+CALL:   READ STRING(s)
+
+        s       is the name of a string into which the string of
+                symbols is stored
+
+        The string of symbols, which must  be  enclosed  between
+        string  quotes,  is  read  from the current input stream
+        into 's'.  To include a double quote  character  in  the
+        string to be read, two double quotes should be given.
+
+ASSOCIATED PROCEDURES:  PRINT STRING, READ TEXT, READ
+
+ERROR CONDITIONS:  The following two events may occur:-
+
+        %SIGNAL 3, 2, symbol, "No opening string quote"
+        %SIGNAL 6, 1, 0, "String capacity exceeded"
+
+        And also see READ SYMBOL.
+
+
+
+
+                          READ SYMBOL
+
+DEFINITION:   This  routine  reads  the  next  symbol  from  the
+        currently selected input stream.
+
+SPEC:   Not required
+
+CALL:   READ SYMBOL(s)
+
+        s       is the name of an integer, short integer or byte
+                integer  variable  into which the next symbol is
+                read
+
+        The next symbol on the input stream is  read  into  's'.
+        The  number of bits read depends on the mode and type of
+        device which is currently selected.  In ASCII mode, null
+        characters  and  carriage returns are ignored, all other
+        symbols are passed through.
+
+ASSOCIATED PROCEDURES:  NEXT SYMBOL, SKIP SYMBOL
+
+ERROR CONDITIONS:  When the end of a file is read the  following
+        event is caused:-
+
+        %SIGNAL 9, 0, stream, "EOF on stream"
+
+        If a system-detected error occurs  during  reading  from
+<HR>
+3B35D                                                    Page 70
+                                                          Nov 78
+
+
+        the current device the following occurs:-
+
+        %SIGNAL 4, 1, status, "I/O transmission error"
+
+        where 'status' is a device dependent status  word  whose
+        meaning  is  described in the DECsystem-10 MONITOR CALLS
+        Manual under the section  dealing  with  the  particular
+        device  in question.  It should be noted that the status
+        will be  output  as  a  decimal  number  but  should  be
+        interpreted in octal.
+
+
+
+
+                           READ TEXT
+
+DEFINITION:  This routine  reads  a  string  of  text  from  the
+        currently selected input stream.
+
+SPEC:   Not required
+
+CALL:   READ TEXT(s,delim)
+
+        s       is the name of a string into which the string of
+                symbols is stored
+        delim   is an integer variable containing the  value  of
+                the  ASCII  character  on  which  reading  is to
+                terminate
+
+        The string of symbols, from the next symbol  up  to  the
+        next occurrence of the given delimiter, is read from the
+        current  input  stream  into   's'.    The   terminating
+        delimiter is read but not included in the string.
+
+        e.g.  READ TEXT(str,nl) will return a string  containing
+        the  rest of the current line, but the next character to
+        be read will be the first character of the next line.
+
+ASSOCIATED PROCEDURES:  PRINT STRING, READ STRING
+
+ERROR CONDITIONS:  The following event may occur:-
+
+        %SIGNAL 6, 1, 0, "String capacity exceeded"
+
+        And also see READ SYMBOL.
+
+
+
+
+<HR>
+3B35D                                                    Page 71
+                                                          Nov 78
+
+
+                              REAL
+
+DEFINITION:  This map enables the  user  to  access  directly  a
+        particular location whose address is specified.
+
+SPEC:   Not required
+
+CALL:   REAL(adr)
+
+        adr     is an integer expression giving the  address  of
+                the required location.
+
+        This map allows the user to read or write directly to  a
+        location  in store by specifying the absolute address in
+        'adr'.
+
+ASSOCIATED PROCEDURES:  BYTE INTEGER,  SHORT  INTEGER,  INTEGER,
+        RECORD, STRING
+
+ERROR CONDITIONS:  See INTEGER.
+
+
+
+
+                             RECORD
+
+DEFINITION:  This map allows  a  section  of  data  whose  start
+        address is given to be accessed as a record.
+
+SPEC:   Not required
+
+CALL:   RECORD(adr)
+
+        adr     is an  integer  expression  being  the  absolute
+                address  of  the start of the data section to be
+                mapped onto
+
+        The address of the start of the given data section, such
+        that  it  can  be  accessed as a record, is returned via
+        %RESULT.
+
+ASSOCIATED PROCEDURES:  BYTE INTEGER,  SHORT  INTEGER,  INTEGER,
+        REAL, STRING
+
+ERROR CONDITIONS:  See INTEGER.
+
+
+
+
+<HR>
+3B35D                                                    Page 72
+                                                          Nov 78
+
+
+                            RELEASE
+
+DEFINITION:  This routine releases  the  device  attached  to  a
+        given physical channel number.
+
+SPEC:   %SYSTEMROUTINE RELEASE(%INTEGER n)
+
+CALL:   RELEASE(n)
+
+        n       is an  integer  expression  giving  the  pysical
+                channel  number  associated  with  a  particular
+                device
+
+        This routine is used by the run time system  to  release
+        the  devices associated with I/O streams and channels in
+        the CLOSE INPUT, CLOSE OUTPUT, CLOSE  DA  and  CLOSE  SQ
+        routines.
+
+ASSOCIATED PROCEDURES:  GET CHANNEL, IOUUO, CLOSE, FILOP, TAPOP
+
+ERROR CONDITIONS:  None
+
+
+
+
+                              REM
+
+DEFINITION:  This  integer  function  gives  the  value  of  the
+        remainder of the division specified in its parameters
+
+SPEC:   Not required
+
+USE:    x=REM(n,m)
+
+        n       is an integer expression being the dividend
+        m       is an integer expression being the divisor
+
+        The remainder of the  given  division  is  returned  via
+        %RESULT.  The quotient is lost.
+
+ERROR CONDITIONS:  If the divisor is zero, the  following  fatal
+        error will occur:-
+
+        ?arithmetic overflow at user PC 'addr'
+
+
+
+
+<HR>
+3B35D                                                    Page 73
+                                                          Nov 78
+
+
+                             RENAME
+
+DEFINITION:  This routine allows a specified  disk  file  to  be
+        renamed.
+
+SPEC:   %EXTERNALROUTINE RENAME(%STRING(255) old,new)
+
+CALL:   RENAME(old,new)
+
+        old     is a string containing the name of the  file  to
+                be renamed
+        new     is a string containing the name which file is to
+                be given
+
+        A specified file is given a new name.
+
+ASSOCIATED PROCEDURES:  XRENAME, (X)COPY, (X)DELETE, (X)ISFILE
+
+ERROR CONDITIONS:   If  the  renaming  is  not  successful,  the
+        following event occurs
+
+        %SIGNAL 10, 4, err, "Cannot RENAME/DELETE 'filespec'"
+
+        The meaning of  err  is  given  in  appendix  E  of  the
+        DECsystem-10 MONITOR CALLS Manual.
+
+        Other possible errors are:-
+
+        %SIGNAL 10, 9, 0, "Bad file specification - 'filespec'"
+        %SIGNAL 10, 6, 0, "Cannot open device for 'filespec'"
+        %SIGNAL 2, 5, 0, "All I/O channels in use"
+
+
+
+
+                             REPORT
+
+DEFINITION:  This routine prints the given string on  the  users
+        console.
+
+SPEC:   %EXTERNALROUTINE REPORT(%STRING(255) s)
+
+CALL:   REPORT(s)
+
+        s       is a string to be output
+
+        The  given  string  is  output  on  the  users  console,
+        irrespective  of  whether  or  not  it  is the currently
+        selected output stream.
+
+ASSOCIATED PROCEDURES:  PRINT STRING, PROMPT
+
+ERROR CONDITIONS:  See PRINT STRING.
+<HR>
+3B35D                                                    Page 74
+                                                          Nov 78
+
+
+                          RESET INPUT
+
+DEFINITION:  This routine rewinds the currently  selected  input
+        stream to the beginning.
+
+SPEC:   %EXTERNALROUTINE RESET INPUT
+
+CALL:   RESET INPUT
+
+        No parameters
+
+        The current input stream is closed and re-opened so that
+        input starts from the beginning again.
+
+ASSOCIATED PROCEDURES:   (X)DEFINE  INPUT,  SDEF  INPUT,  SELECT
+        INPUT, CLOSE INPUT
+
+ERROR CONDITIONS:  If for some reason an input  file  cannot  be
+        re-opened the following event occurs:-
+
+        %SIGNAL 10, 12, stream, "Cannot RESET input stream"
+
+
+
+
+                          RESET OUTPUT
+
+DEFINITION:  This routine rewinds the currently selected  output
+        stream.
+
+SPEC:   %EXTERNALROUTINE RESET OUTPUT
+
+CALL:   RESET OUTPUT
+
+        No parameters
+
+        The current output stream is rewound to  the  beginning.
+        In  the  case  of  the  users  console,  it will have no
+        effect.  In the case  of  disk  type  devices,  it  will
+        overwrite all previous output.
+
+ASSOCIATED PROCEDURES:  (X)DEFINE OUTPUT,  SDEF  OUTPUT,  SELECT
+        OUTPUT, CLOSE OUTPUT
+
+ERROR CONDITIONS:  If for some reason a file cannot be re-opened
+        the following event will occur:-
+
+        %SIGNAL 10, 13, stream, "Cannot RESET output stream"
+
+
+
+
+<HR>
+3B35D                                                    Page 75
+                                                          Nov 78
+
+
+                            RESTORE
+
+DEFINITION:  This routine restores  the  registers  in  a  MACRO
+        program which has just called an IMP procedure.
+
+SPEC:   %EXTERNALROUTINE RESTORE
+
+CALL:   RESTORE
+
+        No parameters
+
+        Once a MACRO program has saved the registers with a call
+        to  SAVE  ACS  and  then  called the IMP procedure, this
+        routine will reset the MACRO environment to what it  was
+        before   IMPENV  was  called.   The  registers  are  all
+        restored, with the exception of registers  0  and  1  in
+        case a function or map has been called, and has returned
+        an argument.
+
+        A typical calling sequence from macro is therefore:-
+          PUSHJ   P,SAVEACS## ;SAVE THE MACRO ENVIRONMENT
+          PUSHJ   P,FRED##    ;CALL THE REQUIRED IMP ROUTINE
+          PUSHJ   P,RESTORE## ;RESTORE THE MACRO ENVIRONMENT
+
+ASSOCIATED PROCEDURES:  SAVE ACS, INITHEAP, INITIO, INITSTACK
+
+ERROR CONDITIONS:  None
+
+
+
+
+                              RUN
+
+DEFINITION:  This routine causes the  specified  program  to  be
+        run.
+
+SPEC:   %EXTERNALROUTINE RUN(%STRING(6) dev,file, %STRING(3)
+        ext, %INTEGER ppn,inc)
+
+CALL:   RUN(dev,file,ext,ppn,inc)
+
+        dev     is a string containing the device  name  of  the
+                program to be run
+        file    is a string containing  the  file  name  of  the
+                program to be run
+        ext     is a string containing the extension of the file
+                name  of  the program to be run (If an extension
+                of .SAV is given .EXE will be looked for first.)
+        ppn     is   an    integer    expression    being    the
+                project-programmer pair of the program to be run
+        inc     is an integer expression  specifying  the  start
+                address  increment  for  the  program  to be run
+                (only 0 and 1 are allowed).   1  being  the  CCL
+                start address increment.
+
+        All the current input and output streams are closed  and
+<HR>
+3B35D                                                    Page 76
+                                                          Nov 78
+
+
+        the  program  specified  is  run  thereby destroying the
+        current core image.
+
+ASSOCIATED PROCEDURES:  GETSEG
+
+error CONDITIONS:  The monitor may produce one of the  following
+        messages:-
+
+        ?NOT A SAVE FILE
+        ? ... .SAV NOT FOUND
+        ?TRANSMISSION ERROR
+        ?LOOKUP FAILURE 'N'
+        ?'N'P OF CORE NEEDED
+        ?NO START ADDRESS
+
+
+
+
+                            SAVE ACS
+
+DEFINITION:  This routine saves the registers  when  calling  an
+        IMP routine from MACRO.
+
+SPEC:   %EXTERNALROUTINE SAVE ACS
+
+CALL:   SAVE ACS
+
+        No parameters
+
+        when using IMP from macro, the data stack pointer's left
+        half  will  be  corrupted,  and  none of the rest of the
+        registers  can  be  guaranteed.   This   routine   saves
+        registers  2-17.   It  is  also  necessary that there is
+        enough stack space for IMP so that it does  not  try  to
+        expand  it.   If  IMP  is  required  to  do I/O then the
+        routine INITIO must be called, and if  any  but  streams
+        zero  are  to  be used then the heap must be set up (see
+        INITHEAP).  This routine is to  be  used  in  conjuction
+        with RESTORE which will restore the original registers.
+
+        A typical calling sequence from macro is therefore:-
+          PUSHJ   P,SAVEACS## ;SAVE THE MACRO ENVIRONMENT
+          PUSHJ   P,FRED##    ;CALL THE REQUIRED IMP ROUTINE
+          PUSHJ   P,RESTORE## ;RESTORE THE MACRO ENVIRONMENT
+
+ASSOCIATED PROCEDURES:  RESTORE, INITHEAP, INITIO, INITSTACK
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 77
+                                                          Nov 78
+
+
+                           SDEF INPUT
+
+DEFINITION:  This routine opens the string given in  the  string
+        name  parameter  and  associates it with a logical input
+        stream number.
+
+SPEC:   %EXTERNALROUTINE SDEF INPUT(%INTEGER n, %STRINGNAME s)
+
+CALL:   SDEF INPUT(n,s)
+
+        n       is an integer expression specifying the  logical
+                input stream number in the range 1 to 15
+        s       is the name of a string variable  to  be  opened
+                for input
+
+        The  string  specified  is  associated  with  the  given
+        logical  input  stream  number,  so  that  input  may be
+        subequently read directly from it.
+
+ASSOCIATED PROCEDURES:   DEFINE  INPUT,  XDEFINE  INPUT,  SELECT
+        INPUT, CLOSE INPUT, RESET INPUT
+
+ERROR CONDITIONS:  A stream number lying outside the range 1  to
+        15 causes event
+
+        %SIGNAL 10, 1, n, "Defining illegal stream"
+
+        Trying to re-define a previously defined  stream  causes
+        event
+
+        %SIGNAL 10, 2, n, "Stream/channel already defined"
+
+
+
+
+                          SDEF OUTPUT
+
+DEFINITION:  This routine opens the string given in  the  string
+        name  parameter  and associates it with a logical output
+        stream number.
+
+SPEC:   %EXTERNALROUTINE SDEF OUTPUT(%INTEGER n, %STRINGNAME s)
+
+CALL:   SDEF OUTPUT(n,s)
+
+        n       is an integer expression specifying the  logical
+                output stream number in the range 1 to 15
+        s       is the name of a string variable  to  be  opened
+                for output
+
+        The  string  specified  is  associated  with  the  given
+        logical  output  stream  number,  so  that output may be
+        subequently written directly to it.
+<HR>
+3B35D                                                    Page 78
+                                                          Nov 78
+
+
+ASSOCIATED PROCEDURES:  DEFINE OUTPUT,  XDEFINE  OUTPUT,  SELECT
+        OUTPUT, CLOSE OUTPUT, RESET OUTPUT
+
+ERROR CONDITIONS:  See SDEF INPUT
+
+
+
+
+                          SELECT INPUT
+
+DEFINITION:  This routine selects the given stream number to  be
+        the  stream  from  which  all  subsequent  input will be
+        taken.
+
+SPEC:   Not required
+
+CALL:   SELECT INPUT(n)
+
+        n       is an integer expression being the stream number
+                to be selected in the range 0 to 15
+
+        The given stream number is selected to be the  one  from
+        which  all subsequent input is taken, until another call
+        of SELECT INPUT.
+
+        If the stream number selected  is  not  defined  by  the
+        user,  it defaults to being the NUL:  device.  i.e.  any
+        input will cause an end of file event (%EVENT 9).
+
+ASSOCIATED  PROCEDURES:   (X)DEFINE  INPUT,  SDEF  INPUT,  CLOSE
+        INPUT, RESET INPUT
+
+ERROR CONDITIONS:  If the stream number given lies  outside  the
+        range 0 to 15 the following event is caused:-
+
+        %SIGNAL 10, 10, n, "Selecting illegal input stream"
+
+
+
+
+<HR>
+3B35D                                                    Page 79
+                                                          Nov 78
+
+
+                         SELECT OUTPUT
+
+DEFINITION:  This routine selects the given stream number to  be
+        the stream to which all subsequent output will be sent.
+
+SPEC:   Not required
+
+CALL:   SELECT OUTPUT(n)
+
+        n       is an integer expression being the stream number
+                to be selected in the range 0 to 15
+
+        The given stream number is selected to  be  the  one  to
+        which  all subsequent output is sent, until another call
+        of SELECT OUTPUT.
+
+        If the stream number selected  is  not  defined  by  the
+        user,  it defaults to being the NUL:  device.  i.e.  any
+        output will be lost.
+
+ASSOCIATED PROCEDURES:  (X)DEFINE  OUTPUT,  SDEF  OUTPUT,  CLOSE
+        OUTPUT, RESET OUTPUT
+
+ERROR CONDITIONS:  If the stream number given lies  outside  the
+        range 0 to 15 the following event is caused:-
+
+        %SIGNAL 10, 11, n, "Selecting illegal output stream"
+
+
+
+
+                          SET STREAMS
+
+DEFINITION:  This routine sets up, up to three input  and  three
+        output streams.
+
+SPEC:   %EXTERNALROUTINE SET STREAMS
+
+CALL:   SET STREAMS
+
+        No parameters
+
+        The user is prompted,
+
+        Files:- 
+
+        to which the response is a list of up  to  three  output
+        file  specifications separated by commas, followed by an
+        equals sign and up to three  input  file  specifications
+        separated  by  commas.   The  commas may be absent if no
+        further output  or  input  file  specifications  follow.
+        Similarly no equals sign is needed if no input files are
+        given.  The streams are set up to be stream 1, 2  and  3
+        respectively for both the output and input sides.
+
+        The following are examples of legal responses.
+<HR>
+3B35D                                                    Page 80
+                                                          Nov 78
+
+
+        Files:- tty:=fred.imp
+                !sets output stream 1 = TTY:
+                !sets input stream 1 = FRED.IMP
+        Files:- =fred.imp,joe.imp,tty:
+                !sets input stream 1 = FRED.IMP
+                !sets input stream 2 = JOE.IMP
+                !sets input stream 3 = TTY:
+        Files:- fred.imp
+                !sets output stream 1 = FRED.IMP
+
+ASSOCIATED   PROCEDURES:    (X)DEFINE   (INPUT/OUTPUT),   SELECT
+        (INPUT/OUTPUT), CLOSE (INPUT/OUTPUT), READFS, CUSPFS
+
+ERROR CONDITIONS:  If a bad command line is typed the  following
+        message is output
+
+        Command error:  "rest of line"
+
+        together with the rest of the input line starting  after
+        the offending character.
+
+        For  non-syntactic  errors  see  DEFINE  INPUT,   DEFINE
+        OUTPUT.
+
+
+
+
+                             SETSTS
+
+DEFINITION:  This routine sets the status  bits  of  the  device
+        associated with a given physical channel number.
+
+SPEC:   %SYSTEMROUTINE SETSTS(%INTEGER chan,bits)
+
+CALL:   SETSTS(chan,bits)
+
+        chan    is an integer expression giving  the  number  of
+                the  physical channel number to be affected (the
+                left-half of the FILOPFN item in an SCB record)
+        bits    is an integer expression giving the status  bits
+                to be changed
+
+        Each physical channel number has associated  with  it  a
+        set  of  status  bits  which this routine can set.  Note
+        that the meaning of these bits depend on the  particular
+        device  (see the DECsystem-10 MONITOR CALLS Manual for a
+        particular device).
+
+ASSOCIATED PROCEDURES:  GETSTS, INSTATUS, OUTSTATUS
+
+ERROR CONDITIONS:  When the channel number refers to  a  channel
+        which  has  no  device  associated  with it, the monitor
+        gives the following fatal error:-
+
+        ?I/O TO UNASSIGNED CHANNEL AT USER addr
+<HR>
+3B35D                                                    Page 81
+                                                          Nov 78
+
+
+                             SHIFTC
+
+DEFINITION:  This integer function cyclically shifts a given bit
+        pattern a specified number of bit positions.
+
+SPEC:   %EXTERNALINTEGERFN SHIFTC(%INTEGER n,m)
+
+USE:    x=SHIFTC(n,m)
+
+        n       is an integer expression whose binary pattern is
+                to be shifted
+        m       is an integer expression indicating  the  number
+                of bit positions that 'n' is to be shifted.
+
+        The bit pattern  in  'n'  is  shifted  'm'  (modulo  72)
+        places, left or right according to the sign of 'm' (+ or
+        - respectively).  Bits lost off one  end  of  the  word,
+        reappear in the same order at the other end of the word.
+
+ERROR CONDITIONS:  None
+
+
+
+
+                         SHORT INTEGER
+
+DEFINITION:  This map enables the  user  to  access  directly  a
+        particular short integer whose address is specified.
+
+SPEC:   Not required
+
+CALL:   SHORT INTEGER(adr)
+
+        adr     is an integer expression giving the  address  of
+                the required location.
+
+        This map allows the user to read or write directly to  a
+        location  in store by specifying the absolute address in
+        'adr'.
+
+ASSOCIATED PROCEDURES:  BYTE  INTEGER,  INTEGER,  REAL,  STRING,
+        RECORD
+
+ERROR CONDITIONS:  If  the  value  of  'adr'  lies  outside  the
+        current  addressing space the following fatal error will
+        occur:-
+
+        ?IMP: Ill Mem Ref at user pc  'addr'
+
+
+
+
+<HR>
+3B35D                                                    Page 82
+                                                          Nov 78
+
+
+                            SIXTOSTR
+
+DEFINITION:  This string function takes  a  DECsystem-10  SIXBIT
+        integer  word  and  returns  it  as an IMP string of six
+        ASCII characters.
+
+SPEC:   %EXTERNALSTRING(6)%FN SIXTOSTR(%INTEGER sixbit)
+
+USE:    s=SIXTOSTR(sixbit)
+
+        sixbit  is an integer expression representing a word  of
+                six SIXBIT characters
+
+        An IMP string of six ASCII characters is generated  from
+        the  given SIXBIT integer word and returned via %RESULT.
+        See the DECsystem-10 Hardware  Reference  Manual  for  a
+        list of the SIXBIT character set.
+
+ASSOCIATED PROCEDURES:  STRTOSIX
+
+ERROR CONDITIONS:  None
+
+
+
+
+                          SKIP SYMBOL
+
+DEFINITION:  This routine passes over the  next  symbol  on  the
+        currently selected input stream, without reading it.
+
+SPEC:   Not required
+
+CALL:   SKIP SYMBOL
+
+        No parameters
+
+        The next character for input is passed over and ignored.
+
+ASSOCIATED PROCEDURES:  READ SYMBOL, NEXT SYMBOL
+
+ERROR CONDITIONS:  See READ SYMBOL.
+
+
+
+
+<HR>
+3B35D                                                    Page 83
+                                                          Nov 78
+
+
+                             SLEEP
+
+DEFINITION:  This routine causes the  users  program  to  go  to
+        sleep for a specified length of time.
+
+SPEC:   %EXTERNALROUTINE SLEEP(%INTEGER n)
+
+CALL:   SLEEP(n)
+
+        n       is an integer expression indicating the time  in
+                milliseconds for the required sleep
+
+        The program is caused to go into a special state  called
+        hibernation from which it awakens after the given number
+        of milliseconds.  The maximum period is 68 seconds.
+
+ERROR CONDITIONS:  A value of n =  0  will  cause  an  immediate
+        return.
+
+
+
+
+                               SP
+
+DEFINITION:  This integer constant gives the internal ASCII code
+        value for the space character.
+
+SPEC:   Not required
+
+USE:    n=SP
+
+        The numerical value of the space character is given.
+
+ASSOCIATED CONSTANTS:  NL, TAB, ESC, FF
+
+
+
+
+<HR>
+3B35D                                                    Page 84
+                                                          Nov 78
+
+
+                             SPACE
+
+DEFINITION:  This routine causes one  'space'  character  to  be
+        sent to the currently selected output stream.
+
+SPEC:   Not required
+
+CALL:   SPACE
+
+        No parameters
+
+        One 'space' character is sent to the output stream.
+
+ASSOCIATED PROCEDURES:  SPACES, NEWLINE, NEWLINES, NEWPAGE
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+                             SPACES
+
+DEFINITION:  This routine cases a specified  number  of  'space'
+        characters  to  be sent to the currently selected output
+        stream.
+
+SPEC:   Not required
+
+CALL:   SPACES(n)
+
+        n       is an integer expression giving  the  number  of
+                'space' characters to be output
+
+        n 'space' characters are sent to the output stream.
+
+ASSOCIATED PROCEDURES:  SPACE, NEWLINE, NEWLINES, NEWPAGE
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+<HR>
+3B35D                                                    Page 85
+                                                          Nov 78
+
+
+                         STARTOFPERIOD
+
+DEFINITION:  This integer function returns the date and time  in
+        universal  date-time  format  of  the start of the given
+        accounting period.
+
+SPEC:   %EXTERNALINTEGERFN STARTOFPERIOD(%INTEGER period)
+
+USE:    udt=STARTOFPERIOD(period)
+
+        period  is an integer  expression  being  a  four  digit
+                accounting   period  whose  start  date-time  is
+                required
+
+        the initial  date  and  time  of  the  given  accounting
+        period, is returned as a universal date-time integer via
+        %RESULT.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR,   TIME,   GET   TIME,  FROM  TIME,  TO  TIME,
+        TIMETOSTR,  DATETIME,  GET  NOW,  FROM  UDT,   TO   UDT,
+        UDTTOSTR, DAY, DAYTOSTR, ACCPER, ENDOFPERIOD
+
+ERROR CONDITIONS:  when the parameters is not of the  form  YYMM
+        or  is  an  impossible  value,  the  following  event is
+        caused:-
+
+        %SIGNAL 11, 22, period, "Accounting period incorrectly
+        specified"
+
+
+
+
+                             STRING
+
+DEFINITION:  This map enables the user to access directly  as  a
+        string a particular location whose address is specified.
+
+SPEC:   Not required
+
+CALL:   STRING(adr)
+
+        adr     is an integer expression giving the  address  of
+                the required location.
+
+        This map allows the user to read or write directly to  a
+        location in store as a string by specifying the absolute
+        address in 'adr'.
+
+ASSOCIATED PROCEDURES:  BYTE INTEGER,  SHORT  INTEGER,  INTEGER,
+        REAL, RECORD
+<HR>
+3B35D                                                    Page 86
+                                                          Nov 78
+
+
+ERROR CONDITIONS:  If  the  value  of  'adr'  lies  outside  the
+        current  addressing space the following fatal error will
+        occur:-
+
+        ?IMP: Ill Mem Ref at user pc  'addr'
+
+
+
+
+                            STRTOASC
+
+DEFINITION:  This routine converts an IMP string into  an  ASCIZ
+        string.
+
+SPEC:   %EXTERNALROUTINE STRTOASC(%STRINGname s, %name adr)
+
+CALL:   STRTOASC(s,adr)
+
+        s       is the name of a n IMP type string which  is  to
+                be converted to ASCIZ form.
+        adr     is the name of a variable at which the converted
+                string is to start
+
+        the given IMP string is converted to ASCIZ  form  (7-bit
+        bytes, terminated by a zero byte) and returned in memory
+        starting at address 'adr'.
+
+ASSOCIATED PROCEDURES:  ASCTOSTR
+
+ERROR CONDITIONS:  None
+
+
+
+
+                            STRTOFS
+
+DEFINITION:  This record function parses the given string into a
+        file specification record.
+
+SPEC:   %EXTERNAL%RECORD(FILESPEC)%FN STRTOFS(%STRING(255) spec)
+
+USE:    fs = STRTOFS(spec)
+
+        spec    is a string containing a DECsystem-10 style file
+                specification,  which  may include switches with
+                values (see appendix B for a  list  of  switches
+                recognised by the system)
+
+        The string 'spec' contains  a  DECsystem-10  style  file
+        specification,  which  is  parsed  into  its constituent
+        items and which are returned  in  the  form  of  a  file
+        specification record (see section 3) via %RESULT.
+
+<HR>
+3B35D                                                    Page 87
+                                                          Nov 78
+
+
+ASSOCIATED PROCEDURES:  FSTOSTR, READFS, WRITE FS, DEFAULT
+
+ERROR CONDITIONS:  If a syntax error is found in the string, the
+        following event occurs:-
+
+        %SIGNAL 10, 9, 0, "Bad file spec:-  'filespec'"
+
+
+
+
+                            STRTOHEX
+
+DEFINITION:  This integer function converts an string of  digits
+        into an hexidecimal integer.
+
+SPEC:   %EXTERNALINTEGERFN STRTOHEX(%STRINGNAME s)
+
+USE:    n=STRTOHEX(s)
+
+        s       is the name of a string containing the number to
+                be converted
+
+        The given string is read sequentially and the first  set
+        of   hexidecimal  digits  found  are  converted  into  a
+        hexidecimal integer which is returned via %RESULT.
+
+ASSOCIATED PROCEDURES:  HEXTOSTR, READ HEX
+
+ERROR CONDITIONS:  See READ HEX
+
+
+
+
+                            STRTOINT
+
+DEFINITION:  This integer function converts an string of  digits
+        into an decimal integer.
+
+SPEC:   %EXTERNALINTEGERFN STRTOINT(%STRINGNAME s)
+
+USE:    n=STRTOINT(s)
+
+        s       is the name of a string containing the number to
+                be converted
+
+        The given string is read sequentially and the first  set
+        of  digits  found  are  converted into a decimal integer
+        which is returned via %RESULT.
+
+ASSOCIATED PROCEDURES:  INTTOSTR, READ
+
+ERROR CONDITIONS:  Same as READ routine for integers.
+<HR>
+3B35D                                                    Page 88
+                                                          Nov 78
+
+
+                            STRTOOCT
+
+DEFINITION:  This integer function converts an string  of  octal
+        digits into an octal integer.
+
+SPEC:   %EXTERNALINTEGERFN STRTOOCT(%STRINGNAME s)
+
+USE:    n=STRTOOCT(s)
+
+        s       is the name of a string containing the number to
+                be converted
+
+        The given string is read sequentially and the first  set
+        of octal digits found are converted into a octal integer
+        which is returned via %RESULT.
+
+ASSOCIATED PROCEDURES:  OCTTOSTR, READ OCTAL
+
+ERROR CONDITIONS:  See READ OCTAL
+
+
+
+
+                            STRTOSIX
+
+DEFINITION:   This  integer  function  gives  the  value  of   a
+        DECsystem-10  SIXBIT word representing the characters in
+        a given IMP string.
+
+SPEC:   %EXTERNALINTEGERFN STRTOSIX(%STRING(6) s)
+
+USE:    n=STRTOSIX(s)
+
+        s       is a string  of  up  to  six  characters  to  be
+                converted  to  SIXBIT  representation (They must
+                lie within the SIXBIT character set)
+
+        The given string is converted into its equivalent SIXBIT
+        representation  and  returned  in  an  integer  word via
+        %RESULT.  See DECsystem-10 Hardware Reference Manual for
+        the full SIXBIT character set.
+
+ASSOCIATED PROCEDURES:  SIXTOSTR
+
+ERROR CONDITIONS:  All characters are assumed to lie within  the
+        SIXBIT character set and unpredictable charcters will be
+        formed if this is not the case.
+
+
+
+
+<HR>
+3B35D                                                    Page 89
+                                                          Nov 78
+
+
+                           SUB EVENT
+
+DEFINITION:  This  integer  function  gives  the  value  of  the
+        sub-class  of  the last event to have been trapped by an
+        %ON %EVENT block.
+
+SPEC:   Not required
+
+USE:    n=SUB EVENT
+
+        No parameters
+
+        the sub-class of the last event is returned via %RESULT
+
+ASSOCIATED PROCEDURES:  EVENT, EVENT INFO
+
+ERROR CONDITIONS:  None
+
+
+
+
+                           SUB STRING
+
+DEFINITION:  This string function extracts a set  of  characters
+        forming a sub-string from a string.
+
+SPEC:   Not required
+
+USE:    t=SUB STRING(s,n,m)
+
+        s       is  the  name  of  a  string  from   which   the
+                sub-string is required
+        n       is an integer expression giving the lower  bound
+                of the required sub-string
+        m       is an integer expression giving the upper  bound
+                of the required sub-string
+
+        A  string  of  characters  from  positions  'n'  to  'm'
+        inclusive  of  string  's'  is returned via %RESULT.  If
+        m=n-1 then a null string is returned.
+
+ASSOCIATED PROCEDURES:  TO STRING, LENGTH, CHARNO, MATCH
+
+ERROR CONDITIONS:  m &lt; n-1 causes the event:-
+
+        %SIGNAL 5, 8, 0, "String parameters inside out"
+
+        Unless 0 &lt; n &lt;= LENGTH(s) or 0 &lt;= m  &lt;=  LENGTH(s)  then
+        the following event is caused:-
+
+        %SIGNAL 5, 7, index, "Illegal string index"
+
+
+
+
+<HR>
+3B35D                                                    Page 90
+                                                          Nov 78
+
+
+                           SWITCH ARG
+
+DEFINITION:  This predicate searches  for  the  occurence  of  a
+        switch  in a given string and returns a switch argument,
+        if one is given.
+
+SPEC:   %EXTERNALPREDICATE SWITCH ARG(%STRING(255)%name s,
+        %STRING(15) t, %name x)
+
+USE:    %IF SWITCH ARG(s,t,x) %THEN . . .
+
+        s       is the name of a string to be scanned
+        t       is a string containing the  switch  name  to  be
+                scanned for
+        x       is the name of an integer or string  into  which
+                an argument is read
+
+        The given string is scanned for a given switch name  and
+        returns  a  value  %TRUE  if  one  is  found, and %FALSE
+        otherwise.  In  addition,  if  a  match  is  found,  any
+        argument  is  read  into  the  string  or  integer  name
+        specified.  It is up to the user to supply  the  correct
+        type of third parameter for any given switch.
+
+ASSOCIATED PROCEDURES:  MATCH
+
+ERROR CONDITIONS:  If the third parameter supplied is not either
+        an integer or string, the following event is caused:-
+
+        %SIGNAL 5, 6, type, "Illegal %NAME type parameter"
+
+
+
+
+                              TAB
+
+DEFINITION:  This integer constant gives the internal ASCII code
+        value for the tab character.
+
+SPEC:   Not required
+
+USE:    n=TAB
+
+        The numerical value of the tab character is given.
+
+ASSOCIATED CONSTANTS:  ESC, SP, NL, FF
+
+
+
+
+<HR>
+3B35D                                                    Page 91
+                                                          Nov 78
+
+
+                             TAPOP
+
+DEFINITION:  This  predicate  performs  the  DECsystem-10  TAPOP
+        Monitor function.
+
+SPEC:   %SYSTEMPREDICATE TAPOP(%INTEGER funct,chan,nargs,
+        %INTEGERARRAYNAME args(0:12), %INTEGERNAME result)
+
+USE:    %IF TAPOP(funct,chan,nargs,args,result) %THEN . . .
+
+        funct   is  an  integer  expression  being   the   TAPOP
+                function code to be performed
+        chan    is an  integer  expression  being  the  physical
+                channel   number  associated  with  the  device,
+                (obtained from the left-half of the FILOPFN word
+                in the Stream Control Block for that stream)
+        nargs   is an integer expression giving  the  number  of
+                arguments  being  passed to the TAPOP UUO in the
+                array 'args'
+        args    is the name of an integer array  which  contains
+                the   relevant   arguments   for   the  function
+                required.
+        result  is the name of an integer which will contain any
+                result passed back by the TAPOP UUO.
+
+        The TAPOP Monitor function is performed according to the
+        values  supplied.   A  value of %TRUE is returned if the
+        function is successful and %FALSE otherwise.  Any result
+        is  passed  back  in the result item of the record.  For
+        the  full  description  of  the  TAPOP   UUO   see   the
+        DECsystem-10 MONITOR CALLS Manual.
+
+ASSOCIATED PROCEDURES:  FILOP
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 92
+                                                          Nov 78
+
+
+                              TIME
+
+DEFINITION:  This string function returns the current time as an
+        eight character string.
+
+SPEC:   %EXTERNALSTRING(8)%FN TIME
+
+USE:    s=TIME
+
+        No parameters
+
+        the current time  is  returned  as  an  eight  character
+        string of the form HH:MM:SS via %RESULT.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR,  GET  TIME,  FROM  TIME,  TO TIME, TIMETOSTR,
+        DATETIME, GET NOW, FROM  UDT,  TO  UDT,  UDTTOSTR,  DAY,
+        DAYTOSTR, ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+                           TIMETOSTR
+
+DEFINITION:  This string function  returns  the  time  given  in
+        milliseconds  (DEC internal form), as an eight character
+        string.
+
+SPEC:   %EXTERNALSTRING(8)%FN TIMETOSTR(%INTEGER time)
+
+USE:    s=TIMETOSTR(time)
+
+        time    is an  integer  expression  being  the  time  in
+                milliseconds past midnight (DEC internal form)
+
+        the given time is converted to an eight character string
+        of the form HH:MM:SS is returned via %RESULT.
+
+        No parameter checking is done  so  that  the  result  is
+        calculated for any number of milliseconds.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR, TIME, GET TIME, FROM TIME, TO TIME, DATETIME,
+        GET NOW, FROM UDT,  TO  UDT,  UDTTOSTR,  DAY,  DAYTOSTR,
+        ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+<HR>
+3B35D                                                    Page 93
+                                                          Nov 78
+
+
+                             TMPCOR
+
+DEFINITION:  This routine executes a DECsystem-10 Monitor TMPCOR
+        UUO.
+
+SPEC:   %SYSTEMROUTINE TMPCOR(%INTEGER typ,iowd,nam)
+
+CALL:   TMPCOR(typ,iowd,nam)
+
+        typ     is an integer  expression  giving  the  type  of
+                TMPCOR function required
+        iowd    is an integer expression  giving  an  IOWD  (see
+                IOWD  integer  function)  relating to an area of
+                store
+        nam     is an integer expression being a  file  name  in
+                SIXBIT format
+
+        A TMPCOR UUO function is executed.  For a  list  of  the
+        types  of  function  available  and the form of the data
+        block see the DECsystem-10 MONITOR CALLS Manual.
+
+ASSOCIATED PROCEDURES:  (X) DEFINE (INPUT/OUTPUT), FINIT,  IOWD,
+        STRTOSIX
+
+ERROR CONDITIONS:  None
+
+
+
+
+                             TODATE
+
+DEFINITION:  This integer function gives the value of  the  date
+        in DEC internal form given the day, month and year
+
+SPEC:   %EXTERNALINTEGERFN TODATE(%INTEGER day, mon, year)
+
+USE:    d=TODATE(day,mon,year)
+
+        day     is an integer expression being the  day  of  the
+                month
+        mon     is an integer expression being the month of  the
+                year
+        year    is an integer expression being the  year,  where
+                the centuries may or may not be given
+
+        the date in DEC internal format  is  computed  from  the
+        integer parameters and is returned via %RESULT.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET DATE,  FROM  DATE,  DATETOSTR,
+        TIME, GET TIME, FROM TIME, TO TIME, TIMETOSTR, DATETIME,
+        GET NOW, FROM UDT,  TO  UDT,  UDTTOSTR,  DAY,  DAYTOSTR,
+        ACCPER, STARTOFPERIOD, ENDOFPERIOD
+<HR>
+3B35D                                                    Page 94
+                                                          Nov 78
+
+
+ERROR CONDITIONS:  None
+
+
+
+
+                           TO STRING
+
+DEFINITION:  This string function creates a one character string
+        from a given symbol.
+
+SPEC:   Not required
+
+USE:    s=TO STRING(n)
+
+        n       is an integer expression whose least significant
+                7 bits are to be placed in a string
+
+        A string  is  constructed  from  the  symbol  given  and
+        returned via %RESULT.
+
+ASSOCIATED PROCEDURES:  SUB STRING, LENGTH, CHARNO
+
+ERROR CONDITIONS:  None
+
+
+
+
+                             TOTIME
+
+DEFINITION:  This integer function gives the value of  the  time
+        of  day  as  milliseconds  past  midnight  (DEC internal
+        form), from the given parameters.
+
+SPEC:   %EXTERNALINTEGERFN TOTIME(%INTEGER hrs, mins, secs)
+
+USE:    t=TOTIME(hrs,mins,secs)
+
+        hrs     is an integer expression being the hour  of  the
+                day
+        mins    is an integer expression being the minute of the
+                hour
+        secs    is an integer expression being the second of the
+                minute
+
+        the time in DEC internal form is computed from the given
+        parameters and returned via %RESULT.
+
+        No parameter checking is done  so  that  the  result  is
+        calculated for any number of hours, minutes and seconds.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR,   TIME,   GET  TIME,  FROM  TIME,  TIMETOSTR,
+        DATETIME, GET NOW, FROM  UDT,  TO  UDT,  UDTTOSTR,  DAY,
+<HR>
+3B35D                                                    Page 95
+                                                          Nov 78
+
+
+        DAYTOSTR, ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+                             TO UDT
+
+DEFINITION:  This integer function returns the date and time  in
+        the  universal date-time form given the date and time in
+        DEC internal form.
+
+SPEC:   %EXTERNALINTEGERFN TO UDT(%INTEGER date, time)
+
+USE:    udt=TO UDT(date,time)
+
+        date    is an integer expression being the date  in  DEC
+                internal form
+        time    is an integer expression being the time  in  DEC
+                internal form
+
+        the  date  and  time  in  universal  date-time  form  is
+        computed from the date and time in DEC internal form and
+        returned via %RESULT.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR,   TIME,   GET   TIME,  FROM  TIME,  TO  TIME,
+        TIMETOSTR, DATETIME, GET NOW, FROM UDT,  UDTTOSTR,  DAY,
+        DAYTOSTR, ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+<HR>
+3B35D                                                    Page 96
+                                                          Nov 78
+
+
+                            UDTTOSTR
+
+DEFINITION:  This string function  returns  the  date  and  time
+        given  in  universal  date-time  form,  as  an  eighteen
+        character string.
+
+SPEC:   %EXTERNALSTRING(18)%FN UDTTOSTR(%INTEGER udt)
+
+USE:    s=UDTTOSTR(udt)
+
+        udt     is an integer expression being the date and time
+                in unversal date-time form
+
+        the date-time parameter is translated into a  string  of
+        the form HH:MM:SS DD-MON-YY and returned via %RESULT.
+
+        See Section 2 for a description of the various date  and
+        time formats.
+
+ASSOCIATED PROCEDURES:  DATE, GET  DATE,  FROM  DATE,  TO  DATE,
+        DATETOSTR,   TIME,   GET   TIME,  FROM  TIME,  TO  TIME,
+        TIMETOSTR, DATETIME, GET NOW, FROM  UDT,  TO  UDT,  DAY,
+        DAYTOSTR, ACCPER, STARTOFPERIOD, ENDOFPERIOD
+
+ERROR CONDITIONS:  None
+
+
+
+
+                           USET INPUT
+
+DEFINITION:  This routine gives the ability  to  read  the  next
+        buffer for input from a given block in the current input
+        file.
+
+SPEC:   %EXTERNALROUTINE USET INPUT(%INTEGER n)
+
+CALL:   USET INPUT(n)
+
+        n       is an integer expression  specifying  the  block
+                number to be read next
+
+        This routine performs the  USETI  Monitor  call  on  the
+        current input stream.  This Monitor call allows the user
+        to set the block number of the next  block  to  be  read
+        from.   See  the  DECsystem-10  MONITOR CALLS Manual for
+        full details of the form of argument and its conditions.
+
+ASSOCIATED PROCEDURES:  (X)DEFINE  INPUT,  SELECT  INPUT,  CLOSE
+        INPUT, RESET INPUT
+
+ERROR CONDITIONS:  None
+<HR>
+3B35D                                                    Page 97
+                                                          Nov 78
+
+
+                          USET OUTPUT
+
+DEFINITION:  This routine gives the ability to  write  the  next
+        buffer for output to a given block in the current output
+        file.
+
+SPEC:   %EXTERNALROUTINE USET OUTPUT(%INTEGER n)
+
+CALL:   USET OUTPUT(n)
+
+        n       is an integer expression  specifying  the  block
+                number to be written next
+
+        This routine performs the  USETO  Monitor  call  on  the
+        current  output  stream.   This  Monitor call allows the
+        user to set the block number of the  next  block  to  be
+        written  to.   See the DECsystem-10 MONITOR CALLS Manual
+        for full  details  of  the  form  of  argument  and  its
+        conditions.
+
+ASSOCIATED PROCEDURES:  (X)DEFINE OUTPUT, SELECT  OUTPUT,  CLOSE
+        OUTPUT, RESET OUTPUT
+
+ERROR CONDITIONS:  None
+
+
+
+
+                             WRITE
+
+DEFINITION:  This routine prints a signed decimal integer on the
+        currently selected output stream.
+
+SPEC:   Not required
+
+CALL:   WRITE(n,m)
+
+        n       is an integer expression whose value  is  to  be
+                printed out
+        m       is an integer expression specifying  the  number
+                of  printing  positions  that  the  number is to
+                occupy
+
+        A decimal integer is output on the current output stream
+        with   'm'   printing   positions  including  the  sign.
+        Non-significant leading zeros are replaced  with  spaces
+        and  a  positive  sign  is indicated by a space.  If the
+        number is has more than 'm'  significant  digits,  these
+        will  all be output and the subsequent allignment of the
+        output will be right shifted.
+
+        If 'm' has the value zero then all  leading  spaces  and
+        positive sign are suppressed.
+<HR>
+3B35D                                                    Page 98
+                                                          Nov 78
+
+
+ASSOCIATED PROCEDURES:  READ
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+                            WRITE DA
+
+DEFINITION:  This routine writes out the data from a given  area
+        into a specified file, starting at a specified block.
+
+SPEC:   %EXTERNALROUTINE WRITE DA(%INTEGER n, %INTEGERname
+        block, %name begin,end)
+
+CALL:   WRITE DA(n,block,begin,end)
+
+        n       is  an  integer  expression  being  the  channel
+                number
+        block   is the name of  an  integer  variable  which  on
+                entry  gives  the  starting block number and, on
+                exit contains  the  number  of  the  last  block
+                written to.  A value of -1 causes the file to be
+                appended to.
+        begin   is the name of the first data item of an area to
+                be output
+        end     is the name of the last data item of an area  to
+                be output
+
+        The  data  contained  within  the  area  begin  to   end
+        inclusively  is written out to the direct access file on
+        channel 'n' starting at block 'block'.  The  data  items
+        may be of any type including records and are written out
+        starting at the beginning of the specified block and any
+        incomplete blocks are filled with words containing zero.
+
+ASSOCIATED PROCEDURES:  (X) OPEN DA, READ DA, CLOSE DA
+
+ERROR CONDITIONS:  The following events may occur:-
+
+        %SIGNAL 20, 23, chan, "Read/write to illegal DA/SQ
+        channel"
+        %SIGNAL 20, 23, chan, "Read/write to DA/SQ channel
+        before OPENing it"
+        %SIGNAL 20, 24, chan, "Accessing DA channel by SQ
+        routine or vice versa"
+        %SIGNAL 20, 25, 0, "Storage area for DA/SQ routine
+        inside out"
+        %SIGNAL 20, 26, block, "Illegal block number for DA
+        read/write routine"
+        %SIGNAL 9, 0, chan, "EOF on DA or SQ channel"
+
+
+
+
+<HR>
+3B35D                                                    Page 99
+                                                          Nov 78
+
+
+                            WRITE FS
+
+DEFINITION:   This   routine   prints   out   the   given   file
+        specification record in the standard DECsystem-10 format
+        to the currently selected output stream.
+
+SPEC:   %EXTERNALROUTINE WRITE FS(%RECORD(FILESPEC)%name fs)
+
+CALL:   WRITE FS(fs)
+
+        fs      is the name of a file specification record to be
+                output
+
+        The given file specification is sent in the DECsystem-10
+        file specification format to the current output stream.
+
+ASSOCIATED PROCEDURES:  READFS, FSTOSTR, STRTOFS
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+                           WRITE HEX
+
+DEFINITION:  This routine prints  the  specified  integer  as  a
+        signed  hexidecimal  number  on  the  currently selected
+        output stream.
+
+SPEC:   %EXTERNALROUTINE WRITE HEX(%INTEGER n,m)
+
+CALL:   WRITE HEX(n,m)
+
+        n       is an integer expression being  the  hexidecimal
+                number to be printed
+        m       is an integer expression giving  the  number  of
+                printing positions that the number is to occupy
+
+        An hexidecimal integer is output on the  current  output
+        stream  with  'm' printing positions including the sign.
+        Non-significant leading zeros are replaced  with  spaces
+        and  a  positive  sign  is indicated by a space.  If the
+        number is has more than 'm'  significant  digits,  these
+        will  all be output and the subsequent allignment of the
+        output will be right shifted.
+
+        If 'm'  has  the  value  zero  all  leading  spaces  and
+        positive sign are suppressed.
+
+ASSOCIATED PROCEDURES:  READ HEX, HEXTOSTR
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+<HR>
+3B35D                                                   Page 100
+                                                          Nov 78
+
+
+                          WRITE OCTAL
+
+DEFINITION:  This routine prints  the  specified  integer  as  a
+        signed  octal  number  on  the currently selected output
+        stream.
+
+SPEC:   %EXTERNALROUTINE WRITE OCTAL(%INTEGER n,m)
+
+CALL:   WRITE OCTAL(n,m)
+
+        n       is an integer expression being the octal  number
+                to be printed
+        m       is an integer expression giving  the  number  of
+                printing positions that the number is to occupy
+
+        An octal integer is output on the current output  stream
+        with   'm'   printing   positions   including   a  sign.
+        Non-significant leading zeros are replaced  with  spaces
+        and  a  positive  sign  is indicated by a space.  If the
+        number is has more than 'm'  significant  digits,  these
+        will  all be output and the subsequent allignment of the
+        output will be right shifted.
+
+        If 'm'  has  the  value  zero  all  leading  spaces  and
+        positive sign are suppressed.
+
+ASSOCIATED PROCEDURES:  READ OCTAL, OCTTOSTR
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+                           WRITE PPN
+
+DEFINITION:    This   routine   prints    a    number    as    a
+        project-programmer  pair enclosed within square brackets
+        on the currently selected output stream.
+
+SPEC:   %EXTERNALROUTINE WRITE PPN(%INTEGER ppn)
+
+CALL:   WRITE PPN(ppn)
+
+        ppn     is an integer expression being a word containing
+                the  octal representations of the project number
+                in octal in the left  half  and  the  programmer
+                number in octal in the right half
+
+        The integer ppn is sent to the current output stream  in
+        the form of a project-programmer pair enclosed in square
+        brackets.
+
+ASSOCIATED PROCEDURES:  READ PPN, READ OCTAL, WRITE OCTAL
+<HR>
+3B35D                                                   Page 101
+                                                          Nov 78
+
+
+ERROR CONDITIONS:  See PRINT SYMBOL.
+
+
+
+
+                            WRITE SQ
+
+DEFINITION:  This routine writes out the data from a given  area
+        into a specified file.
+
+SPEC:   %EXTERNALROUTINE WRITE SQ(%INTEGER n, %name begin,end)
+
+CALL:   WRITE SQ(n,begin,end)
+
+        n       is  an  integer  expression  being  the  channel
+                number and lying in the range 1 to 15
+        begin   is the name of the first data item of an area to
+                be output
+        end     is the name of the last data item of an area  to
+                be output
+
+        The  data  contained  within  the  area  begin  to   end
+        inclusively  is  written  out  to the sequential file on
+        channel  'n'.   The  data  items  may  be  of  any  type
+        including records.  The first call of this routine after
+        a sequential channel has been opened determines that all
+        subsequent  access  on  that channel must be for writing
+        unless the channel is re-opened.
+
+        Data is stored on the external medium as an unstructured
+        sequence  of  words.   It is the users responsibility to
+        remember the form of  the  data  stored  for  subsequent
+        reading.   The final record of a file may be followed by
+        a number of words containing zero which are used to fill
+        out the lst block of the file.
+
+ASSOCIATED PROCEDURES:  (X)OPEN SQ, READ SQ, CLOSE SQ
+
+ERROR CONDITIONS:  The following events may occur:-
+
+        %SIGNAL 20, 23, chan, "Read/write to illegal DA/SQ
+        channel"
+        %SIGNAL 20, 23, chan, "Read/write to DA/SQ channel
+        before OPENing it"
+        %SIGNAL 20, 24, chan, "Accessing DA channel by SQ
+        routine or vice versa"
+        %SIGNAL 20, 25, 0, "Storage area for DA/SQ routine
+        inside out"
+        %SIGNAL 20, 26, block, "Illegal block number for DA
+        read/write routine"
+        %SIGNAL 20, 27, chan, "Outputting to an SQ channel set
+        for input"
+        %SIGNAL 9, 0, chan, "EOF on DA or SQ channel"
+<HR>
+3B35D                                                   Page 102
+                                                          Nov 78
+
+
+                             XCOPY
+
+DEFINITION:  This routine copies one file into another.
+
+SPEC:   %EXTERNALROUTINE XCOPY(%RECORD(FILESPEC)%name fs, new
+        fs)
+
+CALL:   XCOPY(fs, new fs)
+
+        fs      is  the  name  of  a   record   containing   the
+                specification of the file to be copied
+        new fs  is the name of  a  record  containing  the  file
+                specification for the copied file.
+
+        the file specified in 'fs' is  copied  to  another  file
+        whose name is specified in 'new fs'.
+
+ASSOCIATED PROCEDURES:  See COPY
+
+ERROR CONDITIONS:  see XOPEN DA and also, when the  I/O  channel
+        capacity is full:-
+
+        %SIGNAL 2, 5, 0, "No free channels for COPYing
+        'filespec'"
+
+
+
+
+                         XDEFINE INPUT
+
+DEFINITION:  This routine opens the device or file given in  the
+        file  specification  record  and  associates it with the
+        logical input stream number given.
+
+SPEC:   %EXTERNALROUTINE XDEFINE INPUT(%INTEGER n,
+        %RECORD(FILESPEC)%name fs)
+
+CALL:   XDEFINE INPUT(n,fs)
+
+        n       is an integer expression specifying the  logical
+                input stream number in the range 1 to 15
+        fs      is the  name  of  a  file  specification  record
+                containing the file or device to be opened
+
+        The device or file specified is  opened  and  associated
+        with the given logical input stream number.
+
+ASSOCIATED PROCEDURES:  See DEFINE INPUT
+
+ERROR CONDITIONS:  See DEFINE INPUT
+
+
+
+
+<HR>
+3B35D                                                   Page 103
+                                                          Nov 78
+
+
+                         XDEFINE OUTPUT
+
+DEFINITION:  This routine opens the device or file given in  the
+        file  specification  record  and  associates it with the
+        logical output stream number given.
+
+SPEC:   %EXTERNALROUTINE XDEFINE OUTPUT(%INTEGER n,
+        %RECORD(FILESPEC)%name fs)
+
+CALL:   XDEFINE OUTPUT(n,fs)
+
+        n       is an integer expression specifying the  logical
+                output stream number in the range 1 to 15
+        fs      is the  name  of  a  file  specification  record
+                containing the file or device to be opened
+
+        The device or file specified is  opened  and  associated
+        with the given logical output stream number.
+
+ASSOCIATED PROCEDURES:  See DEFINE OUTPUT
+
+ERROR CONDITIONS:  See DEFINE OUTPUT.
+
+
+
+
+                            XDELETE
+
+DEFINITION:  This routine deletes the file  given  in  the  file
+        specification record.
+
+SPEC:   %EXTERNALROUTINE XDELETE(%RECORD(FILESPEC)%name fs)
+
+CALL:   XDELETE(fs)
+
+        fs      is the  name  of  a  file  specification  record
+                indicating a file to be deleted
+
+        The file specified in the record 'fs' is deleted.
+
+ASSOCIATED PROCEDURES:  See DELETE
+
+ERROR CONDITIONS:  See DELETE
+
+
+
+
+<HR>
+3B35D                                                   Page 104
+                                                          Nov 78
+
+
+                            XIS FILE
+
+DEFINITION:  This predicate tests to see whether  the  specified
+        file exists or not.
+
+SPEC:   %EXTERNALPREDICATE XIS FILE(%RECORD(FILESPEC)%name fs)
+
+CALL:   %IF XIS FILE(fs) %THEN . . .
+
+        fs      is the  name  of  a  file  specification  record
+                containing the name of the file to be tested
+
+        The predicate has the value %TRUE if the file exists and
+        %FALSE  if  it  does not, or cannot be accessed for some
+        reason.
+
+ASSOCIATED PROCEDURES:  See IS FILE
+
+ERROR CONDITIONS:  See IS FILE
+
+           (when the full I/O capacity is being used)
+        %SIGNAL 2, 5, 0, "All I/O channels in use"
+           or (usually when a bad device is given)
+        %SIGNAL 10, 6, 0, "Cannot open device 'device'"
+
+
+
+
+                            XOPEN DA
+
+DEFINITION:  This routine has the same effect as OPEN DA  except
+        that  it  takes  a file specification record name as its
+        second parameter and not a string.
+
+SPEC:   %EXTERNALROUTINE XOPEN DA(%INTEGER n,
+        %RECORD(FILESPEC)%name fs)
+
+CALL:   XOPEN DA(n,fs)
+
+        n       is  an  integer  expression  being  the  logical
+                channel   number   to  be  associated  with  the
+                specified file.  It must lie in the range  1  to
+                15.
+        fs      is the  name  of  a  file  specification  record
+                containing the name of the file to be opened
+
+        The specified file is opened for both reading or writing
+        and is associated with the given logical channel number.
+
+ASSOCIATED PROCEDURES:  See OPEN DA
+
+ERROR CONDITIONS:  See OPEN DA
+<HR>
+3B35D                                                   Page 105
+                                                          Nov 78
+
+
+                            XOPEN SQ
+
+DEFINITION:  This routine has the same effect as OPEN SQ  except
+        that  it  takes  a file specification record name as its
+        second parameter and not a string.
+
+SPEC:   %EXTERNALROUTINE XOPEN SQ(%INTEGER n,
+        %RECORD(FILESPEC)%name fs)
+
+CALL:   XOPEN SQ(n,fs)
+
+        n       is  an  integer  expression  being  the  logical
+                channel   number   to  be  associated  with  the
+                specified file.  It must lie in the range  1  to
+                15.
+        fs      is the  name  of  a  file  specification  record
+                containing the name of the file to be opened
+
+        The specified file  is  opened  for  either  reading  or
+        writing and is associated with the given logical channel
+        number.  But note  that  both  options  of  reading  and
+        writing  may not be exercised and that the first call of
+        either READ SQ or WRITE  SQ  determines  the  subsequent
+        type of access.
+
+ASSOCIATED PROCEDURES:  See OPEN SQ
+
+ERROR CONDITIONS:  See OPEN SQ
+
+
+
+
+                            XRENAME
+
+DEFINITION:  This routine allows a specified  disk  file  to  be
+        renamed.
+
+SPEC:   %EXTERNALROUTINE XRENAME(%RECORD(FILESPEC)%name fs1,fs2)
+
+CALL:   XRENAME(fs1,fs2)
+
+        fs1     is the  name  of  a  file  specification  record
+                containing the name of the file to be renamed
+        fs2     is the  name  of  a  file  specification  record
+                containing  the  name  which  the  file is to be
+                given
+
+        A specified file is given a new name.
+
+ASSOCIATED PROCEDURES:  See RENAME
+
+ERROR CONDITIONS:  See RENAME
+<HR>
+3B35D                                                   Page 106
+                                                          Nov 78
+
+
+                              ZERO
+
+DEFINITION:  This routine sets a block of store to zero.
+
+SPEC:   %SYSTEMROUTINE ZERO(%name from, to)
+
+CALL:   ZERO(from,to)
+
+        from    is the name of a variable from  which  to  start
+                zeroing store
+        to      is the name of a variable which will be the last
+                item to be zeroed.
+
+        the  block  of  store  between  and  including  the  two
+        parameters  given is set to zero.  If the variable given
+        is a record, string or array, the whole  record,  string
+        or array will be zeroed.
+
+ASSOCIATED PROCEDURES:  BLT
+
+ERROR CONDITIONS:  The user should be sure that they  understand
+        how  variables  are  stored,  when doing complex zeroing
+        operations, as incautious use of this routine, may  zero
+        areas  of  store and variables which may cause errors of
+        many types.
+<HR>
+3B35D                                                   Page 107
+                                                          Nov 78
+
+
+2. DATE-TIME FORMATS
+
+
+    2.1 Internal DEC format.
+
+
+    The date is represented as a fifteen bit integer,  which  is
+    calculated  by  incrementing it by 1 each day, 31 each month
+    (regardless of the actual number of days in the month),  and
+    by  12*31 each year (regardless of the number of days in the
+    year).  the date in this form is easily transformed into the
+    day, month and year.
+
+             date = day + (month*31 + (year*12))
+
+    The time is represented as the number of  milliseconds  past
+    midnight.
+
+    2.2 Universal date-time format.
+
+
+    This comprises a single 36-bit word whose left half  is  the
+    number  of days since Wednesday November 18th.  1858 (day 1)
+    and whose right half is  in  fractions  of  a  day,  with  a
+    resolution  of about one-third of a second.  From it the day
+    of the week and the number of  days  between  two  dates  is
+    easily calculated.
+
+    2.3 Accounting periods.
+
+
+    This is a  system  of  representation  based  on  four  week
+    periods.   The  accounting  period  is represented as a four
+    digit number, where the first pair of digits  are  the  last
+    two digits of the year, and the second pair of digits is the
+    month in the year from 00 to 13 where the weeks are  counted
+    from  Monday  to Sunday inclusive.  E.g.  7802 is the second
+    period in 1978.
+<HR>
+3B35D                                                   Page 108
+                                                          Nov 78
+
+
+3. DEFINITION OF THE FILE SPECIFICATION RECORD
+
+
+    The file record is defined as follows:
+
+%RECORDFORMAT FILESPEC( %C
+   %STRING(6) DEV,      - Device name
+   %STRING(6) FILE,     - File name
+   %STRING(3) EXT,      - File extension
+   %INTEGER PPN,        - Project-programmer pair
+   %STRING(6)%ARRAY SFDS(1:MAX SFDS),
+                        - List of sub-file directories
+   %INTEGER PROT,       - 3 octal digit protection code
+   %STRING(20) SWITCHES)- String of switches
+
+Switches recognised by the DEC-10 system library are:-
+
+    /ALLOCATE:  n  Allocate 'n' contiguous blocks when  creating
+                   a file
+    /BLOCKSIZE: n  Set blocksize for a device
+    /BUFFNUM:   n  Use 'n' buffers in the buffer ring
+    /BYTE:      n  Set the byte size for reading/writing
+    /DENSITY:   n  Set density for magnetic tape ( 200, 556, 800
+                   or 1600 bpi )
+    /ESTIMATE:  n  Set aside 'n' blocks when creating a file
+    /EXTEND:    n  Use an extended Lookup/Enter block where  'n'
+                   is ommitted 35 octal is assumed
+    /FUNCTION:  n  The appropriate FILOP function is used
+    /MODE:      n  Set the mode to be this (the status word)
+    /PARITY:    n  Set parity for magnetic tapes:  0 = even, 1 =
+                   odd
+    /VERSION:   n  Version  number  interpreted  in  DEC  .JBVER
+                   format   (see   DECsystem  10  Monitor  Calls
+                   Manual)
+Switches can  be  abreviated  to  the  shortest  unique  string.
+Numbers can be specified as octal if preceded by a hash sign.
+
+e.g.    /BL:#203   - set the blocksize to octal 203
+<HR>
+3B35D                                                   Page 109
+                                                          Nov 78
+
+
+4. SYSTEM LIBRARY PROCEDURES SUMMARY
+
+
+NAME         CLASS TYPE          PARAMETERS
+
+ACCPER       ext %integerfn      %integer udt
+ADDR             %integerfn      %name x
+ASCTOSTR     ext %string(255)%fn %name adr
+BINTOSTR     ext %string(36)%fn  %integer num
+BLT          sys %routine        %name from,to %integer len
+BYTEINTEGER      %byteintegermap %integer adr
+CALL(0-9)    ext %routine        %name rtn, ...
+CALLI1       ext %routine        %integer n %integername ac
+CALLI2       ext %predicate      %integer n %integername ac
+CALLI3       ext %predicate      %integer n %integername ac
+CHARNO           %byteintegerfn  %stringname s %integer n
+CHECKPOINT   ext %routine
+CLOSE        sys %routine        %integer chan
+CLOSE DA     ext %routine        %integer chan
+CLOSE INPUT      %routine
+CLOSE OUTPUT     %routine
+CLOSE SQ     ext %routine        %integer chan
+COPY         ext %routine        %string(255) orig,new
+CPUTIME      ext %integerfn
+CUSP FILES   ext %routine        %record(filespec)%name r,s,
+                                 t,u %integer chan,
+                                 %integername found
+DATE         ext %string(9)%fn
+DATETIME     ext %string(18)%fn
+DATETOSTR    ext %string(9)%fn   %integer date
+DAY          ext %string(9)%fn
+DAYTOSTR     ext %string(9)%fn   %integer udt
+DDT          sys %routine        %name x
+DECODE       ext %routine        %integer inst,adr
+DEFAULT      ext %routine        %record(filespec)%name f,f1
+DEFINE INPUT     %routine        %integer n %string(255) s
+DEFINE OUTPUT    %routine        %integer n %string(255) s
+DELETE       ext %routine        %string(255) spec
+ECHO         ext %routine
+ENDOFPERIOD  ext %integerfn      %integer period
+ESC              %constinteger
+EVENT            %intergerfn
+EVENT INFO       %integerfn
+FF               %constinteger
+FILOP        sys %predicate      %record(scb)%name r,
+                                 %integername err
+FINIT        sys %routine
+FLOAT            %realfn         %integer n
+FRAC PT          %longrealfn     %longreal a
+FREEVEC      sys %routine        %integer adr,len
+FROMDATE     ext %routine        %integer date,
+                                 %integername d,m,y
+FROMTIME     ext %routine        %integer time,
+                                 %integername h,m,s
+FROMUDT      ext %routine        %integer udt,
+                                 %integername date,time
+<HR>
+3B35D                                                   Page 110
+                                                          Nov 78
+
+
+FSTOSTR      ext %string(255)%fn %record(filespec)%name fs
+GET CHANNEL  sys %integerfn
+GETDATE      ext %integerfn
+GETNOW       ext %integerfn
+GETPAGES     sys %routine        %integer first,last
+GETSEG       ext %routine        %string(6) dev,file,
+                                 %string(3) ext %integer ppn
+GETSTS       sys %integerfn      %integer chan
+GETTAB       sys %predicate      %integer table,index,
+                                 %integername result
+GETTIME      ext %integerfn
+GETVEC       sys %integerfn      %integer size
+HEXTOSTR     ext %string(9)%fn   %integer n
+ICALL(0-9)   ext %integerfn      %name fn, ...
+IMOD             %integerfn      %integer n
+INDEV        ext %integerfn
+INITFOR      sys %routine
+INITHEAP     sys %routine
+INITIO       sys %routine
+INITSTACK    sys %routine
+INPUT        sys %routine
+INPUT PENDING    %predicate
+INSTATUS     ext %integerfn
+INSTREAM         %integerfn
+INT              %integerfn      %longreal a
+INTEGER          %integermap     %integer adr
+INT PT           %integerfn      %longreal a
+INTTOSTR     ext %string(12)%fn  %integer n
+IOUUO        sys %predicate      %integer fn,chan,
+                                 %name adr
+IOWD         sys %integerfn      %integer len,
+                                 %integername adr
+ISFILE       ext %predicate      %string(255) spec
+JOBFILE      ext %string(6)%fn   %string(3) s
+JOBNUM       ext %integerfn
+JSYS(0-4)    ext %routine        %integer n %integername ...
+LENGTH           %byteintegerfn  %stringname s
+MATCH        ext %integerfn      %stringname src,
+                                 %string(255) target
+MOD              %longrealfn     %longreal a
+NEWLINE          %routine
+NEWLINES         %routine        %integer n
+NEWPAGE          %routine
+NEXT ITEM        %string(1)%fn
+NEXT SYMBOL      %integerfn
+NL               %integerfn
+NOECHO       ext %routine
+OCTTOSTR     ext %string(12)%fn  %integer n
+OPEN DA      ext %routine        %integer chan,
+                                 %string(255) spec
+OPEN SQ      ext %routine        %integer chan,
+                                 %string(255) spec
+OUTDEV       ext %integerfn
+OUTPUT       sys %routine
+OUTSTATUS    ext %integerfn
+OUTSTREAM        %integerfn
+<HR>
+3B35D                                                   Page 111
+                                                          Nov 78
+
+
+PI               %constlongreal
+PPN          ext %integerfn
+PRINT            %routine        %longreal a %integer n,m
+PRINT FL         %routine        %longreal a %integer n
+PRINT STRING     %routine        %string(255) s
+PRINT SYMBOL     %routine        %integer n
+PROMPT       ext %routine        %string(255) s
+RAD50        ext %integerfn      %string(6) s
+RCALL(0-9)   ext %realfn         %name fn, ...
+READ             %routine        %name a
+READ DA      ext %routine        %integer chan,
+                                 %integername block,
+                                 %name start,end
+READ FS      ext %routine        %record(filespec)%name fs
+READ HEX     ext %routine        %integername n
+READ ITEM        %routine        %stringname s
+READ OCTAL   ext %routine        %integername n
+READ PPN     ext %routine        %integername ppn
+READ SQ      ext %routine        %integer chan,
+                                 %name start,end
+READ STRING      %routine        %stringname s
+READ SYMBOL      %routine        %name n
+READ TEXT        %routine        %stringname s,
+                                 %integer delim
+REAL             %realmap        %integer adr
+RECORD           %recordmap      %integer adr
+RELEASE      sys %routine        %integer chan
+REM              %integerfn      %integer n,m
+RENAME       ext %routine        %string(255) orig,new
+REPORT       ext %routine        %string(255) s
+RESET INPUT  ext %routine
+RESET OUTPUT ext %routine
+RESTORE      ext %routine
+RUN          ext %routine        %string(6) dev,file,
+                                 %string(3) ext,
+                                 %integer ppn,offset
+SAVE ACS     ext %routine
+SDEF INPUT   ext %routine        %integer n %stringname s
+SDEF OUTPUT  ext %routine        %integer n %stringname s
+SELECT INPUT     %routine        %integer n
+SELECT OUTPUT    %routine        %integer n
+SET STREAMS  ext %routine
+SETSTS       sys %routine        %integer chan,bits
+SHIFTC       ext %integerfn      %integer num,times
+SHORTINTEGER     %shortintegermap %integer adr
+SKIP SYMBOL      %routine
+SLEEP        ext %routine        %integer n
+SP               %constinteger
+SPACE            %routine
+SPACES           %routine        %integer n
+STARTOFPERIODext %integerfn      %integer period
+STRING           %stringmap      %integer adr
+STRTOASC     ext %routine        %stringname s,
+                                 %name adr
+STRTOFS      ext %record(filespec)%fn %string(255) spec
+STRTOHEX     ext %integerfn      %stringname s
+<HR>
+3B35D                                                   Page 112
+                                                          Nov 78
+
+
+STRTOINT     ext %integerfn      %stringname s
+STRTOOCT     ext %integerfn      %stringname s
+STRTOSIX     ext %integerfn      %string(6) s
+SUBEVENT         %integerfn
+SUB STRING       %string(255)%fn %stringname s %integer n,m
+SWITCH ARG   ext %predicate      %string(255)%name s,
+                                 %string(11) target,
+                                 %name arg
+TAB              %constinteger
+TAPOP        sys %predicate      %integer funct,chan,nargs,
+                                 %integerarrayname args,
+                                 %integername result
+TIME         ext %string(8)%fn
+TIMETOSTR    ext %string(8)%fn   %integer time
+TMPCOR       sys %routine        %integer n,iowd,file
+TODATE       ext %integerfn      %integer d,m,y
+TOSTRING         %string(1)%fn   %integer n
+TOTIME       ext %integerfn      %integer h,m,s
+TOUDT        ext %integerfn      %integer date,time
+UDTTOSTR     ext %string(18)%fn  %integer udt
+USET INPUT   ext %routine        %integer block
+USET OUTPUT  ext %routine        %integer block
+WRITE            %routine        %integer n,m
+WRITE DA     ext %routine        %integer chan,
+                                 %integername block,
+                                 %name start,end
+WRITE FS     ext %routine        %record(filespec)%name fs
+WRITE HEX    ext %routine        %integer n,m
+WRITE OCTAL  ext %routine        %integer n,m
+WRITE PPN    ext %routine        %integer ppn
+WRITE SQ     ext %routine        %integer chan,
+                                 %name start,end
+XCOPY        ext %routine        %record(filespec)%name f,f1
+XDEFINE INPUT    %routine            %integer n,
+                                 %record(filespec)%name fs
+XDEFINE OUTPUT   %routine            %integer n,
+                                 %record(filespec)%name fs
+XDELETE      ext %routine        %record(filespec)%name fs
+XISFILE      ext %predicate      %record(filespec)%name fs
+XOPEN DA     ext %routine        %integer chan,
+                                 %record(filespec)%name fs
+XOPEN SQ     ext %routine        %integer chan,
+                                 record(filespec)%name fs
+XRENAME      ext %routine        %record(filespec)%name f,f1
+ZERO         sys %routine        %name from,to
+<HR>
+3B35D                                                   Page 113
+                                                          Nov 78
+
+
+                  Index of Library Procedures
+<HR>
+                                                    Page Index-1
+
+
+
+                             INDEX
+
+
+
+
+ACCPER . . . . . . . . . . . . . 2
+ADDR . . . . . . . . . . . . . . 2
+ASCTOSTR . . . . . . . . . . . . 3
+
+BINTOSTR . . . . . . . . . . . . 3
+BLT  . . . . . . . . . . . . . . 4
+BYTE INTEGER . . . . . . . . . . 4
+
+CALL (0-9) . . . . . . . . . . . 5
+CALLI1 . . . . . . . . . . . . . 6
+CALLI2 . . . . . . . . . . . . . 6
+CALLI3 . . . . . . . . . . . . . 7
+CHARNO . . . . . . . . . . . . . 8
+CHECKPOINT . . . . . . . . . . . 8
+CLOSE  . . . . . . . . . . . . . 9
+CLOSE DA . . . . . . . . . . . . 9
+CLOSE INPUT  . . . . . . . . . . 10
+CLOSE OUTPUT . . . . . . . . . . 10
+CLOSE SQ . . . . . . . . . . . . 11
+COPY . . . . . . . . . . . . . . 12
+CPUTIME  . . . . . . . . . . . . 12
+CUSP FILES . . . . . . . . . . . 13
+
+DATE . . . . . . . . . . . . . . 14
+DATE TIME  . . . . . . . . . . . 15
+DATETOSTR  . . . . . . . . . . . 15
+DAY  . . . . . . . . . . . . . . 16
+DAYTOSTR . . . . . . . . . . . . 16
+DDT  . . . . . . . . . . . . . . 17
+DECODE . . . . . . . . . . . . . 17
+DEFAULT  . . . . . . . . . . . . 18
+DEFINE INPUT . . . . . . . . . . 19
+DEFINE OUTPUT  . . . . . . . . . 20
+DELETE . . . . . . . . . . . . . 22
+
+ECHO . . . . . . . . . . . . . . 22
+ENDOFPERIOD  . . . . . . . . . . 23
+ESC  . . . . . . . . . . . . . . 23
+EVENT  . . . . . . . . . . . . . 24
+EVENT INFO . . . . . . . . . . . 24
+
+FF . . . . . . . . . . . . . . . 25
+FILOP  . . . . . . . . . . . . . 25
+FINIT  . . . . . . . . . . . . . 26
+FLOAT  . . . . . . . . . . . . . 26
+FRAC PT  . . . . . . . . . . . . 27
+FREE VEC . . . . . . . . . . . . 27
+FROM DATE  . . . . . . . . . . . 28
+FROM TIME  . . . . . . . . . . . 28
+FROM UDT . . . . . . . . . . . . 29
+FSTOSTR  . . . . . . . . . . . . 30
+<HR>
+                                                    Page Index-2
+
+
+
+GET CHANNEL  . . . . . . . . . . 30
+GET DATE . . . . . . . . . . . . 31
+GET NOW  . . . . . . . . . . . . 31
+GET PAGES  . . . . . . . . . . . 32
+GET TIME . . . . . . . . . . . . 34
+GET VEC  . . . . . . . . . . . . 35
+GETSEG . . . . . . . . . . . . . 32
+GETSTS . . . . . . . . . . . . . 33
+GETTAB . . . . . . . . . . . . . 34
+
+HEXTOSTR . . . . . . . . . . . . 36
+
+ICALL (0-9)  . . . . . . . . . . 36
+IMOD . . . . . . . . . . . . . . 37
+INDEV  . . . . . . . . . . . . . 38
+INITFOR  . . . . . . . . . . . . 38
+INITHEAP . . . . . . . . . . . . 39
+INITIO . . . . . . . . . . . . . 40
+INITSTACK  . . . . . . . . . . . 40
+INPUT  . . . . . . . . . . . . . 41
+INPUT PENDING  . . . . . . . . . 41
+INSTATUS . . . . . . . . . . . . 42
+INSTREAM . . . . . . . . . . . . 42
+INT  . . . . . . . . . . . . . . 43
+INT PT . . . . . . . . . . . . . 44
+INTEGER  . . . . . . . . . . . . 43
+INTTOSTR . . . . . . . . . . . . 44
+IOUUO  . . . . . . . . . . . . . 45
+IOWD . . . . . . . . . . . . . . 45
+IS FILE  . . . . . . . . . . . . 46
+
+JOBFILE  . . . . . . . . . . . . 47
+JOBNUM . . . . . . . . . . . . . 47
+JSYS(0-4)  . . . . . . . . . . . 48
+
+LENGTH . . . . . . . . . . . . . 48
+
+MATCH  . . . . . . . . . . . . . 49
+MOD  . . . . . . . . . . . . . . 49
+
+NEWLINE  . . . . . . . . . . . . 50
+NEWLINES . . . . . . . . . . . . 50
+NEWPAGE  . . . . . . . . . . . . 51
+NEXT ITEM  . . . . . . . . . . . 51
+NEXT SYMBOL  . . . . . . . . . . 52
+NL . . . . . . . . . . . . . . . 52
+NO ECHO  . . . . . . . . . . . . 53
+
+OCTTOSTR . . . . . . . . . . . . 53
+OPEN DA  . . . . . . . . . . . . 54
+OPEN SQ  . . . . . . . . . . . . 55
+OUTDEV . . . . . . . . . . . . . 55
+OUTPUT . . . . . . . . . . . . . 56
+OUTSTATUS  . . . . . . . . . . . 57
+OUTSTREAM  . . . . . . . . . . . 57
+
+<HR>
+PI . . . . . . . . . . . . . . . 58
+PPN  . . . . . . . . . . . . . . 58
+PRINT  . . . . . . . . . . . . . 58
+PRINT FL . . . . . . . . . . . . 59
+PRINT STRING . . . . . . . . . . 60
+PRINT SYMBOL . . . . . . . . . . 60
+PROMPT . . . . . . . . . . . . . 61
+
+RAD50  . . . . . . . . . . . . . 61
+RCALL (0-9)  . . . . . . . . . . 62
+READ . . . . . . . . . . . . . . 63
+READ DA  . . . . . . . . . . . . 64
+READ FS  . . . . . . . . . . . . 65
+READ HEX . . . . . . . . . . . . 65
+READ ITEM  . . . . . . . . . . . 66
+READ OCTAL . . . . . . . . . . . 66
+READ PPN . . . . . . . . . . . . 67
+READ SQ  . . . . . . . . . . . . 68
+READ STRING  . . . . . . . . . . 69
+READ SYMBOL  . . . . . . . . . . 69
+READ TEXT  . . . . . . . . . . . 70
+REAL . . . . . . . . . . . . . . 71
+RECORD . . . . . . . . . . . . . 71
+RELEASE  . . . . . . . . . . . . 72
+REM  . . . . . . . . . . . . . . 72
+RENAME . . . . . . . . . . . . . 73
+REPORT . . . . . . . . . . . . . 73
+RESET INPUT  . . . . . . . . . . 74
+RESET OUTPUT . . . . . . . . . . 74
+RESTORE  . . . . . . . . . . . . 75
+RUN  . . . . . . . . . . . . . . 75
+
+SAVE ACS . . . . . . . . . . . . 76
+SDEF INPUT . . . . . . . . . . . 77
+SDEF OUTPUT  . . . . . . . . . . 77
+SELECT INPUT . . . . . . . . . . 78
+SELECT OUTPUT  . . . . . . . . . 79
+SET STREAMS  . . . . . . . . . . 79
+SETSTS . . . . . . . . . . . . . 80
+SHIFTC . . . . . . . . . . . . . 81
+SHORT INTEGER  . . . . . . . . . 81
+SIXTOSTR . . . . . . . . . . . . 82
+SKIP SYMBOL  . . . . . . . . . . 82
+SLEEP  . . . . . . . . . . . . . 83
+SP . . . . . . . . . . . . . . . 83
+SPACE  . . . . . . . . . . . . . 84
+SPACES . . . . . . . . . . . . . 84
+STARTOFPERIOD  . . . . . . . . . 85
+STRING . . . . . . . . . . . . . 85
+STRTOASC . . . . . . . . . . . . 86
+STRTOFS  . . . . . . . . . . . . 86
+STRTOHEX . . . . . . . . . . . . 87
+STRTOINT . . . . . . . . . . . . 87
+STRTOOCT . . . . . . . . . . . . 88
+STRTOSIX . . . . . . . . . . . . 88
+SUB EVENT  . . . . . . . . . . . 89
+SUB STRING . . . . . . . . . . . 89
+SWITCH ARG . . . . . . . . . . . 90
+
+TAB  . . . . . . . . . . . . . . 90
+<HR>
+                                                    Page Index-4
+
+
+
+TAPOP  . . . . . . . . . . . . . 91
+TIME . . . . . . . . . . . . . . 92
+TIMETOSTR  . . . . . . . . . . . 92
+TMPCOR . . . . . . . . . . . . . 93
+TO STRING  . . . . . . . . . . . 94
+TO UDT . . . . . . . . . . . . . 95
+TODATE . . . . . . . . . . . . . 93
+TOTIME . . . . . . . . . . . . . 94
+
+UDTTOSTR . . . . . . . . . . . . 96
+USET INPUT . . . . . . . . . . . 96
+USET OUTPUT  . . . . . . . . . . 97
+
+WRITE  . . . . . . . . . . . . . 97
+WRITE DA . . . . . . . . . . . . 98
+WRITE FS . . . . . . . . . . . . 99
+WRITE HEX  . . . . . . . . . . . 99
+WRITE OCTAL  . . . . . . . . . . 100
+WRITE PPN  . . . . . . . . . . . 100
+WRITE SQ . . . . . . . . . . . . 101
+
+XCOPY  . . . . . . . . . . . . . 102
+XDEFINE INPUT  . . . . . . . . . 102
+XDEFINE OUTPUT . . . . . . . . . 103
+XDELETE  . . . . . . . . . . . . 103
+XIS FILE . . . . . . . . . . . . 104
+XOPEN DA . . . . . . . . . . . . 104
+XOPEN SQ . . . . . . . . . . . . 105
+XRENAME  . . . . . . . . . . . . 105
+
+ZERO . . . . . . . . . . . . . . 106
+
+</PRE></BODY></HTML>

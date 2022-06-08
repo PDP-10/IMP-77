@@ -1,0 +1,43 @@
+The IMP compiler is run by the monitor command
+
+      .R IMP
+to which the compiler responds with the prompt
+
+      *
+the command string it requires is
+
+      * <rel-filespec> , <list-filespec> = <input-filespec>
+or    * <rel-filespec> = <input-filespec>
+or    * <input-filespec>
+
+The  <filespec>s  refer  to  the  standard  DEC-10  file  specifications
+namely:-
+
+Device: filename . extension [directory list]
+
+The directory list specification can include sub-file-directories.   The
+following switches to the compiler may also be included after any of the
+file specifications:-
+
+      /CROSS  - include a cross referenced listing
+                (implies a /LIST)
+      /LIST   - include a listing file
+      /NOCODE - syntax check only
+      /NOLIST - do not include a listing file
+
+Thus 
+      .R IMP
+      * FRED/CROSS/NOLIST/NOCODE
+
+will produce a listing file called FRED.LST containing  only  the  cross
+reference tables and will only do syntax checking without generating any
+code.
+
+The defaults applied to incomplete file specifications are:-
+      input-filespec - DSK: filename . IMP [user]
+      rel-filespec   - DSK: filename . REL [user]
+      list-filespec  - DSK: filename . LST [user]
+
+A .REL file is always produced unless suppressed by the  /NOCODE  switch
+and  a listing file is only produced if asked for by the /LIST or /CROSS
+switches or if a listing file specification is given.

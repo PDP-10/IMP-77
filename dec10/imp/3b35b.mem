@@ -1,0 +1,3084 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                             THE IMP-77 LANGUAGE
+
+
+
+
+                              As implemented by
+
+                              PETER S. ROBERTSON
+                        DEPARTMENT OF COMPUTER SCIENCE
+                           UNIVERSITY OF EDINBURGH
+
+
+
+
+                              A REFERENCE MANUAL
+
+                         first edition: DECEMBER 1977
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 INTRODUCTION
+
+         IMP-77 is an "ALGOL-like" high-level  language.    Relative  to
+      ALGOL 60, the language adds program structuring, data structuring,
+      event  signalling, and string handling facilities, but removes (or
+      retains in a modified  form)  intrinsically  inefficient  features
+      such as the ALGOL 60 ____                           name (substitution) parameter.
+
+         The  language, based on Atlas Autocode, was originally designed
+      as the implementation  language  for  the  Edinburgh  Multi-Access
+      System - hence its name - but has since been used successfully for
+      implementing    systems,    teaching    programming   and   as   a
+      general-purpose programming language on many different machines.
+
+      Two of the major design aims were:
+
+          1.   The language should compile to efficient machine code.
+
+          2.   The syntax of the language should be verbose rather than
+               obscure.
+
+         The main disadvantage of IMP is that it  is  not  currently  in
+      widespread use.
+
+         Most   IMP   systems  provide  comprehensive  compile-time  and
+      run-time  diagnostics,  together  with  an  option   to   suppress
+      generation of run-time checks when compiling tested programs.
+
+         Input/output  facilities  are  provided  through  the  external
+      procedure mechanism  and  are  therefore  open-ended  and  can  be
+      defined  as  required,  though  a  standard  set  of procedures is
+      supported.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          PROGRAM LAYOUT CONVENTIONS
+
+         An IMP program is a sequence of  __________                                          statements  constructed  using
+      the  ASCII  character  set  extended  with an underlined alphabet.
+      Underlined letters, which are used to form ________                                                 keywords, are generated
+      using the  shift  character  percent  (%),  which  is  defined  as
+      underlining   all   subsequent   letters,  the  underlining  being
+      terminated by any non-alphabetic character.
+      Hence the following statements are equivalent:
+
+                          %STRING (7)%ARRAY %NAME P
+                          %STRING (7)%ARRAYNAME P
+
+      and both represent:
+                          ______   _____ ____                          string(7)array name P
+
+         In this manual, keywords are in lower case and underlined.
+
+
+      _______      Newline
+
+         The NEWLINE (or LINE BREAK) character  is  ASCII  character  10
+      (LF).
+
+
+      ______      Spaces
+
+         Except  when  used to terminate keywords or when between quotes
+      (see Quotes) spaces are ignored by the compiler and may be used to
+      improve the legibility of the program.
+
+
+      _____ ____ _______      Lower Case Letters
+
+         Except when enclosed in quotes (see Quotes) lower case  letters
+      are equivalent to upper case letters.
+
+      ______      Quotes
+
+         Several  language constructions call for one or more characters
+      to be enclosed  in  quotes:  between  quotes  ___                                                    all  characters  are
+      significant and stand for themselves.
+      N.B.    Space,  newline, and percent characters may appear between
+      quotes and stand for space, newline, and percent.
+
+         Two quote characters are used:
+
+               '    -    symbol quote e.g. 'A'
+               "    -    string quote e.g. "FRED"
+
+      If it is required to include the delimiting quote within the  text
+      it must be represented by two consecutive quotes; e.g.
+
+               ''''            -        the symbol quote
+               "a ""big"" dog" -        a string of 11 characters
+
+      However, note: '"' and "it's mine"
+
+
+
+                                 1-1
+
+      ___________      Identifiers
+
+         An identifier is a sequence of any number of letters and digits
+      starting with a letter, e.g.  MAX, X, CASE 1, CASE 2, CASE 2B
+
+      All letters and digits are significant.
+
+      Except  in  the  case  of  simple  labels  (see  Control  Transfer
+      Instructions) all identifiers must be ________                                            declared before they may  be
+      used (see Declarations).
+
+
+      __________      Statements
+
+         A  STATEMENT  is  a  sequence  of  atomic  elements  (keywords,
+      constants, identifiers etc.) arranged according to  the  syntactic
+      rules of IMP.
+
+
+      ___________      Termination
+
+         Every  statement must be terminated by a newline or a semicolon
+      (however, see Comments).
+
+
+      ____ __________      Null_Statements
+
+         There are two types  of  null  statement,  both  of  which  are
+      ignored  by  the  compiler.    They  may  be  used  to improve the
+      legibility of the program.
+
+          1.   Redundant terminators, E.g. blank lines
+
+          2.   Comments
+
+                    A  comment  is  any  sequence  of  characters   (the
+                    "comment  text")  preceded  by  a  comment  mark and
+                    ending with a newline character (note:  a  semicolon
+                    does not terminate a comment; it is included as part
+                    of the comment text).
+                    The  comment marks are either the keyword _______                                                              comment or
+                    an exclamation mark (!); e.g.
+
+                         _______                         comment main loop starts here
+                         ! return here on error
+
+                    As a semicolon does not terminate a comment it is  a
+                    simple matter to 'comment out' sections of code.
+
+                            COMPUTE CASES
+                         !  __           _____                            if CASES < 0 start
+                         !     DISPLAY DATA;  NEWLINE;  TIDY UP
+                         !     ____                               stop
+                         !  ______                            finish
+                            HANDLE CASES
+
+                    (Also see note on Continuation)
+
+
+
+                                 1-2
+
+      ____________      Instructions
+         An  instruction  is  any imperative statement which may be made
+      conditional and is either an  assignment,  a  Routine  call  or  a
+      control transfer.
+
+
+      ____________      Continuation
+         A  statement  may  extend  over several physical lines provided
+      that each line break occurs after a comma, or is preceeded by  the
+      keyword _              c.  E.g.
+
+                   __       ____       _                   if X = Y then P = 1 c
+                            ____                            else P = 0
+
+      which is exactly equivalent to:
+
+                   __       ____       ____                   if X = Y then P = 1 else P = 0
+
+          Notes
+               1.   A statement may have an unlimited number of
+                    continuations.
+
+               2.   The line break following _                                             c causes underlining to be
+                    terminated.
+
+               3.   _                    c is only permitted between complete atoms of the
+                    language;  that  is,  it  may  not  split  keywords,
+                    constants, etc.
+
+               4.   %C between quotes  stands  for  the  two  characters
+                    percent and C.
+
+               5.   The  effect  of  a  comment  mark  is limited to one
+                    physical line (see Null statements).
+
+
+      _______ _______      Listing_Control
+
+             During the compilation of a program a line-numbered listing
+          is produced.   The statements ____     _________                                        list and endoflist may  be  used
+          respectively  to  enable  or  disable the listing for selected
+          parts of a program.  The default is for listing to be enabled.
+
+
+      _______      Include
+
+             A file of statements (terminated by "___ __ ____                                                  end of file")  may  be
+          compiled into a program by giving the statement
+                         "_______                          include" {file specification}
+
+          where {file specification} is a string constant representing a
+          (system dependent) file name.  E.g.
+
+                         _______                         include "ECSC17.LISTVARS"
+
+          Refer to the relevant appendix for details of system-dependent
+          limitations on the use of _______                                    include.
+
+
+
+                                 1-3
+
+                                  CONSTANTS
+
+      _______ _________  _____ _____      Integer_Constants (Fixed_Point)
+
+          a)   DECIMAL constants
+               A decimal constant is a sequence of decimal digits.   For
+               example:
+                7, 43, 2195, 0, 8, 100 000 000
+
+          b)   NON-DECIMAL constants
+               The prefix {decimal constant}"_" may be used  to  specify
+               the  base  of the following constant.   The letters A, B,
+               .., Z are used to represent the 'digits' 10, 11, .., 35
+               E.g.
+               2_1010         - binary ten
+               8_12           - octal ten
+               16_a           - hexadecimal ten
+
+          c)   CHARACTER constants
+               The ASCII code value of any character may be obtained  by
+               enclosing  the  character  in  single  quotes.   When the
+               required  character  is  a  single  quote  it   must   be
+               represented by two consecutive single quotes.
+               Examples: 'A', 'a', '+', '0', '"', '''', ' ', '
+               '
+               Note   the   last   three   examples,   which   represent
+               respectively the code values for single quote, space, and
+               newline.
+
+               The predefined named constant NL may be used in place  of
+               the   rather  cumbersome  form  of  a  newline  character
+               enclosed in quotes.
+
+          d)   MULTI-CHARACTER constants
+               The previous form may be extended to  pack  together  the
+               codes  for  several  characters  to form a single integer
+               constant.
+
+               'OVER', 'Max', '1+2', '*@@#'
+
+               The exact nature of the packing and the maximum number of
+               characters  which  may  be  packed   are   both   machine
+               dependent.
+
+          An integer expression with operands which are constants may be
+          used   wherever   an   integer   constant   is  required  (see
+          Expressions).
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 1-4
+
+
+
+      ____ _________  ________ _____      Real_Constants (Floating_Point)
+
+         A real constant is a  sequence  of  decimal  digits  optionally
+      including one decimal point.
+      The  constant may also be followed by a scaling factor of the form
+      "@"{signed integer constant}  meaning  "times  ten  to  the  power
+      {signed  integer  constant}".    For  example,  the following real
+      constants all have the same value:
+
+               120.0, 120, 1.2@2, 12@1, 1200@-1
+
+      Note that a decimal integer constant is a special case of  a  real
+      constant.
+
+
+      ______ _________      String_Constants
+
+         A string constant is a sequence of not more than 255 characters
+      enclosed  in  double  quote  characters  -  a  double  quote being
+      represented inside a string constant  by  two  consecutive  double
+      quotes.
+
+      E.g. "STARTING TIME", "x = y*4+x", "a ""red"" hood"
+
+               a)   "A" is a ______                             string constant of one character.
+                    'A' is a character (_______                                        integer) constant.
+
+               b)   The ____ ______                        null string, a string of no characters, is
+                    permitted  and  is  represented  by  two consecutive
+                    double quotes ("").
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 1-5
+
+
+
+
+                                 EXPRESSIONS
+
+          1 Arithmetic Expressions
+
+                  An arithmetic expression is a sequence  of  arithmetic
+               operands   and  operators  obeying  the  usual  rules  of
+               algebra.   An operand is either a constant, a variable, a
+               function  call,  a  map  call,  or a numerical expression
+               enclosed   in   parentheses   (see    Declarations    and
+               Procedures).
+
+               a) Integer Expressions
+                       All  the  operands  and  operators  in an integer
+                    expression must yield an integer value.
+                    The operators available are:
+
+                    +    addition
+                    -    subtraction or unary minus
+                    *    multiplication
+                    //   integer division (the remainder of the
+                         division, which is of  the  same  sign  as  the
+                         dividend, is ignored).
+                    \\   integer  exponentiation.   The  second  operand
+                         (the exponent) must be a non-negative integer.
+
+
+               b) Real Expressions
+                       All  the  operands  and  operators  in   a   real
+                    expression  must  yield  real  (or integer) results.
+                    Where an operator will take either real  or  integer
+                    operands  (E.g.  *)  and  the  types  of  the  given
+                    operands  differ  the  integer   operand   will   be
+                    converted  to  a real value, otherwise the result of
+                    the operation will  be  of  the  same  type  as  the
+                    original  operands.    The pre-defined real function
+                    FLOAT may be used to  force  the  conversion  of  an
+                    integer expression into a real expression.
+                    The operators available are:
+
+                    +    addition
+                    -    subtraction or unary minus
+                    *    multiplication
+                    /    division
+                    \    real exponentiation
+
+                  The modulus (absolute value) of an expression (integer
+               or  real)  may  be  obtained by enclosing that expression
+               between vertical bars.
+               E.g.      |X-Y|
+
+
+
+
+
+
+
+
+                                 2-1
+
+               Notes     1.   Unary minus is treated as "0-..."
+
+                         2.   Unary plus (+) is not accepted.
+
+                         3.   An expression may not contain two adjacent
+                              operators -  they  must  be  separated  by
+                              parentheses E.g.  23*(-14)
+
+                         4.   Integer  values  will be converted to real
+                              where  necessary,  but  real  values  will
+                              never  be converted to integer unless this
+                              is   explicitly   specified   using    the
+                              pre-defined functions INT or INTPT.
+
+          2 Bit-Vector Expressions
+                  All  operands  must yield bit-vector (integer) values.
+               The operations are performed on a bit-by-bit basis  using
+               the operators:
+
+                    &    AND
+                    !    INCLUSIVE OR
+                    !!   EXCLUSIVE OR
+                    <<   LEFT SHIFT (logical)
+                    >>   RIGHT SHIFT (logical)
+                    \    COMPLEMENT (unary not)
+
+               It  is possible to mix integer and bit-vector expressions
+               but  the  full  implications  of  this  may  be   machine
+               dependent.
+
+
+          3 String Expressions
+                  All  operands of a string expression must yield values
+               of type ______                       string.   The only operator available is "."  for
+               concatenation (joining together).   No sub-expressions in
+               parentheses are permitted.
+
+                  E.g.  "MR ".SURNAME
+
+
+      __________ __ _________      Precedence_of_Operators
+
+
+               Highest:  1.   \  (unary not)
+                         2.   \, \\, <<, >>
+                         3.   *, /, //, &
+               Lowest:   4.   +, - (unary and binary), !, !!
+
+                  In general, sub-expressions with  operators  of  equal
+               precedence are evaluated from left to right.
+               The  precedence  rules  may  be  over-ridden  by means of
+               parentheses.
+
+               Note:     -1\\2 = -1
+
+                         (-1)\\2 = 1
+
+                         2\\2\\3 = 4\\3 = 64
+
+
+                                 2-2
+
+
+                                 DECLARATIONS
+
+             All identifiers (except simple labels) must be declared  at
+          the  start  of a block before they are used.   The _____                                                             scope of an
+          identifier is the rest of the block in which it  is  declared,
+          including  any  blocks subsequently defined therein (see Block
+          Structure and note 3 on Labels and Jumps).
+          In  the  following  discussion  the  phrase  {type}  has  four
+          variants:
+                    1.   "_______                          integer"
+                    2.   "____                          real"
+                    3.   "______                          string" "(" {max} ")"
+                    4.   "______                          record" "(" {format} ")"
+
+               and  {max} is an _______                                integer constant in the range
+                         1<=max<=255  defining  the  maximum  number  of
+                         characters which may be held in the string.
+                    {format} defines the structure of  the  record  (see
+                         Records).
+
+          1.  Variables
+
+               a)   Simple Variables
+
+                    {type}{idlist}
+
+                         _______                         integer J,K,COUNT
+                         ____                         real PRESSURE
+                         ______                         string (30) COUNTRY, TOWN
+                         ______                         record (CARFM) MINI, ROVER
+
+                         Each   variable  is  allocated  an  appropriate
+                         (machine dependent) amount of storage to hold a
+                         value of the appropriate type.
+
+               b)   Pointer Variables
+
+                    {type} "____                            name" {idlist}
+
+                         _______ ____                         integer name P
+                         ____ ____                         real name DATUM
+                         ______      ____                         string (15) name WHO,WHERE
+                         ______         ____                         record (CARFM) name CAR
+
+                         Each variable is allocated  enough  storage  to
+                         hold  a  pointer  to  (i.e.  the  address of) a
+                         simple variable of the specified type.
+
+
+
+
+
+
+
+
+
+
+
+
+                                 3-1
+
+               c)   Array Pointer Variables
+
+                    {type} "_____   ____                            array" "name" {idlist}
+                or  {type} "____   _____   ____                            name" "array" "name" {idlist}
+
+                         _______ _____ ____                         integer array name AN
+                         ____ _____ ____                         real array name VALUES
+                         ______      _____ ____                         string (20) array name NAMES, ADDRESSES
+                         ______         _____ ____                         record (CARFM) array name MAKE
+                         ____ ____ _____ ____                         real name array name ANSWERS
+
+                         Each variable is allocated  enough  storage  to
+                         hold  a pointer to (i.e. the address of) an one
+                         dimensional _____                                     array of the specified type.
+
+                    ........... "_____                 ____                                 array" "(" {dim} ")" "name" {idlist}
+
+                         is   provided   for   declaring   pointers   to
+                         multi-dimensional arrays.  E.g.
+
+                         ____ _____     ____                         real array (4) name SPACE TIME
+                         _______ ____ _____     ____                         integer name array (2) name LISTS
+
+          2.  Arrays
+
+                    {type} _____                           array {adefn}("," {adefn})*
+                or  {type} "____   _____                            name" "array" {adefn}(","{adefn})*
+
+                    {adefn}     ::= {idlist} "(" {pair}(","{pair})* ")"
+                    {pair}      ::= {integer exprn} ":" {integer exprn}
+
+                    _______ _____                    integer array A(1:10),B,C(-4:LIMIT)
+                    ____ _____                    real array Q(1:J+K, 1:J-K)
+                    ______      _____                    string (12) array CLASS(-7:16)
+                    ______         _____                    record (CARFM) array TABLE(LOWER:UPPER)
+                    _______ ____ _____                    integer name array pointers(1:12)
+
+                    The  bound  pairs,  {pair},  are  evaluated  and the
+                    required amount of  storage  is  allocated  to  each
+                    identifier.
+
+               note 1.   In  each  bound  pair  the  value  of the first
+                         expression (lower bound) must be less  than  or
+                         equal  to  the  value  of the second expression
+                         (upper bound).
+
+                    2.   The number of bound pairs (the dimension of the
+                         array) usually may not exceed six, but this  is
+                         implementation dependent.
+
+
+          3.   Records
+
+                  A  ______                     record  is  a named collection of variables, arrays
+               and records.   The components (elements) of a record  may
+               be  any of the forms discussed in (1) and (2) above, with
+               the following limitations:
+
+
+
+                                 3-2
+
+               a.   Arrays must be one dimensional and have constant
+                    bounds.
+               b.   A record may not contain a simple record (or a
+                    record array) of its own format.    However  it  may
+                    contain record pointer variables of its own format.
+
+               There are three ways to specify formats:
+
+               1.   Explicit Definition
+
+               ______               record "(" {declaration list} ")" ...
+
+                         ______  _______                         record (integer X,Y,Z) R
+                         ______  ____    ____ ____    ____                         record (real P, real name Q) name S,T
+                         ______  ____ _____         ____    _____                         record (real array A(1:5), real V) array X(1:4)
+
+               2.   Using a ______                            format identifier
+
+               ______ ______               record format {id} "(" {declaration list} ")"
+               ______               record "(" {id} ")" ....
+
+                         ______ ______   _______    ______   ____                         record format F(integer X, record(F)name LINK)
+
+                         ______                         record (F) HEAD
+                         ______     _____                         record (F) array CELL(1:15)
+
+               3.   Using a previously declared record as a format
+                    definition.
+
+                         ______  _______                         record (integer ONE, TWO, THREE) R
+                         ______  ____                         record (like R) S,T
+
+               Note 1.   Within  a format each identifier must be unique
+                    but will not clash with any identifiers outwith that
+                    format (see Block  Structure  for  a  discussion  of
+                    local and global identifiers).
+
+                    2.   When  space  is  allocated to a record variable
+                    the elements are laid out in the order in which they
+                    were declared.   However see the  relevant  appendix
+                    for machine dependent alignment considerations.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 3-3
+
+                           RECORD ELEMENT SELECTION
+
+                  Selection  of  a  specific  element  from  a record is
+               achieved by following the record identifier by:
+                         "_"{element id}
+
+               E.g. given the declarations:
+
+                         ______ ______   _______    ______    ____                         record format F(integer X, record(F) name LINK)
+                         ______                         record (F) R
+
+
+               some valid references to variables are:
+
+               R              - a record of format F
+               R_X            - an integer
+               R_LINK         - a pointer to a record of format F
+               R_LINK_X       - an integer
+               R_LINK_LINK    - a pointer to a record of format F
+               R_LINK_LINK_X  - an integer
+
+
+
+
+
+          ----------------------------------
+       R |      R_X      |      R_LINK      |
+          ----------------------------------
+                               |
+                               |
+                       ----------------------------------
+                      |   R_LINK_X    |   R_LINK_LINK    |
+                       ----------------------------------
+                                              |
+                                              |
+                                     ----------------------------------
+                                    | R_LINK_LINK_X | R_LINK_LINK_LINK |
+                                     ----------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 3-4
+
+
+
+
+                                OWN VARIABLES
+
+                  Each variable declared in a block is allocated storage
+               when that block is entered, the  storage  being  returned
+               (released)  when  the  block  is  left.   This means that
+               variables (and the  values  in  them)  are  lost  between
+               traverses of the block.
+
+                  If,   however,   the   prefix  ___                                                 own  is  applied  to  a
+               declaration the variables are allocated statically and so
+               retain their values when the block is not being  executed
+               (see  Procedures).    The  scope  of  the  identifier  is
+               unchanged.
+
+                  ___                  Own arrays must be one-dimensional and  have  constant
+               bounds.
+
+
+
+                                INITIALISATION
+
+                  ___                  Own variables may be given initial values (effectively
+               before the program starts execution); if no initial value
+               is specified the content of an ___                                              own variable is undefined.
+
+                         ___ _______                         own integer A,B=4, C=-1
+                         ! the initial value in A is undefined
+                         ___ ____                         own real R=1.234@-5
+                         ___ ______                         own string (7) WHO="ANON"
+
+               In  the case of ___ ____     ___ _____ ____                               own name and own array name variables the
+               initial  value  (if  present)  represents  the   absolute
+               address  of  respectively  the  initial  variable  to  be
+               pointed  at  or  the  (possibly   hypothetical)   'zeroth
+               element' of an array.
+                         ___ _______ ____                         own integer name CLOCK==72
+                         ___ _______ _____ ____                         own integer array name SAVE AREA == 16
+
+               This is ______ _______ _________                       highly machine dependent.
+
+                  If an own array is to be initialised, every element in
+               the  array  must be given a value.   In order to simplify
+               this  each initial value may be followed by a  repetition
+               count  in  parentheses,  and  a  star  (*) may be used to
+               represent the number of remaining elements in the  array.
+               For  convenience  a repetition count of zero is permitted
+               and  means  that  the  initialising  constant  is  to  be
+               ignored.   For example the following declarations are all
+               equivalent:
+
+                         ___ _______ _____                         own integer array A(2:5) = 7,7,7,7
+
+                         ___ _______ _____                         own integer array A(2:5) = 7(4)
+
+                         ___ _______ _____                         own integer array A(2:5) = 7(*)
+
+
+                                 4-1
+
+                  The list of constants may extend over several physical
+
+               lines without the need for a continuation mark if each
+
+               line ends with a comma; a line break is also allowed
+
+               after the equals sign.
+
+
+
+                         ___ ______     _____                         own string (3) array MONTH(1:12) =
+                         "JAN", "FEB", "MAR",
+                         "APR", "MAY", "JUN",
+                         "JUL", "AUG", "SEP",
+                         "OCT", "NOV", "DEC"
+
+               Any number of null statements may be placed  between  the
+               lines of constants.
+
+                     ___ _______ _____                     own integer array VALUE(1:50) =;     ! TAG VALUES
+                         1,   2,  3,  0(7),
+                    !    ------type 1------
+                        11,  22, 33,  4(3), 55(4),
+                    !    ----------type 2----------
+                       111, 222,  3, -1(5),
+                    !  ------types 3&4------
+                       -2(*);                             ! ALL THE REST
+
+
+
+                             CONSTANT IDENTIFIERS
+
+                  The  prefix  ________             ___                               constant may replace own to indicate that
+               the initial value can never change.   A ________  _______                                                       constant  integer
+               may be used wherever an integer constant is required.
+
+                         ________ _______                         constant integer MAX = 17
+                         ________ ____                         constant real PI = 3.14159
+                         ________ ______                         constant string (7) VERSION = "vsn:1.6"
+                         ________ _______ _____                         constant integer array VAL(1:MAX) = 1,6,9,-1(*)
+
+               ________               Constant pointer variables may be declared but are highly
+               machine and system dependent.
+
+                         ________ _______ ____                         constant integer name STATUS REG == 160
+
+                         ________ _______ _____ ____                         constant integer array name WORD == 0
+
+               Note:  ________                      constant pointers are effectively simple variables
+               of  the  appropriate  type  located  at   the   specified
+               (absolute) address.
+
+
+
+               The keyword ________                       _____                           constant may be abbreviated to const.
+
+
+
+
+
+                                 4-2
+
+                                  ASSIGNMENT
+
+                  There are three forms of assignment:
+
+          1.   {variable} "=" {expression}
+
+                    X = Y
+                    A(P) = A(P)+1
+                    Y = BIT<<12
+                    PERSON = INITIALS.SURNAME
+
+               The  expression  is  evaluated and the resulting value is
+               stored in the given variable.   The expression may be  of
+               type  _______   ____     ______                     integer,  real, or string, and the variable must be
+               of the corresponding type; in the case of a real variable
+               an integer expression will have its result  converted  to
+               ____               real before being assigned.
+
+               Valid types of assignment are:
+               {integer variable} "=" {integer expression}
+               {real variable}    "=" {real expression}
+               {real variable}    "=" {integer expression}
+               {string variable}  "=" {string expression}
+
+          2.   {pointer variable} "==" {variable}
+
+               The  pointer  variable  is dynamically made equivalent to
+               the given variable;  the  types  of  both  sides  of  the
+               assignment  must be identical - this includes the formats
+               of records.
+               The assignment may be thought of as the assignment of the
+               _______               address of the variable to the pointer.
+               Once equivalenced the pointer variable may be used as  an
+               alternative to the variable.
+
+                    _______ ____                    integer name N
+                    _______                    integer J
+                    _______ _____                    integer array A(1:6)
+                    _______ ____ _____                    integer name array PT(2:12)
+                    J = 1
+                    N == A(J);            ! N IS NOW EQUIVALENT TO A(1)
+                    J = 2;                ! N HAS NOT CHANGED
+                    N = 0;                ! SAME AS A(1) = 0
+                    PT(J) == A(4)
+
+               N.B.  Extreme  care should be taken if variables declared
+                    in different blocks are to be equivalenced as it  is
+                    possible  to  leave a pointer referencing a variable
+                    which no longer exists (see Block Structure).
+
+
+
+
+
+
+
+
+
+
+
+                                 4-3
+
+          3.   {variable} "<-" {expression}
+
+                    This is similar to 1. above except that the value of
+                    the expression will be truncated if  necessary  (see
+                    Data Prescision Specification).
+
+               E.g. ______                    string(4) S
+
+                    S = "12345"; ! fails CAPACITY EXCEEDED at run-time.
+
+                    S <- "12345"; ! will assign "1234" to S.
+
+
+                              RECORD ASSIGNMENT
+
+                  Two extra assignments exist for records.
+
+               1.   {record variable} "=" {record variable}
+
+                    The  right-hand record is copied bit by bit into the
+                    left-hand record.   The formats of the  two  records
+                    must be the same.
+
+               2.   {record variable} "=0"
+
+                    Each bit of the record is set to zero.
+
+
+
+                              STRING RESOLUTION
+
+             The  contents  of  a  string variable may be searched for a
+          sub-string and decomposed accordingly.
+          The format of a resolution is:
+
+          {string var}"->"{string var}".("{string exp}")."{string var}
+
+          where either the second string variable, the  third,  or  both
+          may be omitted (any dangling full stops also being omitted).
+
+               S        -> T.(",").U
+               TITLE(J) -> ("SIR").REST
+               WHO      -> WHO.(LETTERS."B.SC.")
+               S        -> ("HELLO".T)
+
+             The  string  expression is evaluated and the first variable
+          is searched  from  left  to  right  to  find  that  string  of
+          characters.  The string to the left of the sub-string so found
+          is assigned to the second variable and the string to the right
+          is assigned to the third.
+          The  resolution  is  deemed  to  have  failed  if the required
+          sub-string is not found or  either  of  the  second  or  third
+          string variables has been omitted and would have been assigned
+          a non-null string.
+
+
+
+
+
+
+                                 4-4
+
+          For  example, the following resolutions all fail if the string
+          variable S contains the string "ABCDEFG"
+
+                    S -> T.("H").U
+                    S -> ("CD").U
+                    S -> T.("EF")
+                    S -> ("ABCDEF")
+
+          and the following all succeed:
+
+                    S -> T.("CDE").U
+                    S -> ("ABC").U
+                    S -> T.("G")
+                    S -> ("ABCDEFG")
+
+             A resolution may occur in two contexts:
+
+               1.   as an instruction, in which case failure of the
+                    resolution causes an  event  to  be  signalled  (see
+                    Events)
+
+                    S -> A.(WANTED).B;  S = A.B
+
+               2.   as  a  simple  condition  (see Conditions), in which
+                    case failure of  the  resolution  deems  the  simple
+                    condition  false  and  success deems it true; in the
+                    latter case the  resolution  is  performed  and  the
+                    necessary assignments are made.
+
+                    __                     ____                    if WHO -> ("SIR ").WHO then KNIGHT = 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 4-5
+
+                                  CONDITIONS
+
+          Conditional   statements   are   specified  using  the  phrase
+          {condition}, which is defined as:
+
+          {condition} ::= {simple cond} ("___                                          and" {simple cond})*,
+                          {simple cond} ("__                                          or" {simple cond})*
+
+          where {simple cond} has seven forms:-
+
+          1.   {expression}{comp}{expression}
+
+               {comp} ::= "="         - IS EQUAL TO
+                          "#", "\="   - IS NOT EQUAL TO
+                          "<"         - IS LESS THAN
+                          "<="        - IS LESS THAN OR EQUAL TO
+                          ">"         - IS GREATER THAN
+                          ">="        - IS GREATER THAN OR EQUAL TO
+               The given expressions are evaluated and  compared.    The
+               simple  condition  is  true  or  false  depending  on the
+               validity of the relation  specified  by  the  comparator.
+               Both expressions must yield values of the same type.
+
+          2.   {expression} {comp} {expression} {comp} {expression}
+
+               This  form  of  simple  condition  may be thought of as a
+               contraction of the form:
+                    ({x1}{comp1}{x2} "___                                      and" {x2}{comp2}{x3})
+               except that the middle expression (x2) is only  evaluated
+               once.    Note  that the third expression is not evaluated
+               unless  the  condition  specified  by   the   first   two
+               expressions is true.
+               Such a simple condition is frequently used to check for a
+               range of values, E.g.
+
+                              0 <= VALUE <= 100
+
+          3.   {reference to variable} "==" {reference to variable}
+
+               The  two  variables,  which must be of the same type, are
+               compared for equivalence, that  is  their  _________                                                          addresses  are
+               compared.
+               Note  that  the  address  of  a  pointer  variable is the
+               address of the variable to which it is equivalent.
+
+          4.   {predicate call}         - see Procedures
+
+               The given predicate is called and the simple condition is
+               true or false depending on  whether  the  exit  from  the
+               predicate was performed using ____    _____                                             true or false respectively.
+
+          5.   {resolution}             - see String Resolution
+
+               The  resolution  is  attempted.    If it fails the simple
+               condition is deemed false, otherwise  the  resolution  is
+               performed and the condition is deemed true.
+               Note that this form of simple condition has a side-effect
+               if the simple condition is true!
+
+
+                                 5-1
+
+          6.   "(" {condition} ")"
+
+               This  form  of simple condition is provided to enable the
+               use of both ___     __                           and and or in a condition.   The  connectives
+               ___       __               and  and  or  may not appear in the same condition unless
+               separated by levels of parentheses.  E.g.
+
+                         A=0 __      ___      __                             or (B=1 and C=2) or D=3
+
+          7.   "___                not" {simple condition}
+
+               The given simple condition is evaluated and its truth  is
+               negated.    E.g.  the  following  simple  conditions  are
+               exactly equivalent:
+
+                                    A # 0
+                                  ___                                  not A = 0
+
+
+
+                           ________________________                           Evaluation of conditions
+
+
+             The evaluation of a condition proceeds from left to  right,
+          simple  condition  by simple condition, terminating as soon as
+          the inevitable result of the condition is known.
+
+          For example, considering the condition:
+
+                              A # 0 ___                                    and B//A # C
+
+          If the variable A has the value zero  the  condition  will  be
+          deemed false without attempting the evaluation of "B//A # C".
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 5-2
+
+                            CONDITIONAL STATEMENTS
+
+             The general form of conditional statements is:
+
+               __             _____               if {condition} start
+                  ! STATEMENTS TO BE EXECUTED IF
+                  ! {condition} IS TRUE
+               ______ ____ _____               finish else start
+                  ! STATEMENTS TO BE EXECUTED IF
+                  ! {condition} IS FALSE
+               ______               finish
+
+             If _____ ______                start-finish brackets enclose one instruction only, that
+          part may be reduced to:
+
+               __             ____               ____ _____               if {condition} then {instruction} else start
+
+          or   ______ ____               finish else {instruction}
+
+          e.g. __             ____               ____ _____               if {condition} then {instruction} else start
+                  ! STATEMENTS TO BE EXECUTED IF
+                  ! {condition} IS FALSE
+               ______               finish
+
+          or   __             _____               if {condition} start                (*)
+                  ! STATEMENTS TO BE EXECUTED IF
+                  ! {condition} IS TRUE
+               ______ ____               finish else {instruction}
+
+          or in the simplest case:
+
+               __             ____               ____               if {condition} then {instruction} else {instruction}
+
+             If nothing is to be done specifically when the condition is
+          false the ____                    else part may be omitted.
+
+               __             _____               if {condition} start
+                  ! STATEMENTS TO BE EXECUTED IF
+                  ! {condition} IS TRUE
+               ______               finish
+
+          or
+
+               __             ____               if {condition} then {instruction}
+
+
+
+          _____ ______          start-finish groups may be nested to any depth.
+
+
+
+
+
+
+
+
+
+
+
+
+                                 5-3
+
+                              ALTERNATIVE FORMS
+
+          1.   A conditional statement of the form:
+
+                    __             ____                    if {condition} then {instruction}
+
+               has  the  same  effect  if  rewritten in the more natural
+               form:
+
+                    {instruction} __                                  if {condition}
+
+                    X = ERROR __                              if X > LIMIT
+
+          2.   The keyword __                           ______                           if may always be replaced by unless with the
+               effect of negating the  whole  of  the  condition.    For
+               example, the following two statements are equivalent:
+
+                        __       ____        ____                        if X = 0 then Y =  1 else Y = -1
+                    ______       ____        ____                    unless X = 0 then Y = -1 else Y =  1
+
+
+          3.   The  statement  "______ ____ _____                                finish else start" may be abbreviated to
+               "____                else".
+
+                    __       _____                    if X = 0 start
+                       FLAG = 1;  COUNT = 0
+                    ____                    else
+                       FLAG = 2;  COUNT = -1
+                    ______                    finish
+
+
+          4.   The ____                   else part of any conditional group may be replaced by
+               another complete conditional group, treated as though  it
+               were a single instruction (see * above).
+               For example:-
+
+                    __       _____                    if A = 0 start
+                       P = 1;  Q = 2
+                    ______ ____ _____                    finish else start
+                       __       _____                       if A < 0 start
+                          P = -1;  Q = 2
+                       ______ ____ _____                       finish else start
+                          P = 1;  Q = -2
+                       ______                       finish
+                    ______                    finish
+
+               may be rewritten:-
+
+                    __       _____                    if A = 0 start
+                       P = 1;  Q = 2
+                    ______ ____ __       _____                    finish else if A < 0 start
+                       P = -1; Q = 2
+                    ______ ____ _____                    finish else start
+                       P = 1;  Q = -2
+                    ______                    finish
+
+
+
+
+
+                                 5-4
+
+
+
+
+                         REPETITION (LOOPS OR CYCLES)
+
+
+          a.   Indefinite Repetition
+
+                  A  group of statements may be repeated indefinitely by
+               enclosing  them  between  the  statements   "_____                                                            cycle"   and
+               "______                repeat".
+
+                    _____                    cycle
+                       GET DATA
+                       PROCESS DATA
+                    ______                    repeat
+
+               Subsequently  the  group  of statements between _____                                                               cycle and
+               ______                            _____ ____               repeat will be referred to as the cycle body.
+
+
+          b.   Conditional Repetition
+
+               1.   _____             _____                    while {condition} cycle
+
+                    Before  each  execution  of  the  cycle   body   the
+                    specified condition is tested.   If the condition is
+                    true the cycle body is executed;  otherwise  control
+                    is  passed  to  the statement following the matching
+                    ______                    repeat.
+
+               2.   ___                                            _____                    for {control} "=" {init} "," {inc} "," {final} cycle
+
+                    where
+                    {control}::= {integer variable}  - CONTROL VARIABLE
+                    {init}   ::= {integer expression} - INITIAL VALUE
+                    {inc}    ::= {integer expression} - INCREMENT
+                    {final}  ::= {integer expression} - FINAL VALUE
+
+                       On each entry to the cycle  the  address  of  the
+                    control   variable  and  the  values  of  the  three
+                    expressions are evaluated and saved; thus the  cycle
+                    body  cannot  change them.   The control variable is
+                    assigned the value "{init}-{inc}".
+                    The value in the control variable is  compared  with
+                    the value of {final}.   If they are equal control is
+                    passed  to  the  statement  following  the  matching
+                    ______                    repeat,  otherwise  the  value {inc} is added to the
+                    control variable and the cycle body is executed.
+
+                    On normal exit from the cycle the  control  variable
+                    will contain the value {final}, however see ____                                                                exit.
+
+                    Note:  The  effects of altering the control variable
+                    within the cycle body are undefined.
+
+
+
+
+
+                                 6-1
+
+
+
+               3.   The final form of conditional cycle is:
+
+                    _____                    cycle
+                       ! CYCLE BODY
+                    ______ _____                    repeat until {condition}
+
+                    In  this  construction  the  cycle  body  is  always
+               executed  at least once.   The loop may also be qualified
+               by a _____    ___                    while or for as defined above.
+
+               E.g. _____             _____                    while {condition} cycle
+                       ! CYCLE BODY
+                    ______ _____                    repeat until {condition}
+
+
+          _____ ______          cycle-repeat groups may be nested to any depth.
+
+
+
+                             SIMPLE FORMS OF LOOP
+
+             If the cycle body comprises only one instruction  the  loop
+          may be rewritten in the form:-
+
+               {instruction} {loop clause}
+
+          i.e. {instruction} "_____                              while" {condition}
+               {instruction}  "___                               for" {control}"="{init}","{inc}","{final}
+               {instruction} "_____                              until" {condition}
+
+
+          For example
+
+               A(J) = 0 ___                        for J = 1, 1, 20
+               READSYMBOL(S) _____                             until S = NL
+               SKIPSYMBOL _____                          while NEXTSYMBOL = ' '
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 6-2
+
+                          CYCLE CONTROL INSTRUCTIONS
+
+             Two instructions are provided to control the execution of a
+          cycle from within the cycle body.
+
+               1.   ____                    exit      - causes the cycle to be terminated and
+                              control to  be  passed  to  the  statement
+                              following  the  matching  repeat.   In the
+                              case of a ___                                        for loop  the  control  variable
+                              will   retain   the   value  it  contained
+                              immediately prior to the ____                                                       exit.
+
+               2.   ________                    continue  - causes  control  to  be  passed  to  the
+                              ______                               _____                              repeat    (and    any   associated   until
+                              condition) of the current loop.
+
+
+
+
+                       JOINING INSTRUCTIONS USING 'AND'
+
+             Several simple instructions may be  joined  together  using
+          ___          and to form a more complex instruction.  The execution of such
+          an  instruction is achieved by executing each of the component
+          simple instructions in the order given.   This construction is
+          used to simplify small _____ ______    _____ ______                                 start-finish or cycle-repeat groups.
+
+                    E.g. __       _____                         if X = 0 start
+                            P = 1; Q = 1
+                         ______                         finish
+
+          may be rewritten:
+
+                       P = 1 ___       __                             and Q = 1 if X = 0
+
+                    or __       ____       ___                       if X = 0 then P = 1 and Q = 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 6-3
+
+
+                               BLOCK STRUCTURE
+
+             An  IMP  program  is  constructed using one or more ______                                                                 blocks.
+          Blocks may be nested one within another.   The depth to  which
+          this nesting may be performed is implementation dependent.
+
+                                 BEGIN BLOCKS
+             The   simplest  type  of  block  is  enclosed  between  the
+          statements "_____       ___                              _____                      begin" and "end" and is referred  to  as  a  begin
+          _____          block.    If  the  block  is the outermost block of a complete
+          program it must be terminated by the statement
+          "___ __ _______           end of program".
+
+          For example, a complete program might take the form:
+
+          _____          begin
+             _______             integer COUNT, LIMIT
+             .
+             _____             begin
+                ____                real SUM
+                .
+             ___             end
+             .
+          ___ __ _______          end of program
+
+          A _____                                   _____            begin block is entered by executing the begin and is left by
+          passing through the ___                              end to the following statement.   The main
+          uses  of  begin  blocks  are  to  declare  arrays  with bounds
+          calculated at run-time, and to  enable  the  re-use  of  space
+          taken up by large arrays which are only needed for part of the
+          program.
+
+               _____               begin
+                  _______                  integer UPPER
+                  UPPER = ...;   !  CALCULATE VALUE FOR UPPER BOUND
+                  _____                  begin
+                     _______ _____                     integer array CASES(1:UPPER)
+                     .
+                  ___                  end
+               ___ __ _______               end of program
+
+               _____               begin
+                  .
+                  _____                  begin
+                     _______ _____                     integer array TEMP(1:10000)
+                     .
+                  ___                  end
+                  _____                  begin
+                     ____ _____                     real array WORK AREA(1:11000)
+                     .
+                  ___                  end
+               ___ __ _______               end of program
+
+
+
+
+
+
+
+                                 7-1
+
+                          LOCAL AND GLOBAL VARIABLES
+
+             An  identifier is described as being _____                                                  local to a block if it
+          was declared at the head of that block.  Any identifiers which
+          are in scope but which were  not  declared  in  the  block  in
+          question are referred to as being ______                                            global to the block.
+          Clearly  identifiers may be local to only one block but may be
+          global to many.
+
+               _____               begin;             ! START OF OUTER BLOCK
+                  _______                _____                  integer X;      ! X IS LOCAL TO THIS BLOCK
+                  _____                  begin;          ! START OF INNER BLOCK
+                     _______                     integer Y;   ! Y IS LOCAL TO THIS BLOCK
+                     X = 0;       ! X IS ______                                         GLOBAL TO THIS BLOCK
+                  ___                  end;            ! END OF INNER BLOCK
+               ___               end;               ! END OF OUTER BLOCK
+
+          Identifiers may always be redeclared in  any  block  to  which
+          they are ______                   global - the local incarnation taking precedence over
+          the global one.
+
+               _____               begin
+                  _______                  integer X
+                  _____                  begin
+                     _______                     integer X
+                     X = 0;       ! USES THE X OF THE PREVIOUS LINE
+                  ___                  end
+               ___               end
+
+          An  attempt  to  redeclare a local variable will be faulted by
+          the compiler.
+
+             On entry to a block, space from the stack is  allocated  to
+          any  local  variables, and when the block is left the space is
+          returned to the stack (but see Own Variables).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 7-2
+
+
+
+
+                                  PROCEDURES
+
+             A procedure is a block which has an associated  identifier;
+          a   complete   procedure   block  may  be  considered  as  the
+          declaration of the procedure identifier.
+          Unlike begin blocks, procedures  are  not  entered  simply  by
+          reaching  their first statement (this results in control being
+          transferred to the  statement  following  the  matching  ___                                                                   end).
+          Instead  procedures  are  activated  when  they  are ______                                                               called by
+          giving the procedure identifier in a context determined by the
+          type of procedure.
+          The effect of a call is to suspend the current flow of control
+          and to pass control to the  procedure.    When  the  procedure
+          terminates, the previous flow of control is resumed.
+
+          There  are  four  forms  of procedure, the exact form required
+          being specified by the first statement of the block.
+
+          The phrase {param def}?  stands  for  the  optional  parameter
+          definition and will be described later (see Parameters).
+
+          1.   _______               routine {id}{param def}?
+
+               When  a  routine  is  called  its statements are executed
+               until either the ___                               ______                                end is reached or the instruction return
+               is executed.   This causes the routine to  terminate  and
+               the previous flow of control to be resumed.
+
+                     _______                     integer X, Y
+                     _______                     routine CONVERT
+                        __       _____                        if X < Y start
+                           X = X+Y
+                        ______ ____ _____                        finish else start
+                           X = X-Y
+                        ______                        finish
+                     ___                     end
+                     ..
+                     ..
+                     CONVERT
+                     ..
+                     CONVERT ______                             unless X = 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 7-3
+
+          2.   {type} ________                      function {id}{param def}?
+
+               A ________                                   _____                 function is a procedure which calculates a value of the
+               specified type (_______  ____  ______     ______                               integer, real, string, or record) and may
+               be  used  wherever  an  _______                                       operand  of the specified type is
+               required.
+               When a function is called  its  statements  are  executed
+               until an instruction of the form:
+
+                    ______                    result "=" {expression}
+
+               is  executed.    This  causes  the function to terminate,
+               returning the value of the expression.
+
+                    _______                    integer X,Y,Z
+                    _______ ________                    integer function SUM
+                       ______                       result = X+Y
+                    ___                    end
+                    Z = SUM;         !  SAME EFFECT AS "Z=X+Y"
+
+
+                    The keyword ________                       __                                function may be abbreviated to fn.
+
+
+          3.   {type} ___                      map {id}{param def}?
+
+               A ___                                    _________                 map is a procedure which calculates a  reference  to  a
+               variable of the specified type (_______  ____  ______                                               integer, real, string, or
+               ______                                    ________               record),  and  may  be  used  wherever  a variable of the
+               specified type is required.
+               When a map is called its statements are executed until an
+               instruction of the form:
+
+                    ______                    result "==" {variable reference}
+
+               is executed.  This causes the map to terminate, returning
+               a reference to (i.e. the address of) the given variable.
+
+               E.g. _______                    integer X,Y
+                    _______ ___                    integer map MIN
+                       __       ____ ______      ____ ______                       if X < Y then result == X else result == Y
+                    ___                    end
+
+                    MIN = 0
+                    ! THE ABOVE STATEMENT IS EXACTLY EQUIVALENT TO:
+                    ! __       ____       ____                      if X < Y then X = 0 else Y = 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 7-4
+
+          4.   _________               predicate {id}{param def}?
+
+               A _________                 predicate is a procedure which tests the validity of an
+               hypothesis and then returns, being either ____     _____                                                         true or  false.
+               Predicates  may  be  used  wherever a simple condition is
+               required.
+               When a predicate is called its  statements  are  executed
+               until  either  of  the  instructions "____      _____                                                     true" or "false" is
+               executed.    This  causes  the  predicate  to   terminate
+               accordingly.
+
+               Note that a predicate does not return any value.
+
+               E.g. _______                    integer N
+                    _________                    predicate SINGLE DIGIT
+                       ____ __                       true if 0 <= N <= 9
+                       _____                       false
+                    ___                    end
+
+                    N = N//10 ______                              unless SINGLE DIGIT
+
+          _____          Notes
+
+          a.   A _______                           ___                 routine may terminate by reaching end; all
+               other  types of procedure must not be able to reach their
+               ___               end, otherwise the compiler will report a fault.
+
+          b.   Procedures may be nested within any form of block.
+
+          c.   Procedures may be _________                                 recursive, that is, they may call
+               themselves.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 7-5
+
+
+
+
+                                  PARAMETERS
+
+             In the previous  discussion  about  procedures  the  phrase
+          {param def}? was used.   This stands for an optional parameter
+          list definition.
+
+          {param def} ::= "(" {dec list} ")"
+
+          where {dec list} is a list of declarations defining the FORMAL
+          PARAMETERS.   The declarations may be of any data type  except
+          _____                                               _____ ____          array - arrays may only be passed to a procedure as array name
+          parameters.
+
+          E.g. _______      _______ ____               routine SWOP(integer name P, Q)
+               _______ ________     _______ _____ ____    _______               integer function MAX(integer array name A, integer F, T)
+               _________       ______    ____               predicate EQUIV(record(FM)name LEFT, RIGHT)
+
+             Parameters  are  identical  to any local variables declared
+          inside  the  procedure,  except  that   the   parameters   are
+          initialised each time the procedure is called.
+          When a procedure is called a list of ACTUAL PARAMETERS must be
+          supplied  which  must  match  the formal parameters exactly in
+          number, order, and type.   Parameters are effectively assigned
+          using  "=="  for those passed by ____       _______ ____  ____                                           name (E.g. integer name, real
+          _____ ____          array name) and using "=" for  those  passed  by  value  (E.g.
+          ______      _______          string(10), integer).
+
+          For example assuming the declarations:
+
+             _______             integer L, M, N
+             ____             real R
+             _______ _____             integer array V(-7:7)
+             ______             record (FM) ONE, TWO
+
+          valid  calls  on  the  procedures  mentioned  in  the previous
+          example are:
+
+             SWOP(L, M)
+             SWOP(V(L), V(M))
+             N = MAX(V, -1, 0)
+             M = MAX(V, L, 7)
+             N = M __                   if EQUIV(ONE, TWO)
+
+          N.B.  IMP ____                               _________                    name type parameters are called by reference and not
+          by ____________             substitution (c.f.  ALGOL 60).
+
+
+
+
+
+
+
+
+
+
+
+
+                                 7-6
+
+                             PROCEDURE PARAMETERS
+
+             In addition to being able to pass variables  to  procedures
+          it  is  possible  to  pass procedures as parameters.   This is
+          achieved by using the procedure heading as  the  'declaration'
+          of the formal parameter.
+
+          E.g. _______     _______   _______               routine TRY(routine R(integer X))
+                  _______                  integer J
+                  R(J) ___                       for J = 1, 1, 10
+               ___               end
+
+          The  routine  TRY  may  now  be called with a single parameter
+          which must be the name of a  routine  which  has  one  integer
+          parameter.  In this context the formal parameter names used to
+          specify  the parameters of a procedure parameter are otherwise
+          ignored.
+
+          Note: If the routine TRY is itself to be passed as a parameter
+          the heading of the receiving routine would be something like:
+
+               _______       _______   _______   _______               routine CHECK(routine P(routine Q(integer R)))
+
+          and the call would be:
+
+               CHECK(TRY)
+
+
+
+                            GENERAL TYPE PARAMETER
+
+             In several situations it is useful to be able to pass to  a
+          procedure  a reference to ___                                    any type of variable.   This is done
+          by specifying an untyped ____                                   name parameter.
+
+          E.g. _______      ____               routine WORK(name REF)
+
+          Such a parameter is intended  for  system-dependent  interface
+          procedures  and  has severely limited uses.   In particular it
+          may only be  passed  on  to  another  procedure  requiring  an
+          untyped ____                  name parameter.
+
+             An  example  of  the  use  of  such  a  parameter is in the
+          pre-declared READ routine which will accept an _______   ____                                                         integer,  real,
+          or ______             string parameter.
+
+          E.g. _______               integer X
+               ____               real Y
+               ______               string (15) Z
+               READ(X);  READ(Y);  READ(Z)
+
+
+
+
+
+
+
+
+
+
+                                 7-7
+
+
+
+
+          The   following   is  a  complete  list  of  formal  parameter
+          declarators:
+
+
+
+          _______             ____             ______          integer             real             string({max})
+
+          _______ ____        ____ ____        ______       ____          integer name        real name        string({max})name
+
+          _______ _____ ____  ____ _____ ____  ______       _____ ____          integer array name  real array name  string({max})array name
+
+          _______ __          ____ __          ______       __          integer fn          real fn          string({max})fn
+
+          _______ ________    ____ ________    ______       ________          integer function    real function    string({max})function
+
+          _______ ___         ____ ___         ______       ___          integer map         real map         string({max})map
+
+          _______ ____ _____ ____          integer name array name
+
+          ____ ____ _____ ____          real name array name
+
+          ______        ____ _____ ____          string({max}) name array name
+
+
+
+          ______          record({fm})
+
+          ______      ____          record({fm})name
+
+          ______      _____ ____          record({fm})array name
+
+          ______       ____ _____ ____          record({fm}) name array name
+
+          ______      __          record({fm})fn
+
+          ______      ________          record({fm})function
+
+          ______      ___          record({fm})map
+
+
+
+          _______          routine
+
+          _________          predicate
+
+          ____          name
+
+
+
+
+
+
+
+
+
+
+
+                                 8-1
+
+
+
+
+                           PROCEDURE SPECIFICATION
+
+             In several situations it is necessary to  use  a  procedure
+          before  it  is  possible  (or  desirable)  to define it.   For
+          example, where two or more procedures call each other  (mutual
+          recursion)  or  where  a procedure is to be defined externally
+          (see External Linkage).
+          As all procedure identifiers must  be  declared  before  being
+          used a procedure specification statement is introduced.
+          This  takes  the form of the normal procedure heading with the
+          keyword ____                  spec inserted before the procedure identifier.
+
+          E.g. _______ ____     ____               routine spec MAX(real SIZE)
+
+             This has no effect other than declaring the  identifier  to
+          be  a  procedure  of  the specified type which takes the given
+          parameters.    Except  in  the  case  of  ________                                                    external   procedure
+          specifications  the  procedure must be defined later on in the
+          same block (but not any blocks defined therein).
+
+          For example:
+
+                    _______ ____   _______                    routine spec B(integer X)
+
+                    _______   _______                    routine A(integer Y)
+                       .
+                       B(Y-1)
+                       .
+                    ___                    end
+
+                    _______   _______                    routine B(integer X)
+                       .
+                       A(X+3)
+                       .
+                    ___                    end
+
+          Note that the ____                        spec statement and the procedure heading
+          must correspond, that is, the type and form of the  statements
+          must  match,  as  must the type, form, order and number of any
+          parameters.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 8-2
+
+
+
+
+                        CONTROL TRANSFER INSTRUCTIONS
+
+
+                               ______ ___ _____                               LABELS_and_JUMPS
+
+          1.   ______ ______               Simple Labels
+
+                  Any statement, excluding declarations,  may  be  given
+               one or more simple labels, where a simple label is of the
+               form: {id} ":"
+
+               Each label is written to the left of the statement.
+
+               NEXT:         P = P+1 __                                     if P < 0
+               ERROR1:ERROR2:FAULTS = FAULTS+1
+
+               Control   may  be  passed  to  a  labelled  statement  by
+               executing a jump instruction: "->" {id}
+
+
+                    -> NEXT
+
+                    -> ERROR1 __                              if DIVISOR = 0
+
+          2.   ______ _______               Switch Vectors
+
+                  A vector of labels may be declared in a similar manner
+               to an array, using the declarator ______                                                 switch.
+
+               ______               switch SW(4:9)
+               ______               switch S1, S2(1:10), S3(11:20)
+
+          Note a.   The vector must be one dimensional.
+
+               b.   The bounds must be constants.
+
+               Once declared, switch labels may be used in the same  way
+               as simple labels.
+
+               SW(4):       CHECK VALUE(1)
+               SW(6):SW(6): ERROR FLAG = 1
+               LAST: SW(9): ! ALL FINISHED
+
+               A  star  (*)  may  be  used in the definition of a switch
+               label to locate any elements of the  vector  which  would
+               otherwise be undefined.
+
+
+
+
+
+
+
+
+
+
+
+                                 9-1
+
+
+               ______               switch LET('A':'Z')
+               .
+               .
+               LET('A'):LET('E'):LET('I'):LET('O'):LET('U'):
+
+               ! DEAL WITH VOWELS
+               .
+               .
+
+               LET(*):! ALL THE REST I.E. CONSONANTS
+
+               The  specific  label  to  which  a  jump  will be made is
+               dependent on the value of an integer expression.
+
+                    ->SW(N) __                            if N > 0
+                    ->SW(100+N)
+                    ->SW(6)
+
+          Note 1.   Not all  of  the  declared  switch  labels  need  be
+                    defined  (in the previous examples SW(5): and SW(8):
+                    are undefined) but an error will occur at  run  time
+                    if  an  attempt  is  made  to jump to a non-existent
+                    switch label.
+
+               2.   Simple labels are the only identifiers which may  be
+                    used before they are declared/defined.
+
+                         -> MISSING __                                    if HERE = 0
+                         .
+                         .
+                    MISSING:
+
+               3.   The scope of both types of label is limited to the
+                    block  in  which they are defined, not including any
+                    blocks defined therein.   That is labels  cannot  be
+                    global  to  a block and therefore it is not possible
+                    to jump into or out of a block.
+
+               4.   The identifiers used for labels  must  not  conflict
+                    with other local identifiers.
+
+               5.   The  results  of entering a ___                                                for loop with a jump and
+                    not through the ___                                    for statement are undefined.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 9-2
+
+                     OTHER CONTROL TRANSFER INSTRUCTIONS
+
+
+          ____          stop
+
+                  Execution of the instruction ____                                               stop causes control to be
+               returned to the program which initiated the execution  of
+               the current program.  This is also the effect of reaching
+               the statement ___ __ _______                             end of program.
+               Control  is  transferred  by  signalling  event zero (see
+               Events).
+
+
+          _______          monitor
+
+                  This  instruction  causes  the   run-time   diagnostic
+               package to be invoked to produce diagnostic information.
+               If  no  diagnostic  package is available this instruction
+               will be ignored  (in  some  limited  implementations  the
+               production of diagnostics causes execution of the program
+               to be terminated).
+
+          For  convenience  all  other control transfer instructions are
+          gathered here.
+
+          ______          return              return from a routine.
+
+          ______          result={exp}        return the result of a function
+
+          ______          result=={reference} return the result of a map.
+
+          ____          true                return from a predicate.
+
+          _____          false               return from a predicate.
+
+          ____                                        _____          exit                jump out of the current cycle to the
+                              statement following the matching ______                                                               repeat.
+
+          ________                                           _____          continue            jump to the top of the current cycle.
+
+          ______ _____          signal event        see Events.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 9-3
+
+
+                               EXTERNAL LINKAGE
+
+             A complete program may be divided into  several  separately
+          compiled modules which are linked together before (or possibly
+          while)  the program is executed.   This linkage is achieved by
+          giving the ________                     external attribute to relevant indentifiers.
+
+          1.   ________               external DATA OBJECTS
+
+                  An external variable is declared in the same way as an
+               ___                           ___             ________               own variable with the keyword own replaced by external.
+
+                    ________ _______                    external integer CHOICE=4, WAIT = -5
+
+                    ________ ____ _____                    external real array MEAN(-6:6)
+
+               The identifiers are then available for use by any program
+               that references them.   A separately compiled module that
+               requires to use any of these variables must first declare
+               them using an external specification.
+
+                    ________ _______ ____                    external integer spec WAIT, CHOICE
+
+                    ________ ____ _____ ____                    external real array spec MEAN(-6:6)
+
+               note 1.   No initialization may be specified in an
+                         external specification.
+
+                    2.   External arrays must be one-dimensional and
+                         have constant bounds.
+
+                    3.   Even though all of the characters in the
+                         identifier    of   an   external   entity   are
+                         significant to the compiler, the system  loader
+                         software might impose constraints on the number
+                         of   significant  characters.    Refer  to  the
+                         relevant   appendix   for   system    dependent
+                         restrictions.
+
+          2.   ________ __________               external PROCEDURES
+
+                  A  procedure may be made available to other modules by
+               prefixing  the  procedure  heading   with   the   keyword
+               ________               external.
+
+                  ________ _______       ______                  external routine TRIAL(string(63) S)
+
+               Such  procedures  must  be  compiled in a file comprising
+               only external procedures (and possibly some  non-external
+               procedures and ___    ________                              own or external declarations).   The whole
+               module is terminated by the statement ___ __ ____                                                     end of file.
+
+
+
+
+
+
+
+
+                                 10-1
+
+
+               For example the following is a complete file of  external
+               procedures:
+
+                    _______ ________       _______                    integer function SHIFT(integer SYM)
+                       ______                       result = S-32;          !  LOWER - UPPER CASE
+                    ___                    end
+
+                    ________ _________        _______                    external predicate LETTER(integer SYM)
+                       ____ __                       true if 'A' <= SYM <= 'Z'
+                       ____ __                       true if 'A' <= SHIFT(SYM) <= 'Z'
+                       _____                       false
+                    ___                    end
+
+                    ________ _________       _______                    external predicate DIGIT(integer SYM)
+                       ____ __                       true if '0' <= SYM <= '9'
+                       _____                       false
+                    ___                    end
+
+                    ________ _________          _______                    external predicate ALPHANUM(INTEGER SYM)
+                       ____ __             __                       true if LETTER(SYM) or DIGIT(SYM)
+                       _____                       false
+                    ___                    end
+
+                    ___ __ ____                    end of file
+
+               Note a.   The function SHIFT is local to the file - it
+                         cannot be called from a different module.
+
+                    b.   The normal scope rules apply within the file,
+                         so that ALPHANUM may call both LETTER and
+                         DIGIT.
+
+                    c.   External procedures may ___                                                 not be nested within
+                         any blocks.
+
+
+                  If  a  module  requires  to  use an externally defined
+               procedure it must  first  supply  an  ________  _________                                                     external  PROCEDURE
+               _____________               specification.  For example:
+
+                    ________ _________ ____        _______                    external predicate spec LETTER(integer S)
+
+               This  is  similar  to  a procedure specification but only
+               requires the specified procedure to have been defined  by
+               the time the module is executed.
+
+               The prefix ________                    ______    _______                          external may be replaced by system or dynamic,
+               the  exact significance of which may vary from machine to
+               machine.
+
+
+
+
+
+
+
+
+
+
+                                 10-2
+
+
+
+
+                            PREDEFINED PROCEDURES
+
+             Every separately compiled module, whether  a  _____ ___  __                                                           begin-end  of
+          _______          program  block  or  a  file of external procedures is compiled
+          within a conceptual "outermost block" in which are declared  a
+          number  of  standard procedures such as READ and WRITE.   This
+          means that these procedures are  global  to  all  parts  of  a
+          program  and  so  may  be  used without having to be declared.
+          Note that as these procedures are global they may be redefined
+          within the program.
+          Further, ___  ________    ________                   own, constant or external identifiers may be declared
+          in this outermost block and will be global to the whole of the
+          file.
+
+               ___ _______               own integer CALLS = 0
+
+               ________ _______               external routine DO SOMETHING
+                  CALLS = CALLS+1;        ! RECORD TIMES ENTERED
+                  .
+                  .
+               ___               end
+
+               ________ _______ ________               external integer function ENTRIES
+                  ______                  result = CALLS
+               ___               end
+
+               ___ __ ____               end of file
+
+
+          Note that the function ENTRIES is used to make  the  value  in
+          CALLS  available  to other modules without their being able to
+          change that value, even by mistake.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 10-3
+
+             While the actual procedures which are predeclared may  vary
+          from machine to machine, the following are standard and may be
+          assumed present:
+
+          ____________          INPUT/OUTPUT
+
+
+               _______            _______ ____               routine READSYMBOL(integer name S)
+               _______               routine SKIPSYMBOL
+               _______ ________               integer function NEXTSYMBOL
+               _______      ____               routine READ(name N)
+
+               _______             _______               routine PRINTSYMBOL(integer N)
+               _______             ______               routine PRINTSTRING(string(255) S)
+               _______       _______               routine WRITE(integer N, PLACES)
+               _______               routine NEWLINE
+               _______          _______               routine NEWLINES(integer N)
+               _______               routine SPACE
+               _______        _______               routine SPACES(integer N)
+
+               _______             _______               routine SELECTINPUT(integer STREAM)
+               _______              _______               routine SELECTOUTPUT(integer STREAM)
+
+
+          ______ ________          STRING HANDLING
+
+
+               ______    ________          _______               string(1) function TOSTRING(integer SYMBOL)
+               ______       __           ______     ____    _______               string(255)  fn SUBSTRING(string(255)name S, integer F,T)
+               _______ ________        ______         _______               integer function CHARNO(string(255) S, integer N)
+               _______ ________        ______               integer function LENGTH(string(255) S)
+
+
+          _____ ________          EVENT HANDLING (see Events)
+
+
+               _______ ________               integer function EVENT
+               _______ ________               integer function SUB EVENT
+               _______ ________               integer function EVENT INFO
+
+
+          _____ _______          STORE MAPPING
+
+
+               _______ ________      ____               integer function ADDR(name V)
+               _______ ___         _______               integer map INTEGER(integer ADDRESS)
+               ____ ___      _______               real map REAL(integer ADDRESS)
+               ______     ___        _______               string(255)map STRING(integer ADDRESS)
+
+             Refer to the relevant system library  manual  for  detailed
+          specifications of these and other standard procedures.
+
+
+
+
+
+
+
+
+
+                                 10-4
+
+                                    EVENTS
+
+             During  the  execution  of  a program several (synchronous)
+          events may occur, such as resolution fails, array bound  fault
+          etc.  (see  Faults).    Normally  such  events  will cause the
+          program to be terminated with an  error  report  and  possibly
+          diagnostic  information.    However  events may be trapped and
+          used to control the further execution of the program.
+
+             The first non-declarative statements of any block may be of
+          the form:
+
+                    __ _____              _____                    on event {event list} start
+                         ! ON-BODY STATEMENTS
+                    ______                    finish
+
+          where {event list} is a list of integer constants representing
+          the events to be trapped.
+
+          On entry to the block the on body  is  skipped  and  execution
+          continues  from  the  statements following the ______                                                         finish.   If an
+          event specified in the {event list} is  signalled  during  the
+          execution of the statements between the ______        __ _____                                                  finish of the on event
+          group  and the ___                         end of the block, control will be passed to the
+          on-body (  and  may  well  pass  through  the  ______                                                         finish  to  the
+          following  statements).    If  the event is not trapped in the
+          current block a 'return' is forced and the event is  signalled
+          in  the  new  block  at the point from which the old block was
+          entered.   The process is repeated until either the  event  is
+          trapped  or  the outermost block of the program is reached, in
+          which case the event is reported as a fault  and  the  program
+          terminates.
+
+          Three functions are available which give information about the
+          last event to have been signalled.
+
+          1.   _______ ________               integer function EVENT
+                         returns the class of the last event.
+
+          2.   _______ ________               integer function SUB EVENT
+                         returns the sub-class of the last event.
+
+          3.   _______ ________               integer function EVENT INFO
+                         returns  any  extra information passed with the
+                         event.
+
+          If no event has occurred each of these functions  will  return
+          the value zero.
+
+
+
+
+
+
+
+
+
+
+
+
+                                 11-1
+
+
+          The classes of event and their sub-classes of them are:
+
+          _____   _________   _______ _______ ___________          EVENT   SUB-CLASS   MEANING (+EXTRA INFORMATION)
+
+             0                  ___________                                TERMINATION
+                      -1        ABANDON PROGRAM WITHOUT DIAGNOSTICS
+                       0        NORMAL TERMINATION (____                                                    stop)
+                      >0        USER GENERATED ERROR
+
+             1                  __________ ________                                ARITHMETIC OVERFLOW
+                       1        INTEGER OVERFLOW
+                       2        REAL OVERFLOW
+
+             2                  ______ ________                                EXCESS RESOURCE
+                       1        NOT ENOUGH STORE
+
+             3                  ____ _____                                DATA ERROR
+                       1        SYMBOL IN DATA (+SYMBOL)
+
+             4                  _______ ____                                CORRUPT DATA
+                       1        DATA TRANSMISSION ERROR
+
+             5                  _______ _________                                INVALID ARGUMENTS
+                       1        ILLEGAL CYCLE
+                       2        ILLEGAL EXPONENT (+EXPONENT)
+                       3        ARRAY INSIDE-OUT
+
+             6                  ___ __ _____                                OUT OF RANGE
+                       1        CAPACITY EXCEEDED
+                       2        ARRAY BOUND FAULT (+INDEX)
+                       3        NO SWITCH LABEL (+INDEX)
+
+             7                  __________ _____                                RESOLUTION FAILS
+             8                  __________ ________                                UNASSIGNED VARIABLE
+             9                  _____ _____                                INPUT ENDED
+            10                  _______ _________ _____                                LIBRARY PROCEDURE ERROR
+            11 - 15             _______ _______                                GENERAL PURPOSE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 11-2
+
+             At  any time during the execution of a program an event may
+          be signalled by executing an instruction of the form:
+
+          ______ _____          signal event {n}{qual}?
+
+          where:
+
+             {n}     ::= an integer constant in the range 0 <= N <= 15
+             {qual}  ::= "," {sub event}{extra}?
+             {extra} ::= "," {extra info}
+
+          and {sub event} and {extra info} are integer expressions.
+
+          The  instruction  causes  event  {n}  to  be  signalled   with
+          sub-event (default zero) and extra information (default zero).
+
+               ______ _____               signal event 15;            !  event 15,0,0
+               ______ _____      __               signal event 14,7 if X < 0; !  event 14,7,0
+               ______ _____        __               signal event 13,1,Y if Y#0; !  event 13,1,Y
+
+          Note 1.   In both the __     ______                                on and signal statements the keyword
+                    _____                    event is optional and may be omitted.
+
+               2.   An  event  signalled  inside  an  incarnation  of an
+                    on-body will never be trapped into that incarnation.
+                    Instead the search for a trap will  start  from  the
+                    previous block.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 11-3
+
+                                  APPENDIX 1
+
+                           COMPILER ERROR MESSAGES
+
+             Any  errors detected by the compiler will generate messages
+          of the form:
+
+                    * {message}
+
+          In most cases a marker (|) will  be  output  to  indicate  the
+          position in the statement at which the error was detected.
+
+          ACCESS         -    the statement cannot be reached.  This is
+                              not  treated  as an error but may indicate
+                              another fault.
+          ATOM           -    unknown atomic element.
+          BOUNDS         -    invalid bounds for an array or
+                              ______                              switch declaration,  or  wrong  number  of
+                              constants for an array initialization.
+          CONTEXT        -    formally  correct  statement  given in the
+                              wrong context.
+          COPY           -    attempt to redefine a local identifier.
+          FORM           -    incorrectly formed statement.
+          INDEX          -    switch label index out of bounds.
+          MATCH          -    procedure definition does not match a
+                              previous ____                                       spec.
+          NAME           -    undeclared identifier
+          ORDER          -    formally correct statement in wrong
+                              sequence.
+          SIZE           -    constant out of range.
+          TOO COMPLEX    -    statement too long or complex to analyse.
+          TYPE           -    variable of wrong type.
+          TYPE FOR {op}  -    operator {op} out of context.
+          %BEGIN MISSING -    too many ___                                       end statements
+          %CYCLE MISSING -    a ______                                repeat has been given with no matching
+                              _____                              cycle.
+          %END MISSING   -    unterminated blocks remain at
+                              ___ __ _______    ___ __ ____                              end of program or end of file.
+          %FINISH MISSING-    outstanding _____    ___    ______                                          start at end or repeat.
+          %REPEAT MISSING-    outstanding _____    ___    ______                                          cycle at end or finish.
+          RESULT MISSING -    a function, map, or predicate can reach
+                              its ___                                  end.
+          %START MISSING -    a ______                                finish has been given with no matching
+                              _____                              start.
+
+          "{id}" MISSING -    undefined procedure or label.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                  APPENDIX 2
+
+
+                        ______ _______ _______                        SAMPLE PROGRAM LISTING
+
+             1 %begin
+             2    %begin
+             3    %realname Q
+             4    %integer VALUE, X, X
+          *                          ! COPY
+             5    %string(256) S
+          *                    ! SIZE
+             6    %switch SA(1:4), SB(5:4)
+          *BOUNDS
+             7    %routinespec CHECK
+             8    %integerfunctionspec KEY(%integer X)
+             9    %if X = 4 %STARY
+          *                      ! ATOM
+            10       VALUE = KEY
+          *                  ! FORM
+            11       VALUR = 0
+          *          ! NAME
+            12 SA(5):
+          *         ! INDEX
+            13       %exit
+          *%CYCLE MISSING
+            14       %stop
+            15       X = 0
+          *ACCESS
+            16    %finish
+          *%START MISSING
+            17    %on %event 4 %start
+          *ORDER
+            18       %integerfunction KEY(%real X)
+          *MATCH
+            19       %end
+          *RESULT MISSING
+            20    Q == VALUE
+          *            ! TYPE
+            21    X = Q&7
+          *TYPE for "&"
+            22 %endofprogram
+          *%END MISSING
+          *%FINISH MISSING
+          *"CHECK" MISSING
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                  APPENDIX 3
+
+                         DATA PRECISION SPECIFICATION
+
+             On some machines  it  is  possible  to  offer  a  range  of
+          precisions  for  variables  of  type  _______      ____                                                integer  or  real.   The
+          precision is specified by the use  of  one  of  the  following
+          prefixes:
+
+                    _____                    short- smaller range than by default
+
+                    ____                    long - larger range than by default
+
+                    ____                    byte - large enough to hold a character (unsigned)
+
+          E.g.           ____ _______                         byte integer
+
+                         _____ _______                         short integer
+
+                         ____ _______                         long integer
+
+                         ____ ____                         long real
+
+
+          If  the  machine  on  which  the  program  is to be run cannot
+          support the required precision the prefix will be ignored.
+
+
+               E.g.  On the IBM 360 (or ICL 4/75)
+
+
+
+
+                              ____ _______                              byte integer     8-bits unsigned
+                              _____ _______                              short integer    16-bits signed
+                              _______                              integer          32-bits signed
+
+                              ____                              real             32-bits
+                              ____ ____                              long real        64-bits
+
+             Note that checks may be applied to ensure that any quantity
+          assigned to a variable is within the correct range of values.
+
+          E.g.      ___________                    byteinteger B
+                    _______                    integer X
+                    X=16_FFFF
+                    B = X
+
+          will fail at run-time, as  "16_FFFF"  is  a  POSITIVE  _______                                                                 integer
+          value but a NEGATIVE _____ _______                               short integer value.
+
+          The  assignment  operator "<-" may be used to force truncation
+          if required (see Assignment).
+
+
+
+
+
+
+
+
+
+
+                                  APPENDIX 4
+
+                                 IMP KEYWORDS
+
+      ___       _____      and       array
+      _____     ____      begin     byte
+      _         _______    _____      ________   ________   _____      c         comment    const      constant   continue   cycle
+      _______      dynamic
+      ____      ___        _____      ____       ________      else      end        event      exit       external
+      _____     ____       ______     __         ___        ______ __      false     file       finish     fn         for        format fn
+      __        _______    _______      if        include    integer
+      ____      ____       ____      like      list       long
+      ___       _______      map       monitor
+      ____      ___      name      not
+      __        __         __         ___      on        of         or         own
+      _________ _______      predicate program
+      ____      ______     ______     ______     ______     _______      real      record     repeat     result     return     routine
+      _____     ______     ____       _____      ____       ______      short     signal     spec       start      stop       string
+      ______    ______      switch    system
+      ____      ____      then      true
+      ______    _____      unless    until
+      _____      while
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                  APPENDIX 5
+
+                           COMPARISON WITH EMAS IMP
+
+                1.         New Features
+
+                           ___                           for
+
+                           ______ _____                           repeat until
+
+                           ________                           continue
+
+                           _________                           predicate
+
+                           _______                           include
+
+                           "==" in conditions
+
+                           _______ _____     ____                           integer array (4) name
+
+                           ______ ____ __                           finish else if ...
+
+                           ____                           else
+
+                           lower case input
+
+                           ____                           like
+
+                           (*) in owns and switches
+
+                           ________                           constant
+
+                           ________                           function
+
+                           ___                           not
+
+                           ______ ________                           record function
+
+                           ______ ___                           record map
+
+                           constant expressions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                2.         Features not implemented
+
+                           _____ ____                           print text
+
+                           _____      _____                           until .... cycle
+
+                           _____ ______                           array format
+
+                           _____ ____                           reals long
+
+                           _____ ______                           reals normal
+
+                           implied multiplication
+
+
+
+                3.         Changed Features
+
+                           'AA' instead of M'AA'
+
+                           16_1A2 instream of X'1A2'
+
+                           procedure parameter specification
+
+                           ______                 ______                           record(F) R instead of record R(F)
+
+                           SUBSTRING instead of FROMSTRING
+
+                           termination of comments
+
+                           "\" or "\\" instead of "**"
+
+                           ___                           own initialisation
+
+                           type checking for record operations
+
+                           ________    ____            _________                           external .. spec instead of extrinsic ..
+
+                           events instead of fault trapping
+
+                           / gives a ____                                     real result
+
+                           string resolution
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

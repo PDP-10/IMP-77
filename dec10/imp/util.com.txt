@@ -1,0 +1,472 @@
+&&&&&&&&&&&& UTIL.SUB
+
+UTIL.SUB
+ALIST.IMP
+ALIST.RNH
+ALIST.HLP
+RECODE.IMP
+RECODE.RNH
+RECODE.HLP
+MAKREL.IMP
+MAKREL.RNH
+MAKREL.HLP
+RELDUM.IMP
+RELDUM.RNH
+RELDUM.HLP
+DIAGFS.IMP
+$$$$$$$$$$$$
+&&&&&&&&&&&& ALIST.IMP
+
+%BEGIN;        !  PDP 10 ALIST !
+   %CONSTINTEGER SOURCE = 1, OBJECT = 2
+   %INTEGER WORD
+   %INTEGER CURRENT LINE, HERE
+   %INTEGER TYPE, LENGTH, J, S, CA
+   %SWITCH LT(0:15)
+   %CONSTINTEGER SIZE = 60
+   %OWNINTEGER LEFT = SIZE
+   %EXTERNALROUTINESPEC DIAGSTREAMS
+   %EXTERNALINTEGERFNSPEC EVENTINFO
+   %ON %EVENT 9 %START
+      NEWLINE
+      %STOP
+   %FINISH
+
+   %ROUTINE TEST PAGE
+      LEFT = LEFT-1
+      %IF LEFT <= 0 %START
+         LEFT = SIZE;  PRINTSYMBOL(12)
+      %FINISH
+      %IF S=12 %THEN LEFT=SIZE;  !WHEN FORM FEED ENCOUNTERED
+   %END
+   %ROUTINE OCTAL(%INTEGER N)
+      %INTEGER J
+      PRINTSYMBOL(N>>J&7+'0') %FOR J = 15, -3, 0
+      SPACE
+   %END
+   %ROUTINE READ WORD
+      READSYMBOL(WORD)
+   %END
+   %ROUTINE SKIP(%INTEGER N)
+      READ WORD %FOR N = 1, 1, N
+   %END
+
+   DIAG STREAMS
+   SELECTINPUT(OBJECT);  SELECTOUTPUT(1)
+   CURRENT LINE = 0;  HERE = 0;  CA = -1
+   LEFT=SIZE
+
+   %CYCLE
+      READ WORD
+      TYPE = WORD>>18
+      %WHILE TYPE>8_3777 %CYCLE;  !SKIP ASCII TEXT
+         READ WORD
+         TYPE=WORD>>18
+      %REPEAT
+      LENGTH = WORD&8_777777
+      ->LT(TYPE)
+LT(0):! LINE NO
+      READ WORD;  READ WORD
+      CURRENT LINE = WORD
+      %CONTINUE
+LT(1):! CODE/GLA
+      READ WORD;  READ WORD
+      %IF WORD&8_400000 = 0 %START
+         SKIP(LENGTH-1)
+         %CONTINUE
+      %FINISH
+      CA = WORD
+      SELECTINPUT(SOURCE)
+      %WHILE CURRENT LINE # HERE %CYCLE
+         HERE = HERE+1;  WRITE(HERE, 4);  SPACE
+         %IF HERE = CURRENT LINE %THEN OCTAL(CA) %C
+                                 %ELSE SPACES(7)
+         %CYCLE
+            READSYMBOL(S);  PRINTSYMBOL(S)
+            %EXIT %IF NL<=S<=FF
+         %REPEAT
+         TEST PAGE
+      %REPEAT
+      SELECTINPUT(OBJECT)
+      %CYCLE J = LENGTH-1, -1, 1
+         READ WORD;  CA = CA+1
+      %REPEAT
+      %CONTINUE
+!LT(*);   !***TEMP**
+LT(2):
+LT(3):
+LT(4):
+LT(6):
+LT(7):
+LT(8):
+LT(9):
+LT(10):
+LT(11):
+LT(12):
+LT(13):
+LT(14):
+LT(15):SKIP(LENGTH+1)
+   %REPEAT
+LT(5):
+   NEWLINE
+%ENDOFPROGRAM
+$$$$$$$$$$$$
+&&&&&&&&&&&& ALIST.RNH
+
+.FLAGS CAP.LC
+<ALIST PRODUCES A LISTING FILE CONTAINING <IMP SOURCE CODE
+WITH LINE NUMBERS AND THE RELATIVE ADDRESSES OF THE CODE PRODUCED FOR
+EACH SOURCE LINE.
+.NF
+^IT IS RUN AS FOLLOWS:-
+_.^R <ALIST
+*LISTFILE=SOURCE FILE,REL FILE
+.F
+    ^THE DEFAULT EXTENSIONS ARE <.LST, <.IMP AND <.REL
+RESPECTIVELY AND FOR MISSING FILENAMES, THE SOURCE FILENAME.
+^THE FOUR FOLLOWING LINES ARE EQUIVALENT.
+.NF
+*FILE.<LST = FILE.<IMP, FILE.<REL
+*FILE = FILE, FILE
+*FILE, FILE
+*FILE
+$$$$$$$$$$$$
+&&&&&&&&&&&& ALIST.HLP
+
+ALIST produces a listing file  containing  IMP  source  code  with  line
+numbers  and the relative addresses of the code produced for each source
+line.
+It is run as follows:-
+.R ALIST
+*listfile=source file,rel file
+The default extensions are .LST, .IMP  and  .REL  respectively  and  for
+missing  filenames,  the  source filename.  The four following lines are
+equivalent.
+*file.LST = file.IMP, file.REL
+*file = file, file
+*file, file
+*file
+$$$$$$$$$$$$
+&&&&&&&&&&&& RECODE.IMP
+
+%BEGIN;          ! PDP10 RECODE !
+   %INTEGER CA, HERE, CODE LINE, START, FINISH, REL, WORD, LENGTH
+   %EXTERNALROUTINESPEC DECODE(%INTEGER VALUE, WHERE)
+   %EXTERNALROUTINESPEC DIAG STREAMS
+
+   %CONSTINTEGER SOURCE = 1, OBJECT = 2, LISTING = 1
+
+   %ROUTINE SKIP(%INTEGER N)
+      %WHILE N > 0 %CYCLE
+         N = N-1
+         SKIPSYMBOL
+      %REPEAT
+   %END
+   %ROUTINE REQUEST
+      SELECTINPUT(0);  SELECTOUTPUT(0)
+      %CYCLE
+         PRINTSTRING("FROM:");  READ(START)
+         %STOP %IF START = 0
+         %EXIT %IF START > HERE
+         PRINTSTRING("CURRENTLY AT LINE");  WRITE(HERE+1, 1)
+         NEWLINE
+      %REPEAT
+      PRINTSTRING("TO:");  READ(FINISH)
+      FINISH = START %IF FINISH < START
+      SELECTINPUT(OBJECT);  SELECTOUTPUT(LISTING)
+   %END
+   %ROUTINE NEXT OBJECT
+      %INTEGER TYPE
+      %IF LENGTH # 0 %START
+GOT:     LENGTH = LENGTH-1
+         READSYMBOL(WORD)
+         CA = CA+1
+         %RETURN
+      %FINISH
+      %CYCLE
+         READSYMBOL(WORD)
+         TYPE = WORD>>18;  LENGTH = WORD&8_777777
+         %IF TYPE = 0 %START
+            READSYMBOL(CODE LINE)
+            LENGTH = LENGTH-1
+         %FINISH
+         %IF TYPE = 1 %START
+            READSYMBOL(REL);  READSYMBOL(CA)
+            LENGTH = LENGTH-1
+            CA = CA-1 %AND ->GOT %IF CA&8_400000 # 0
+            LENGTH = LENGTH-1
+         %FINISH
+         SKIP(LENGTH+1)
+      %REPEAT %UNTIL TYPE = 5;          ! END MARKER
+      PRINTSTRING("**END OF REL FILE**");  NEWLINE
+      %STOP
+   %END
+   %ROUTINE SKIP TO LINE(%INTEGER N)
+      %INTEGER S
+      SELECTINPUT(SOURCE)
+      N = N-1
+      %WHILE N > HERE %CYCLE
+         HERE = HERE+1
+         READSYMBOL(S) %UNTIL NL<=S<=FF
+      %REPEAT
+      SELECTINPUT(OBJECT)
+   %END
+   %ROUTINE PRINT LINE
+      %INTEGER S
+      SELECTINPUT(SOURCE)
+      HERE = HERE+1;  WRITE(HERE, 4);  SPACE
+      %CYCLE
+         READSYMBOL(S);  PRINTSYMBOL(S)
+      %REPEAT %UNTIL NL<=S<=FF
+      SELECTINPUT(OBJECT)
+   %END
+   %ROUTINE RECODE(%INTEGER START, FINISH)
+      SKIP TO LINE(START)
+      NEXT OBJECT %WHILE CODE LINE < START
+      %WHILE HERE # FINISH %CYCLE
+         PRINT LINE
+         %WHILE CODE LINE = HERE %CYCLE
+            SPACES(6)
+            DECODE(WORD, CA)
+            NEXT OBJECT
+         %REPEAT
+      %REPEAT
+   %END
+
+   DIAG STREAMS
+   HERE = 0;  CODE LINE = 0; LENGTH =0
+   %CYCLE
+      REQUEST
+      RECODE(START, FINISH)
+   %REPEAT
+
+%ENDOFPROGRAM
+$$$$$$$$$$$$
+&&&&&&&&&&&& RECODE.RNH
+
+.FLAGS CAP.LC
+<RECODE PRODUCES A LISTING FILE CONTAINING <IMP SOURCE CODE
+FOLLOWED BY MACHINE CODE GENERATED BY THE <IMP COMPILER.
+.NF
+^IT IS RUN AS FOLLOWS:-
+_.^R <RECODE
+*LISTFILE=SOURCE FILE,REL FILE
+.F
+    ^THE DEFAULT EXTENSIONS ARE <.LST, <.IMP AND <.REL
+RESPECTIVELY AND FOR MISSING FILENAMES, THE SOURCE FILENAME.
+^THE FOUR FOLLOWING LINES ARE EQUIVALENT.
+.NF
+*FILE.<LST = FILE.<IMP, FILE.<REL
+*FILE = FILE, FILE
+*FILE, FILE
+*FILE
+.F
+THERE ARE PROMPTS FOR THE RANGE OF LINES TO BE RECODED, AND A REPLY
+OF ZERO TERMINATES THE PROGRAM.
+.NF
+E.G.
+<FROM: 1
+<TO: 23
+<FROM: 0
+<EXIT
+$$$$$$$$$$$$
+&&&&&&&&&&&& RECODE.HLP
+
+RECODE produces a listing file containing IMP source  code  followed  by
+machine code generated by the IMP compiler.
+It is run as follows:-
+.R RECODE
+*listfile=source file,rel file
+The default extensions are .LST, .IMP  and  .REL  respectively  and  for
+missing  filenames,  the  source filename.  The four following lines are
+equivalent.
+*file.LST = file.IMP, file.REL
+*file = file, file
+*file, file
+*file
+there are prompts for the range of lines to be recoded, and a  reply  of
+zero terminates the program.
+e.g.
+FROM: 1
+TO: 23
+FROM: 0
+EXIT
+$$$$$$$$$$$$
+&&&&&&&&&&&& MAKREL.IMP
+
+%BEGIN
+   %EXTERNALROUTINESPEC READ OCTAL(%INTEGERNAME N)
+   %EXTERNALROUTINESPEC SET STREAMS
+   %INTEGER TYPE, I, J, K
+
+   SET STREAMS
+   SELECTINPUT(1); SELECT OUTPUT(1)
+   %CYCLE
+      READ OCTAL(TYPE)
+      READ OCTAL(J)
+      PRINTSYMBOL(TYPE<<18!J)
+      %IF TYPE<8_40 %THEN READOCTAL(I) %AND PRINTSYMBOL(I);  !RELOC WORD
+      %CYCLE K=1,1,J
+         READOCTAL(I); PRINTSYMBOL(I)
+      %REPEAT
+   %IF TYPE = 5 %THENEXIT
+   %REPEAT
+%ENDOFPROGRAM
+$$$$$$$$$$$$
+&&&&&&&&&&&& MAKREL.RNH
+
+.FLAGS CAP .LC
+<MAKREL IS USED IN CONJUCTION WITH <RELDUM, SO THAT ONE CAN EDIT
+<.REL FILES. ^THE <ASCII OUTPUT FILE FROM
+<RELDUM CAN BE EDITED WITH A TEXT EDITOR, AND THE <.REL FILE
+RECREATED WITH <MAKREL. ^THE  PROGRAM PROMPTS FOR FILES THUS:-
+.S.NF
+_.^R <MAKREL
+^FILES:- OUTPUT FILE = INPUT FILE (E.G. <TEST.REL = <TEST.LST )
+.B
+   THERE ARE NO DEFAULTS ALLOWED.
+$$$$$$$$$$$$
+&&&&&&&&&&&& MAKREL.HLP
+
+MAKREL is used in conjuction with RELDUM, so  that  one  can  edit  .REL
+files.   The  ASCII  output  file  from RELDUM can be edited with a text
+editor, and the .REL file recreated with MAKREL.   The  program  prompts
+for files thus:-
+
+.R MAKREL
+Files:- output file = input file (e.g. TEST.REL = TEST.LST )
+
+   there are no defaults allowed.
+$$$$$$$$$$$$
+&&&&&&&&&&&& RELDUM.IMP
+
+%BEGIN
+   %INTEGER TYPE, LEN, PENDING
+   %EXTERNALROUTINESPEC WRITE OCTAL(%INTEGER I,J)
+   %EXTERNALROUTINESPEC SETSTREAMS
+   %ROUTINE OCTAL(%INTEGER N)
+      %INTEGER J
+      SPACE
+      SPACES(24) %AND PENDING = 6 %IF PENDING = 0
+      PRINTSYMBOL(N>>J&7+'0') %FOR J = 33, -3, 0
+      PENDING = PENDING-1
+      %IF PENDING = 0 %START
+         NEWLINE
+      %ELSE
+         SPACE
+      %FINISH
+   %END
+   %PREDICATE TERMINATED(%INTEGER N)
+      %INTEGER J,K
+      %CYCLE J = 1, 1, 5
+         K = N>>(36-7);  N = N<<7
+         %TRUE %IF K = 0
+         PRINTSYMBOL(K)
+      %REPEAT
+      %FALSE
+   %END
+   %INTEGER J,K,L,N
+   SETSTREAMS
+   SELECTINPUT(1);  SELECTOUTPUT(1)
+   %CYCLE
+      PENDING = 7
+      READSYMBOL(K)
+      %IF K>>18 > 8_3777 %START;! ASCII
+         PRINTSTRING("ASCII:                 ")
+         READSYMBOL(K) %WHILE %NOT TERMINATED(K)
+         NEWLINE
+      %ELSE
+         TYPE = K>>18;  LEN = K&8_7777
+         WRITE OCTAL(TYPE, 4);  WRITE(LEN, 3)
+         %IF TYPE < 8_40 %START
+             READSYMBOL(K); OCTAL(K); SPACE; !RELOCATION WORD
+         %ELSE SPACES(15)
+         %CYCLE J = 1, 1, LEN
+            READSYMBOL(N);  OCTAL(N)
+         %REPEAT
+         NEWLINE %UNLESS PENDING = 0
+         %EXIT %IF TYPE = 5
+      %FINISH
+   %REPEAT
+%ENDOFPROGRAM
+$$$$$$$$$$$$
+&&&&&&&&&&&& RELDUM.RNH
+
+.FLAG CAP.LC.NF
+<RELDUM DUMPS OUT A <.REL FILE IN READABLE ASCII FORMAT IT CAN BE USED
+IN CONJUCTION WITH <MAKREL TO EDIT <.REL FILES, USING A NORMAL TEXT EDITOR.
+_.^R <RELDUM
+^FILES:- OUTPUT FILE=INPUT FILE   (E.G. <TEST.LST=TEST.REL)
+   ^THERE ARE NO DEFAULTS.
+$$$$$$$$$$$$
+&&&&&&&&&&&& RELDUM.HLP
+
+RELDUM dumps out a .REL file in readable ascii format it can be used
+in conjuction with MAKREL to edit .REL files, using a normal text
+ editor.
+.R RELDUM
+Files:- output file=input file   (e.g. TEST.LST=TEST.REL)
+   There are no defaults.
+$$$$$$$$$$$$
+&&&&&&&&&&&& DIAGFS.IMP
+
+!DIAGFS
+!SET UP STREAMS FOR DIAGNOSIS TYPE FILES LIKE RECODE.
+
+%CONSTINTEGER OUTPUT=1, SOURCE=1, OBJECT=2; !STREAM NUMBERS
+
+%EXTERNALROUTINE DIAG STREAMS
+%INTEGER N,S,NXTCHAR
+%RECORD(FILESPEC) FS,INFS,IN2FS,OUTFS
+%EXTERNALROUTINESPEC PROMPT(%STRING(255) PR)
+%EXTERNALROUTINESPEC DEFAULT(%RECORD(FILESPEC)%NAME FS, FS1)
+%EXTERNALROUTINESPEC XDEFINPUT(%INTEGER N, %RECORD(FILESPEC)%NAME FS)
+%EXTERNALROUTINESPEC XDEFOUTPUT(%INTEGER N,%RECORD(FILESPEC)%NAME FS)
+%EXTERNALROUTINESPEC READFS(%RECORD(FILESPEC)%NAME FS)
+%EXTERNALINTEGERFNSPEC SUBEVENT
+%EXTERNALINTEGERFNSPEC EVENTINFO
+
+   %ON %EVENT 10 %START
+      %UNLESS SUBEVENT=9 %THEN %SIGNAL 10,SUBEVENT,EVENTINFO
+      PRINTSTRING("Command error: ")
+      %WHILE NEXTSYMBOL >=' ' %THEN READSYMBOL(S) %AND PRINTSYMBOL(S)
+      NEWLINE
+      ->ST
+   %FINISH
+
+   %ROUTINE RDFILE(%RECORD(FILESPEC)%NAME FS)
+      READFS(FS)
+      READSYMBOL(NXTCHAR)
+   %END
+
+ST:
+%CYCLE
+   %CYCLE
+      PROMPT("*")
+      %IF NEXTSYMBOL>=' ' %THEN %EXIT
+      SKIPSYMBOL;  !IF JUST A NEWLINE
+   %REPEAT
+   INFS=0; IN2FS=0; OUTFS=0
+   RDFILE(INFS);  !READ A SPEC
+   %IF NXTCHAR='=' %START
+      OUTFS=INFS; RDFILE(INFS);  !OUT=IN
+   %FINISH
+   %IF NXTCHAR=',' %THEN RDFILE(IN2FS);  !OUT=IN1,IN2  OR IN1,IN2
+   %IF NL<=NXTCHAR<=FF %THEN %EXIT
+   %SIGNAL 10,9
+%REPEAT
+!ADD THE DEFAULT VALUES
+INFS_EXT="IMP" %IF INFS_EXT=""
+FS=INFS; FS_PROT=0; FS_SWITCHES=""
+FS_EXT="REL"
+DEFAULT(IN2FS,FS)
+FS_DEV=""; FS_EXT="LST"; FS_PPN=0
+DEFAULT(OUTFS,FS)
+!OPEN THE FILES
+XDEFINPUT(SOURCE,INFS)
+XDEFINPUT(OBJECT,IN2FS)
+XDEFOUTPUT(OUTPUT,OUTFS)
+%END
+
+%ENDOFFILE
+$$$$$$$$$$$$

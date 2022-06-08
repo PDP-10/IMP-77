@@ -1,0 +1,25 @@
+The commands are as follows:-
+    DESTINATION_SPEC/SWITCHES = SOURCE_SPEC/SWITCHES
+                generate a request to do this transfer
+     /EXIT      return to monitor mode
+     /HELP      type a list of the options available
+     /LIST      list the FTP queue of requests,
+                submitted on this machine
+     /KILL:SEQ# remove the given request from the queue
+     /NODES     type a list of hosts which FTP recognises
+
+DESTINATION and SOURCE are node names and SPECs  for  DEC-10s  are  full
+DEC-10  file  specifications.  The default node is the current node, the
+default directory is ones own and default output file-name is  the  same
+as the input file-name.
+
+The output switches are /PASSWORD and /ACCESS, the  input  switches  are
+/PASSWORD  and  /DELETE  all of which may be abbreviated.  The /PASSWORD
+values are the FTP passwords given in the users SWITCH.INI file  and  if
+omitted but required, you are prompted later.
+The /ACCESS values are:
+  CREATE(default), WRITE, CWRITE, APPEND, CAPPEND, SUBMIT and PRINT
+  SUBMIT is the default for device IBM: and PRINT for LPT:
+The /DELETE values are:
+   NEVER(default), DURING and AFTER
+These defaults may be redefined in SWITCH.INI

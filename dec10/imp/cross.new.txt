@@ -1,0 +1,553 @@
+! CROSSREF 30/11/77  AT 10.30   FOR DEC-10
+
+%EXTERNALROUTINE CROSSREF
+!USES CURRENTLY SELECTED INPUT AND OUTPUT STREAMS
+%EXTERNALSTRING(80)%SPEC TITLE
+%EXTERNALINTEGERFNSPEC OUTSTREAM
+%CONSTSTRING(11)%ARRAY BRFMP(0:5) = %C
+"BLOCK","%ROUTINE","%FUNCTION","%MAP","%PREDICATE","%PERM BLOCK"
+%CONSTSTRING(3)%ARRAY TYP(1 : 2) = "INT","REA"
+%CONSTSTRING(3)%ARRAY TFORM(0 : 15) = 
+   "UND","   ","NAM","LAB","FMT","UND","SWT","RTN","FUN","MAP",
+   "PRD","ARR","ARN","UND"(3)
+%CONSTSTRING(3) %ARRAY OWNTYP(0 : 7) =
+  "   ","OWN","CST","EXT","SYS","DYN","PRM"(2)
+%CONSTSTRING(3) %ARRAY WIDTH(1 : 5) = "   ","BYT","SHR","LNG","LLG"
+%OWNSTRING(1) %ARRAY GTYP(0 : 3) = "","","$","_"
+%CONSTINTEGER RDTN = 16_DCE298
+%CONSTINTEGER LINE STRING LENGTH = 7
+%CONSTINTEGER PAGE LENGTH = 54
+%CONSTINTEGER NULL = 15; !A NULL STREAM
+%CONSTINTEGER COMMAND = 0
+%CONSTINTEGER LINE LENGTH = 13
+%CONSTINTEGER MAX NAMES = 700
+!
+!    PTR      NAME         LINENUM
+! 
+!  _____     _____         _______
+!  |   |     |   |         |     |
+!  |   |     |   |         |     |
+!  |___|     |___|         |_____|
+!  |___|---->|___|       |-|_____|<-----
+!  |___|--   |___|       |>|_____|-|   |
+!  |___|  |  |___|       |-|_____|<|   |
+!  |___|   ->|___|  ------>|_____|______
+!  |   |     |   |         |     |
+!  _____     _____         _______
+!
+%RECORDFORMAT NM(%STRING(13)NAME,%INTEGER TYPE, %C
+   %SHORTINTEGER WIDTH,LPTR)
+! TYPE CONSISTS OF  VTYPE NEXT OTYPE FMADDR IN BITS 0-7 8-13 16-23 24-31 RESPECTIVELY
+%RECORDFORMAT FM(%STRING(13)NAME,%SHORTINTEGER TYPE, WIDTH, LINE)
+! TYPE CONSISTS OF TYPE AND NEXT IN BITS 0-7 AND 8 RESPECTIVELY
+%RECORDFORMAT LNO(%SHORTINTEGER LNUM,PTR,%BYTEINTEGER NUM)
+! NUM ALSO CONTAINS ASSIGNED BIT & GLOBAL USAGE
+%RECORDFORMAT DSP(%SHORTINTEGER START,NUMBER,FASL,ASL,GASL,ROUT,%C
+   %BYTEINTEGER TYPE)
+%RECORD(NM)%ARRAY NAME(0:MAX NAMES)
+%RECORD(LNO)%ARRAY LINE NUM(0:5*MAX NAMES)
+%RECORD(DSP)%ARRAY DISPLAY(0:15)
+%RECORD(FM)%ARRAY FORMAT(0:127)
+%SHORTINTEGERARRAY  PTR(0:MAX NAMES)
+%SHORTINTEGERARRAY STK(0:31)
+%SHORTINTEGERARRAY GLOBAL(0 : 127)
+%INTEGER LAST NAME,N,I,ASL,FASL,LASL,AD,TYPE,NUMBER,STP,GFLAG,IDENT,%C
+   S,T,LENIN,START,SYM,LPOS,DISP,L,D,PTRI,RECF,OUTPUT,INCLF,GASL, %C
+   END LPOS, GLOBS, NEXTG, J
+%STRING(13) NAMEST
+%RECORD(NM)%NAME NAM
+%RECORD(LNO)%NAME LN
+%RECORD(DSP)%NAME DISPL
+%RECORD(FM)%NAME FORM
+%SWITCH SW(0:23)
+%CONSTBYTEINTEGERARRAY SYMBOL(0 : 127) = 0(33),
+!                                       CONTROL CHARS + SPACE
+ 1, 1, 23, 3, 1, 1, 9, 23, 23, 1, 1, 0, 1, 1, 1,
+!   "   #  $  %  &  '   (   )  *  +  ,  -  .  /
+ 0(10), 23, 6, 23, 23, 23, 2,
+!  0-9   :  ;   <   =   >  ?
+ 7, 8, 23, 2, 9, 5, 23, 10, 11, 12, 13, 12, 13, 1, 14, 15,
+!@  A   B  C  D  E   F   G   H   I   J   K   L  M   N   O
+ 16, 1, 12, 17, 12, 12, 1, 22, 1, 0, 17, 1, 12, 1, 1, 22,
+! P  Q   R   S   T   U  V   W  X  Y   Z  [   \  ]  ^   _
+ 0, 1, 2, 0, 18, 8, 4, 0, 0, 1,17, 23, 23, 12, 0, 19,
+!`  a  b  c   d  e  f  g  h  i  j   k   l   m  n   o
+ 1, 23, 20, 12, 23, 0, 12, 0, 1, 1, 1, 21, 0, 0, 0, 0
+!p   q   r   s   t  u   v  w  x  y  z   {  |  }  ~  del
+%ROUTINE READ TAG(%INTEGERNAME N)
+   %INTEGER S
+   N = 0
+   %WHILE '0' <= NEXTSYMBOL <= '7' %CYCLE
+      READ SYMBOL(S)
+      N = N<<3+S-'0'
+   %REPEAT
+%END;                                ! OF READ TAG
+%ROUTINE SORT PTRS(%INTEGER A,B)
+   %INTEGER U
+   L = A
+   U = B
+   D = PTR(B)
+   NAMEST = NAME(D)_NAME
+   -> DOWN
+UP:
+   L = L+1
+   -> BOTTOM %IF L = U
+DOWN:
+   -> UP %UNLESS NAME(PTR(L))_NAME > NAMEST
+   PTR(U) = PTR(L)
+NEXT:
+   U = U-1
+   -> BOTTOM %IF L = U
+   -> NEXT %UNLESS NAME(PTR(U))_NAME < NAMEST
+   PTR(L) = PTR(U)
+   -> UP
+BOTTOM:
+   PTR(U) = D
+   L = L-1
+   U = U+1
+   SORT PTRS(A,L) %IF A < L
+   SORT PTRS(U,B) %IF U < B
+%END;                                      ! OF SORT PTRS
+%ROUTINE ABORT(%INTEGER I)
+   SELECTOUTPUT(COMMAND)
+   PRINTSTRING("%CROSSREF ABORT LINE")
+   WRITE(NUMBER,1)
+   PRINTSTRING(" SYMBOL = ")
+   PRINTSYMBOL(SYM)
+   PRINTSTRING(" FROM")
+   WRITE(I,1)
+   NEWLINE
+   %FOR I = 0,1,19 %CYCLE
+      READSYMBOL(SYM)
+      PRINTSYMBOL(SYM)
+   %REPEAT
+   SELECT OUTPUT(OUTPUT)
+   %SIGNAL 0,2
+%END;                                      ! OF ABORT
+%ROUTINE NOTE USE(%INTEGER LINE)
+   %INTEGER I
+   I = NAM_LPTR
+   LN == LINE NUM(I)
+   %IF I # 0 %AND LN_LNUM = LINE %THEN LN_NUM = LN_NUM!1 %ELSE %START
+      %IF I = 0 %THEN I = LASL %ELSE I = LN_PTR;! POINTER TO FIRST
+      LN_PTR = LASL
+      ABORT(-3) %IF MAX NAMES*5 < LASL
+      NAM_LPTR = LASL;                  ! SHOULD BE SET UP
+      LN == LINE NUM(LASL)
+      LASL = LN_PTR
+      LN = 0
+      LN_LNUM = LINE
+      LN_PTR = I
+   %FINISH
+%END;                                   ! OF NOTE USE
+%ROUTINE NPL(%INTEGER T,I)
+%OWNINTEGER NLN = PAGE LENGTH
+   %IF T >= NLN %START
+      NEW PAGE
+      PRINTSTRING(TITLE); NEWLINES(2)
+      NLN = PAGE LENGTH-2
+   %ELSE
+      NEWLINES(I)
+      NLN = NLN-I
+   %FINISH
+%END;                                   ! OF NPL
+%ROUTINE NOTE ASSIGN
+   ABORT(-4) %IF STP < 1
+   LN == LINE NUM(NAME(|STK(STP)|)_LPTR)
+   LN_NUM = LN_NUM!2
+%END;                                   ! OF NOTE ASSIGN
+%ROUTINE NOTE GLOBAL
+   ABORT(-5) %IF GASL > 127
+   %UNLESS 7 <= NAME(PTR(N))_TYPE&15 <= 10 %START
+      GLOBAL(GASL) = N
+      GASL = GASL+1
+   %FINISH
+%END;                                   ! OF NOTE GLOBAL
+%ROUTINE INCR DISP
+   DISP = DISP+1
+   DISPL == DISPLAY(DISP)
+   DISPL = 0
+   DISPL_START = LAST NAME
+   DISPL_NUMBER = NUMBER
+   DISPL_FASL = FASL
+   DISPL_ASL = ASL
+   DISPL_GASL = GASL
+%END;                          ! OF INCR DISP
+
+
+!MAIN BODY OF ROUTINE
+   OUTPUT=OUTSTREAM; !REMEMBER CURRENT OUTPUT STREAM
+   SELECTOUTPUT(NULL);    ! IGNORE PERM TYPES
+   I = 1
+   %WHILE I <= MAX NAMES*5 %CYCLE
+      LN == LINE NUM(I)
+      LN = 0
+      I = I+1
+      LN_PTR = I
+   %REPEAT
+   STP = 0
+   PTR(0) = 0
+   NAM == NAME(0)
+   NAM = 0
+! COULD COME OUT WITH PROPER DECLARATION OF LABELS
+   NAM_NAME = "*USER_LABELS*"
+   NAM_TYPE = 3
+   ASL = 1
+   FASL = 0
+   GASL = 0
+   LASL = 1
+   INCLF = 0
+   GFLAG = 0
+   LPOS = 0
+   DISP = 0
+   DISPL == DISPLAY(0)
+   DISPL = 0
+   DISPL_START = -1;             ! GET USER LABEL
+   DISPL_TYPE = 5;          ! PERM
+   SYM = 0
+   LAST NAME = 0
+   %WHILE NEXTSYMBOL # -1 %CYCLE
+! MAY BE USED TO SIGNAL END OF PROGRAM
+      READSYMBOL(SYM)
+      SYM = SYM&127
+      T = SYMBOL(SYM)
+      READ TAG(N) %IF RDTN>>T&1 = 1
+      -> SW(T)
+SW(0):
+      ABORT(0);         ! PUTS OUT ILLEGAL SYM
+SW(4):
+      ! IGNORE LABEL
+      STP = STP-3
+      NOTE ASSIGN
+      T = 1
+SW(1):
+SW(2):
+UNSTACK:
+      STP = STP-T
+      ABORT(1) %IF STP < 0
+      -> NEXT ITEM
+SW(3):
+      IDENT = N
+      NAMEST = GTYP(GFLAG&3)
+      %FOR I = 1, 1, 12 %CYCLE
+         READ SYMBOL(S)
+         %EXIT %IF S = ','
+         NAMEST = NAMEST.TOSTRING(S)
+      %REPEAT
+      READSYMBOL(S) %WHILE S # ','
+      READ TAG(TYPE)
+      SKIPSYMBOL;!COMMA
+      READ TAG(RECF);!IGNORE LENGTH
+      SKIPSYMBOL;!COMMA
+      READ TAG(N);!IGNORE OWN
+      %IF GFLAG&1 = 0 %START;           ! NORMAL OR ROUTINE FORMAL PARAMETER
+         ABORT(3) %IF IDENT = 0
+         %IF IDENT <= LAST NAME %START
+                                   ! ACTUAL ROUTINE AFTER SPEC
+            NAM == NAME(PTR(IDENT))
+            NOTE USE(NUMBER)
+         %ELSE
+            ABORT(-1) %IF ASL > MAX NAMES
+            LAST NAME = IDENT
+            PTR(IDENT) = ASL
+            NAM ==  NAME(ASL)
+            NAM = 0
+            ASL = ASL+1
+            NAM_NAME = NAMEST
+            NAM_TYPE = TYPE!(N&7)<<16!FASL<<24
+            NAM_WIDTH = RECF
+            NOTE USE(NUMBER)
+            %IF RECF # 0 %AND TYPE>>4 = 4 %START
+                                                 ! RECORD
+               NAM_TYPE = NAM_TYPE!256;! NEXT FLAG BIT
+               NAM == NAME(PTR(RECF))
+               NOTE USE(NUMBER)
+               AD = NAM_TYPE>>24;! FMADDR
+               %CYCLE
+                  ABORT(-1) %IF ASL > MAX NAMES
+                  NAM == NAME(ASL)
+                  NAM = 0
+                  ASL = ASL+1
+                  FORM == FORMAT(AD)
+                  NAM_NAME = FORM_NAME
+                  NAM_TYPE = FORM_TYPE
+                  NAM_WIDTH = FORM_WIDTH
+                  NOTE USE(FORM_LINE)
+                  AD = AD+1
+               %REPEAT %UNTIL NAM_TYPE&256 = 0; ! COPY OVER SUB FIELDS
+            %FINISH
+         %FINISH;                      ! ACTUAL
+         NEXTG = 3 %IF TYPE&15 = 4
+         %IF 7 <= TYPE&15 <= 10 %START
+            %IF N > 7 %START
+               NEXTG = 1; ! DON'T INCREMENT IF %SPEC
+            %ELSE
+               INCR DISP
+               NEXTG = 2
+               DISPL_ROUT = PTR(IDENT)
+               DISPL_TYPE = TYPE&15-6
+            %FINISH
+         %FINISH
+      %ELSEIF GFLAG = 3 %START
+                                            ! INTO FORMAT ARRAY
+         ABORT(131) %IF IDENT # 0
+         ABORT(-2) %IF FASL > 127
+         FORM == FORMAT(FASL)
+         FORM = 0
+         FASL = FASL+1
+         FORM_NAME = NAMEST
+         FORM_TYPE = TYPE!256
+         FORM_LINE = NUMBER
+      %FINISH
+      -> NEXT ITEM
+SW(5):
+      %IF 8 <= NAME(STK(STP))_TYPE&15 <= 9 %THEN T = 0 %ELSE T = 1
+      -> UNSTACK
+SW(6):
+      START = DISPL_START+1
+      I = DISPL_GASL
+      GLOBS = 0
+      GLOBS = (GASL-I)//16+3 %IF GASL > I
+      NPL(LAST NAME-START+5+GLOBS,3)
+      I = DISPL_ROUT
+      %IF I # 0 %START
+         PRINTSTRING(NAME(I)_NAME)
+         SPACE
+      %FINISH
+      PRINTSTRING(BRFMP(DISPL_TYPE))
+      PRINTSTRING(" STARTING LINE")
+      WRITE(DISPL_NUMBER,1)
+      PRINTSTRING(" LEVEL")
+      WRITE(DISP,1)
+      NPL(0,1)
+      %IF LAST NAME >= START %START
+         SORT PTRS(START,LAST NAME) %IF START < LAST NAME
+         %FOR I = START,1,LAST NAME %CYCLE
+            PTRI = PTR(I)
+            %CYCLE
+               NAM == NAME(PTRI)
+               LPOS = NAM_LPTR
+               %IF LPOS # 0 %START
+                  NPL(0,1)
+                  NAMEST = NAM_NAME
+                  PRINTSTRING(NAMEST)
+                  SPACES(14-LENGTH(NAMEST))
+                  SYM = 7
+                  D = NAM_TYPE
+                  PRINTSTRING(OWNTYP(D>>16&7))
+                  SPACE
+                  J = (D>>4)&7
+                  %IF J = 0 %START
+                     SPACES(7)
+                  %ELSEIF J <= 2 %START
+                               ! REAL INTEGER NULL
+                     PRINTSTRING(WIDTH(NAM_WIDTH))
+
+                     SPACE
+                     PRINTSTRING(TYP(J))
+                 %ELSEIF J = 3 %START
+                               ! STRING
+                     PRINTSTRING("STR")
+                     J = NAM_WIDTH
+                     %IF J = 0 %THEN SPACES(4) %ELSE WRITE(J,3)
+                  %ELSE
+                               !RECORD
+                     PRINTSTRING(" RECORD")
+                  %FINISH
+                  SPACE
+                  PRINTSTRING(TFORM(D&15))
+                  LPOS = LINE NUM(LPOS)_PTR
+                  END LPOS = LPOS
+                  LENIN = 0
+                  %CYCLE
+                     LN == LINE NUM(LPOS)
+                     %IF LENIN = LINE LENGTH %START
+                        NPL(-2,1)
+                        LENIN = 0
+                        SYM = 35
+                     %FINISH
+                     LENIN = LENIN+1
+                     D = LN_LNUM
+                     %IF D >= 10000 %START
+                        SPACES(SYM)
+                        PRINTSYMBOL('&')
+                     %ELSE
+                        WRITE(D,SYM)
+                     %FINISH
+                     SYM = 4
+                     D = LN_NUM
+                     %IF D&2 > 0 %THEN PRINTSYMBOL('A') %ELSE SYM = SYM+1
+                     %IF D&1 > 0 %THEN PRINTSYMBOL('M') %ELSE SYM = SYM+1
+                     %IF D&4 > 0 %THEN PRINTSYMBOL('G') %ELSE SYM = SYM+1
+                                               ! DEALLOCATE
+                     D = LN_PTR
+                     LN_PTR = LASL
+                     LASL = LPOS
+                     LPOS = D
+                  %REPEAT %UNTIL LPOS = END LPOS
+               %FINISH
+               PTRI = PTRI+1
+            %REPEAT %UNTIL NAM_TYPE&256 = 0
+         %REPEAT
+      %FINISH
+      %IF GLOBS > 0 %START
+                                      ! SOME GLOBALS USED
+         LENIN = 0
+         NPL(0,2)
+         SPACES(5)
+         PRINTSTRING("GLOBAL VARIABLES USED =")
+         SYM = 1
+         %FOR I = DISPL_GASL,1,GASL-1 %CYCLE
+            %IF LENIN = LINE STRING LENGTH %START
+               NPL(-2,1)
+               LENIN = 0
+               SYM = 32
+            %FINISH
+            LENIN = LENIN+1
+            SPACES(SYM)
+            NAMEST = NAME(PTR(GLOBAL(I)))_NAME
+            PRINTSTRING(NAMEST)
+            SYM = 15-LENGTH(NAMEST)
+         %REPEAT
+      %FINISH
+      %IF DISP = 0 %START
+         NEWPAGE
+         %RETURN
+      %FINISH
+DECR DISP:
+      LAST NAME = DISPL_START
+      FASL = DISPL_FASL
+      GASL = DISPL_GASL
+      ASL = DISPL_ASL
+      DISP = DISP-1
+      DISPL == DISPLAY(DISP)
+      -> NEXT ITEM
+SW(7):
+      I = 0
+      %IF N = 0 %START
+         READSYMBOL(S);! FOUND MINUS AND SKIPPED
+         ABORT(7) %IF S # '-'
+         READTAG(N)
+         %IF STK(STP) < 0 %THEN N = STK(STP) %ELSE N = -STK(STP)-N
+                                         ! OVER WRITE AFTER MODIFYING
+      %ELSE
+        %IF N < DISPL_START %START
+           I = DISPL_GASL
+           %IF GASL > I %START
+              %FOR I = I,1,GASL %CYCLE
+                 %IF I = GASL %START
+                    NOTE GLOBAL
+                    %EXIT
+                 %FINISH
+                 %EXIT %IF GLOBAL(I) = N
+              %REPEAT
+           %ELSE
+              NOTE GLOBAL
+           %FINISH
+           I = 4
+        %FINISH
+         N = PTR(N)
+         STP = STP+1
+      %FINISH
+      STK(STP) = N
+      NAM == NAME(|N|);                     ! TOTAL INDEX
+      NOTE USE(NUMBER)
+      LN_NUM = LN_NUM!I;          ! SET GLOBAL USEAGE BIT
+      -> NEXT ITEM
+SW(8):
+      STP = STP-2
+      STP = 0 %IF STP < 0
+      -> NEXT ITEM
+SW(9):
+      S = 0
+      %FOR I = 0,1,N %CYCLE
+         %IF S = '@' %AND SYM # '''' %THEN READ TAG(N) %C
+            %ELSE READ SYMBOL(S)
+            ! READ EXPONENT AND IGNORE OR NEXT DIGIT
+      %REPEAT
+      -> ADD STACK
+SW(10):
+      %IF GFLAG = 0 %START
+         GFLAG = NEXTG
+      %ELSE
+         FORM_TYPE = FORM_TYPE&255 %IF GFLAG = 3
+         GFLAG = 0
+      %FINISH
+      -> NEXT ITEM
+SW(11):
+      INCR DISP
+      -> NEXT ITEM
+SW(13):
+      NAM == NAME(0); ! COULD BACK TO PTR(N) IF LABELS ARE DECLARED
+      NOTE USE(NUMBER)
+      -> NEXT ITEM
+SW(14):
+      ! TAG N SHOULD BE FULL DECIMAL
+ADD STACK:
+      STP = STP+1
+      STK(STP) = 0
+      -> NEXT ITEM
+SW(15):
+      %IF NUMBER = 0 %START
+                                             ! RESET FROM NULL WITH GOOD NEW DATA
+         SELECTOUTPUT(OUTPUT)
+         NPL(PAGE LENGTH,0);            ! FORCE FF
+      %FINISH
+      ABORT(15) %IF STP # 0
+! CAN OPTIONALLY COMMENT OUT THIS STATEMENT AND LET FALL TO STP=0
+      NUMBER = N
+      %IF NUMBER >= 10000 %START
+         INCLF = 1
+         GTYP(0) = "*"
+         NUMBER = 10000; ! RESULTS IN ONE NOTE OF EACH INCLUDED VAR
+      %ELSEIF INCLF # 0 %START
+         INCLF = 0
+         GTYP(0) = ""
+      %FINISH
+SW(16):
+! MAY ONLY BE ONE MC CODE INSTRN ON STACK
+      STP = 0
+      -> NEXT ITEM
+SW(17):
+      STP = STP-1
+      NOTE ASSIGN
+      T = 1
+      -> UNSTACK
+SW(19):
+      N = 0
+SW(18):
+      ! IGNORE FLAG BITS
+      T = N*2
+      SKIPSYMBOL;           ! COMMA
+      READ TAG(N);        ! IGNORE SYSTEM LABEL OR NUMBER
+      -> UNSTACK
+SW(20):
+      T = 0
+      %IF N&2 = 2 %START
+         NOTE ASSIGN;             ! THE SECOND ELEMENT
+         T = 1
+      %FINISH
+      T = T+1;                      ! THE RESOLVING PARTITION
+      %IF N&1 = 1 %START
+         STP = STP-T
+         NOTE ASSIGN;              ! THE FIRST ELEMENT
+         T = 1
+      %FINISH
+      T = T+1;                              ! THE RESOLVED STRING
+      -> UNSTACK
+SW(21):
+      ABORT(21) %IF GFLAG = 0
+      READ SYMBOL(N) %UNTIL N = '}';!  FAILURE ANYWAY IF HITS END OF FILE
+      -> DECR DISP
+SW(22):
+      NAM == NAME(PTR(N))
+      NOTE USE(NUMBER)
+      T = 1
+      -> UNSTACK
+SW(23):
+      ! IGNORE TAG
+SW(12):
+NEXT ITEM:
+   %REPEAT
+%END
+%ENDOFFILE

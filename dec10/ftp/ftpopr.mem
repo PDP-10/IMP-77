@@ -1,0 +1,169 @@
+
+
+
+      OPERATORS GUIDE TO FTP (FILE TRANSFER PROTOCOL)
+
+
+                          CONTENTS
+
+1. Overview
+
+2. Running the spooler
+
+3. Commands to the spooler
+
+4. Examining the queues
+
+5. Testing
+
+6. References
+                                                      Page 2
+
+
+1.0  OVERVIEW
+
+FTP (File Transfer Protocol) is as a system which  allows  a
+user to queue requests for file transfers to other machines.
+This is achieved by having  a  monitor  command  called  FTP
+which puts a file transfer request into the FTP queue, and a
+spooler called FTXSPL running on the DECsystem-10 to  handle
+the transfer itself.
+
+The spooler handles the setting up of  the  necessary  tasks
+between  the  machines and handles the transfer and possible
+subsequent respooling of the file (say to the IBM 360/195 or
+to the line-printer or plotter).
+
+
+
+2.0  RUNNING THE SPOOLER
+
+The spooler is normally run as an  OPSER  sub-job  with  the
+following sequence of commands:
+
+     :SLOG             ;log in a sub-job
+     :DEF FTP=         ;define the sub-job as FTP
+     FTP-R FTXSPL      ;run the spooler
+     FTP-START         ;start spooling
+
+
+
+3.0  COMMANDS TO THE SPOOLER
+
+Below are a list of all the commands  available  in  FTXSPL.
+They  may  all be abbreviated to their shortest unique form,
+except that "S" or "ST" is interpreted as START rather  than
+STOP
+
+CURRENT type the current settings of parameters
+DEBUG run a test version of the spooler
+DETACH      detach the job and  continue  running  detached.
+            All   subsequent   output  to  the  terminal  is
+            prefixed by "FTP- "
+EXIT        exit to monitor level immediately, aborting  any
+            current transfer
+GO          continue with the next request after a PAUSE
+HELP        type a list of the  available  commands  on  the
+            console
+KILL        abort the current  file  transfer  but  continue
+            with any subsequent requests
+LOG file    open the named file as a log file.  A  log  file
+            called  FTPOPR.LOG[3,3]  is automatically opened
+            when the spooler is run
+MSGLEVEL n  determines the level of logging in the log file,
+            the  values are cumulative i.e.  30 includes 20,
+            10 and 0, and are as follows:
+       n=0  log the files being transferred and  whether  or
+            not they succeed but do not type anything
+                                                      Page 3
+
+
+       n=1  type the files being transferred and whether  or
+            not they succeed (default)
+       n=10 log protocol level 0 message headers
+       n=20 log parameters passed at protocol level 0
+       n=30 log messages passed at protocol level 1
+       n=40 log protocol level 2 header words
+       n=50 log protocol level 2 data i.e.  the  data  bytes
+            of the file being transferred.  Please note that
+            this produces a lot of output.
+       n=100 type the transport level start-up procedure and
+            each byte being received
+NEXT seq    do the request whose sequence number  is  given,
+            next
+NODES       type out a  list  of  the  nodes  known  to  the
+            spooler and their status
+PAUSE       stop  processing  requests  after  the   current
+            transfer  and  await  operator action.  When the
+            current transfer is finished "[FTP is  pausing]"
+            is typed on the console
+RESET       reset all the variables to their original values
+            except for the name of the log file and the node
+            status
+SET (NODE) <name> OFFLINE disables transfers  either  to  or
+            from the named node
+SET (NODE) <name> ONLINE enables file transfers both to  and
+            from  the  named  node (depending on the mode of
+            operation - see START command)
+START (P or Q) start transferring files  in  the  queue  for
+            processing  (P),  or  start accepting files from
+            other machines (Q), or both  (when  no  P  or  Q
+            modifier is used)
+STOP        stop  processing  requests  after  the   current
+            transfer and return to monitor level.  This will
+            type "[FTP is stopping]" on the console when the
+            transfer is complete.
+TASK <name> change name of listening task (default is FTX*)
+WHAT        types the file  transfer  in  progress  with  an
+            indication   of   how   far   the  transfer  has
+            progressed and at what baud rate.
+
+
+
+4.0  EXAMINING THE QUEUE
+
+The queue of requests for transfers is examined  by  running
+the FTP command with no parameters or with the switch /LIST.
+This will print out the files involved and who submitted the
+request See the document 3A55B in the Edinburgh Installation
+Manual(1) for a full description of running FTP.
+                                                      Page 4
+
+
+5.0  TESTING
+
+To test the spooler back to back you should run two versions
+of the spooler one started as Q only, the other started as P
+only.  Note that it is necessary to  open  a  different  log
+file  on  the  first  spooler  before  the second spooler is
+started otherwise the second  spooler  will  give  an  enter
+error.   You can use the DEBUG command in the spoolers, this
+will create job-specific log files and set the MSG level  to
+31.
+
+If you run both the spoolers and FTP from a disk other  than
+the system disk, the queues will go onto the disk from which
+they are run, in the area  [3,3]  so  that  you  can  run  a
+parallel FTP system for testing purposes.
+
+You can send a file to yourself, either using  local  ANF-10
+tasks or using a call over the SRCNET gateway.
+
+For the first, make sure that both P  and  Q  spoolers  have
+your  own  node  name  set online (use the NODE and SET NODE
+<name> ONLINE commands).  Then do an FTP command:  e.g.
+
+FTP TEST_file2=file1
+
+The second method using the gateway  is  as  follows.   Make
+sure  that  the  gateway  is set online in both spoolers and
+then use the SRCNET type of nodename e.g.
+
+FTP EDXA_file2=file1
+
+
+
+6.0  REFERENCES
+
+1.  The Edinburgh DECsystem-10 Installation Manual.  section
+3A55B

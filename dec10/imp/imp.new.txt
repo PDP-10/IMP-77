@@ -1,0 +1,63 @@
+1) 20-OCT-78 **STRING I/O**
+It is now possible to define strings to be the source and destination
+of stream i/o. This allows the use of parsing algorithms developed
+for i/o to be applied to strings. There are two new routines
+%EXTERNALROUTINE SDEF INPUT(%INTEGER N,%STRING(1)%NAME STRING)
+%EXTERNALROUTINE SDEF OUTPUT(%INTEGER N,%STRING(1)%NAME STRING)
+where N is the stream number in the range 1-15. and STRING is the string
+to be read or written.  These are equivalent to DEFINE INPUT and DEFINE
+OUTPUT and use the same stream system. Thus the other routines operate
+as before i.e. SELECT INPUT/OUTPUT, CLOSE INPUT/OUTPUT and
+RESET INPUT/OUTPUT. An End-of-file condition occurs on input when the
+end of a string is reached, and on output the stream needs
+to be closed before the string length is added to the string.
+
+2) 23-Oct-78 **FILESPEC records**
+The length or the string item 'SWITCHES' in the 'FILESPEC' record
+definition in PERMS.IMP has been increased from 20 to 39.
+programs using FILESPEC records explicitly will need to be
+recompiled before being re-linked.
+
+3) 20-DEC-78 **LIB: SEARCHING**
+DEFINE INPUT and XDEFINE INPUT will now look for a file on a users
+library area if the file is not found in the users directory area.
+
+4) 20-DEC-78 **I/O ERRORS**
+The message "I/O transmission error" SIGNAL 4,1,status
+has been replaced by:-
+"Input error status #nnnnnn" SIGNAL 4,1,stream/chan
+"Output error status #nnnnnn" SIGNAL 4,2,stream/chan
+ where the status bits nnnnnn(in octal) are defined in the DECsystem-10
+Monitor Calls Manual for the appropriate device.
+
+5)  31-Jan-79 **PERMS.IMP**
+PERMS.IMP reduced by the removal of the definition of JOBDAT array
+and by using calls to DEFINPUT, DEFOUTPUT, XDEFINPUT, XDEFOUTPUT,
+SELINPUT and SELOUTPUT such that the parameters are passed direct
+without intermediate storage.
+
+6) 31-Jan-79 **Unassigned streams**
+The unassigned state of streams changed to cause an event when accessed
+instead of being assigned to the NUL: device. Thus input from an
+unassigned channel gives
+   %SIGNAL %EVENT 8,1,stream  "Input from unassigned stream"
+   and output gives
+   %SIGNAL %EVENT 8,2,stream  "Output to unassigned stream"
+
+7) 15-Feb-79 **Non-blocking i/o**
+   If you set up streams to operate with non-blocking i/o you will get the
+   following two events when an IN or OUT UUO returns without blocking
+   %SIGNAL %EVENT 9,1,stream "No input on stream"
+   %SIGNAL %EVENT 9,2,stream "No output to stream"
+
+8) 25-Feb-79 **REENTER trapping**
+   When a program is reentered by the monitor command REENTER after
+   say a control C interruption, the %signal 0,-2,0 "Program REENTERed"
+   is fired off and this can be trapped.
+
+9) 23-Mar-79 **SWITCH ARG library routine**
+   It should be noted that the second argument is a %STRING(11) and not
+   (15) as in the original documentation and that the switch
+   string passed as a parameter has been modified so that if a matching
+   switch is found, the switch is removed from that string. Thus
+   a series of switches can be searched for until the string="".

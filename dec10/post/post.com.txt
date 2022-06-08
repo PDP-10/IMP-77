@@ -1,0 +1,5159 @@
+&&&&&&&&&&&& POST.SUB
+
+post.sub
+POST.IMP
+PSTLIB.IMP
+PSTMAC.MAC
+FNODES.IMP
+CONFIG.MAC
+POST.RNH
+POST.RND
+3A01C.RNO
+POST.CMD
+MAISPL.IMP
+MAISPL.CMD
+SETUSR.MAC
+QUEUE.IMP
+SETSRC.IMP
+GALAXY.MAC
+MAIL.CTL
+NETWRK.ADD
+ALIAS.ADD
+UPDATE.MEM
+$$$$$$$$$$$$
+&&&&&&&&&&&& POST.IMP
+
+!post.imp
+!A post program for JNT MAIL
+%include "imp:iolib.inc"
+%begin
+%externalroutinespec prompt(%string(255) str)
+%externalintegerfnspec ppn
+%externalroutinespec print via(%string(1)%name host)
+%externalstring(50)%fnspec datestamp
+%externalpredicatespec casematch(%string(255) str1,str2)
+%externalstring(8)%fnspec day
+%externalstring(15)%fnspec ppntostr(%integer n)
+%externalroutinespec writeppn(%integer n)
+%externalstring(12)%fnspec octtostr(%integer n)
+%externalroutinespec readline(%string(1)%name s)
+%externalroutinespec readfs(%record(filespec)%name fs)
+%externalrecord(filespec)%fnspec strtofs(%string(255) str)
+%externalstring(6)%fnspec sixtostr(%integer n)
+%externalstring(255)%fnspec fstostr(%record(filespec)%name fs)
+%systempredicatespec gettab(%integer n,m, %integername res)
+%externalintegerfnspec jobnum
+%externalpredicatespec calli2(%integer n,%integername m)
+%EXTERNALROUTINESPEC MACINI;  !SET UP ^C TRAPPING
+%predicatespec defined name(%string(1)%name name,dest)
+%EXTERNALINTEGER CNTRLC
+%EXTERNALSTRING(6)%SPEC QDEV
+%EXTERNALROUTINESPEC DO FTP(%STRING(1)%NAME JOBNM,DEST,NAME,%record(filespec)%name FILE, %INTEGER STREAM,%STRING(1)%NAME MESS)
+%EXTERNALSTRING(50)%FNSPEC DEFUNI(%INTEGER STREAM,%STRING(20)F1,F2)
+%externalpredicatespec is version 4
+%externalroutinespec read aliases
+%externalroutinespec init nodes
+%externalstring(12)%fnspec our node
+%externalpredicatespec address(%string(1)%name title,address,%integername node)
+%externalstring(12)%spec our src node
+%externalpredicatespec isnode(%string(1)%name node,type %integername status)
+%externalroutinespec uppercase(%string(1)%name s)
+%externalroutinespec lowercase(%string(1)%name s)
+%externalstring(25)%fnspec tell name(%integer n)
+%externalpredicatespec delist(%string(1)%name user,user1,dest1)
+%string(50) mail file
+%record(filespec) mail fs
+%externalstring(255)%spec errmsg
+%string(255) subject
+%string(100) name,dest
+%conststring(22) post log=":post.log[3,5]/fun:6"
+%conststring(16) image mode="/mode:#10/byte:7"
+%constinteger esc=8_33, control z=8_32,oprppn=8_1 000002
+%CONSTINTEGER FALSE=0, TRUE=1
+%constinteger tty=0, mail=1, log=2;           !stream numbers
+%ownstring(25) this user;  !the name of the current user
+%ownstring(25) this node;  !name of the current node
+%ownstring(72) from;   !the name of current user for the FRom: field
+%ownstring(120) replyto;  !the reply to field
+%ownstring(12) today
+%integer s,n,mail error
+
+!%routine newline
+!   printsymbol(nl);   !in order to avoid multiple <cr>s
+!%end
+
+
+
+%routine get from field
+!======================
+!this sets the value of 'from'
+   %integer part1,part2
+   this node=our src node; lower case(this node)
+   thisuser=tell name(ppn);  !get the name from TELL.INI
+   %if this user="" %start
+      this user=octtostr(ppn)
+   %finish
+   %if gettab(8_31,jobnum,part1) %start; %finish
+   %if gettab(8_32,jobnum,part2) %start; %finish
+   from=sixtostr(part1).sixtostr(part2)
+   %if ppn=oprppn %and from="(MAIL ERROR)" %start
+      mail error=true
+   %else
+      mail error=false;  !flag a fault generation
+      from=from." (on ".our node." DEC-10)  <".this user."@".this node.">"
+   %finish
+%end
+
+%predicate is batch
+!===================
+!is this a batch job?
+   %constinteger gtlim=8_40, jb lbt=8_200 000000
+   %integer n
+   %true %if gettab(gtlim,-1,n) %and n&jb lbt#0
+   %false
+%end
+
+
+%predicate get type(%string(1)%name dest,type)
+!======================================
+   %integer state
+   %string(25) d
+   d=dest; uppercase(d)
+   %unless isnode(d,type,state) %start
+      type="?The host name ".dest." is unknown"
+      %false
+   %finish
+   %true
+%end
+
+
+%ROUTINE ABORT OUTPUT
+!============================
+!This routine aborts the current output stream, i.e. does not update the disk
+!It works for disk only otherwise it simply does a close output
+   %EXTERNALRECORD(SCB)%SPEC OUNSCB
+   %EXTERNALRECORD(SCB)%NAMESPEC OUTSCB
+   %EXTERNALRECORD(SCBNAME)%ARRAYSPEC OUTVEC(-1:MAXCHANS)
+   %SYSTEMROUTINESPEC RELEASE(%INTEGER CHAN)
+   %SYSTEMROUTINESPEC FREEVEC(%INTEGER THIS)
+   %INTEGER CHAN,OUTST
+   %IF OUTSCB_DEVTYP#DSKDEV %THEN CLOSE OUTPUT %AND %RETURN
+   OUTST=OUTSTREAM
+   CHAN=OUTSCB_FILOPFN>>18&15
+   AC(2)=CHAN<<23
+   AC(1)=8_070000 000140;  !CLOSE N,140  - THROW AWAY FILE
+   *8_434040 000002;  !IOR 1,2
+   *8_256000 000001;  !XCT 1
+   RELEASE(CHAN)
+   FREEVEC(OUTSCB_BUFVEC&8_777777)
+   FREEVEC(ADDR(OUTSCB))
+   OUTVEC(OUTST)_NAME==OUNSCB
+   OUTSCB==OUTVEC(OUTST)_NAME
+%END
+
+
+%routine print address header
+!============================
+!output JNT compatible address list
+printstring(name); printsymbol('@'); printstring(dest); newline
+newline;  !finish with extra newline
+%end
+
+
+%routine print message separator
+!===============================
+!separating limne between messages
+   newline; printstring("--------"); newline
+%end
+
+
+%routine print ARPA header
+!=========================
+!prints the ARPA compatible header
+printstring("Date:       "); printstring(datestamp); newline
+printstring("From:       "); printstring(from); newline
+printstring("To:         "); printstring(name); printsymbol('@'); printstring(dest)
+newline
+%if replyto#"" %start
+   printstring("Reply-To:   "); printstring(replyto); newline
+%finish
+%if subject#"" %start
+   printstring("Subject:    "); printstring(subject); newline
+%finish
+print message separator
+%end
+
+
+%routine copy text
+!================
+!copies text from a file or a terminal to a mail file
+%integer s1
+   s1=0
+   %cycle
+      s1=s
+      %if s=nl %then newline %else printsymbol(s); readsymbol(s)
+      %if s=esc %start
+         s=nl
+         select output(tty); newline; select output(mail); !echo nl
+      %finish
+   %repeat %until s=control z
+%end
+
+
+%routine copy file
+!===============
+!get a file name and copy the contents to the mail file
+%string(100) str
+%integer s1
+   %on %event 9 %start
+      close input; select input(tty)
+      %return
+    %finish
+   readfs(mail fs)
+   %if nextsymbol#esc %and next symbol#nl %start
+      readline(str)
+      errmsg="Bad file specification ".fstostr(mail fs).str
+      %signal 10
+   %finish
+   mailfs_switches=image mode
+   xdefine input(mail,mailfs)
+   select input(mail)
+   s1=0
+   %cycle
+      s1=s
+      readsymbol(s); printsymbol(s)
+   %repeat
+%end
+
+
+%routine skip run command
+!========================
+!will skip over the command used to run the program
+   %integer s
+
+   %routine skip word
+      %cycle
+         skipsymbol
+         s=nextsymbol
+      %repeatuntil s=nl %or s=esc %or s=sp %or s=tab %or s='-'
+      skipsymbol %while nextsymbol=sp %or nextsymbol=tab
+   %end
+
+   s=nextsymbol
+   %if s='R' %or s='r' %start;  !a run command
+      skip word
+   %finish
+   s=nextsymbol
+   %if s='S' %or s='s' %or s='P' %or s='p' %start;   !a START or POST command
+      skip word
+   %finish
+   skipsymbol %if next symbol='-'
+%end
+
+
+%routine readword(%string(1)%name str,%integer spaces)
+!=====================================================
+!will read a word up to a separator which will include spaces if 'spaces'=true
+%integer n,s
+   str=""
+   %cycle;  !skip leading spaces
+      s=nextsymbol
+      %exit %if sp#s#tab
+      skip symbol
+   %repeat
+   %for n=1,1,100 %cycle;  !read 100 chars or up to nl esc or '@'
+      %if s=sp %or s=tab %start;   !either return or include one space
+         %exit%if spaces=true
+         skipsymbol %until sp#nextsymbol#tab
+         s=nextsymbol
+         %exit %if s=nl %or s=esc %or s='@';    !exclude terminal spaces
+         str=str." "
+         %continue
+      %finish
+      %exit %if s=nl %or s=esc %or s='@'
+      str=str.tostring(s) %unless s<sp;  !do not include control chars
+      skip symbol
+      s=next symbol
+   %repeat
+%end
+
+
+%routine skip rest of line
+!=========================
+   %cycle
+      %unless nl#nextsymbol#esc %then skipsymbol %and %return
+      skipsymbol
+   %repeat
+%end
+
+
+%routine dolog(%string(1)%name name,dest)
+!=============
+!outputs logging info to a log file
+   define output(log,qdev.post log); select output(log)
+   printstring(datestamp); newline
+   printstring("Posted- "); printstring(mail file); printstring(" from "); writeppn(ppn)
+   printstring(" to user "); printstring(name); printsymbol('@'); printstring(dest); newline
+   close output
+%end
+
+
+%predicate do post
+!=================
+!main routine for doing the post thing
+%string(100) str,t,to,u1,d1
+%string(255) message,TS address
+%string(25) type,dev
+%record(filespec) mail fs
+%integerarray patharg(1:3)
+%integer local mail,n
+%cycle
+   name=""; dest=""
+   read word(name,false);    !read a number of words
+   %if nextsymbol='@' %then skipsymbol %and readword(dest,true);  !read a single word
+   skip rest of line
+   ->1 %if name="" %or (name->str.(":").t %and ppn#8_1 000002); !only opr allowed to use devices
+   %if dest="" %start
+      %if defined name(name,dest) %start;    !get name from switch.ini
+         printstring("To: "); printstring(name); printstring(" at "); printstring(dest)
+      %else
+         printstring("?The name "); printstring(name); printstring(" is not defined in switch.ini")
+      %finish
+      newline
+   %finish
+   %if dest#"" %start
+      %exit %if get type(dest,type)
+      printstring(type); printsymbol(nl)
+   %finish
+1: ->errstop %if is batch; !not interactive
+   prompt("To: ")
+%repeat
+
+%if mail error=false %and name->d1.("%").to %start; !do not include code for error
+   %if to->d1.("%").to %start;%finish
+   replyto=this user."%".this node
+   %unless delist(to,u1,d1) %start
+      to=dest
+   %else
+      %if casematch(dest,"ucl") %start
+         replyto=replyto."%ucl-cs%isid"
+      %else
+         replyto=replyto."%".dest
+      %finish
+      %while delist(to,u1,d1) %cycle
+         replyto=replyto."%".d1
+         to=u1
+      %repeat
+   %finish
+   %if casematch(to,"ucl") %then replyto=replyto."%ucl-cs" %and to="isid"
+   replyto=replyto."@".to
+   newline; printstring("Reply-To:  "); printstring(replyto)
+   %if is batch %start
+      newline
+   %else
+      printstring("    -  is this correct?"); newline
+2:    printstring("Type new address or <cr>:  ")
+      skip symbol %while %not sp#nextsymbol#tab;  !remove leading spaces
+      %if nextsymbol=nl %start
+         skipsymbol
+      %else
+         readline(message)
+         %if length(message)<4 %start;  !probably yes or no
+            %if charno(message,1)='N' %or charno(message,1)='n' %then ->2
+            %if charno(message,1)='Y' %or charno(message,1)='y' %start
+               !do nothing
+            %else reply to=message; !looks funny but I don't know what else to do
+         %else reply to=message
+      %finish
+   %finish
+%else replyto=""
+%if casematch(dest,this node) %or case match(dest,our node) %then local mail=true %else local mail=false
+%if local mail %start
+   dev=qdev.":"; str=".MAI[3,5]"
+%else
+   dev=""; str=".PST"
+   patharg(1)=jobnum<<18!8_777777
+   patharg(2)=0; patharg(3)=0
+   ac(1)=3<<18!addr(patharg(1))
+   *8_047040000110;   !path 1,   - read default path
+   *8_255000000000;   !jfcl
+   !now use default path or else the home directory
+   %if patharg(3)=ppn %then str=str."[-]" %else str=str."[,]"
+%finish
+mail file=defuni(mail,dev,str."<177>");  !create mail file on own area
+prompt("Subject: "); readline(subject)
+printstring("Enter message, end with ^Z"); newline
+select output(mail)
+%if local mail %start;  !simulate the via route
+   TS address=this node; upper case(TS address)
+   %unless address(this node,ts address,n) %then TS address=this node
+   printstring(TS address); newline
+%finish
+print address header
+print ARPA header
+
+readsymbol(s)
+%if s='@' %start;  !a file
+   copy file
+%else
+   copy text
+%finish
+print message separator
+close output
+do log(name,dest)
+%if local mail %start
+   select output(tty)
+   printstring("OK, I have sent it to the mail system"); newline
+%else
+   str=name; name=""
+   mailfs=strtofs(mail file); mailfs_prot=0
+   do ftp(str,dest,name,mailfs,mail,message)
+   select output(tty)
+   Printstring(message); newline
+%finish
+%true
+errstop:!here on a fatal error
+*8_047040 000012;  !monrt.
+*8_047000 000012;  !exit
+%false
+%end
+
+
+%predicate defined name(%string(1)%name name,dest)
+!=================================================
+!looks up SWITCH.INI[,] for lines:-
+!POST/fred=fred@host,jim=jim@host
+!for locally defined names
+!it takes a single argument 'name' which should be compacted (no spaces) u/c
+!and if it finds a match it will return both 'name' and 'dest' arguments
+!otherwise 'name' remains unchanged.
+%string(255) str,nm,ds
+%record(filespec) swini
+%integer in
+
+%on %event 9,10 %start
+   %if event=10 %then %false
+   close input; select input(in)
+   %false
+%finish
+
+%routine readone(%string(1)%name str)
+!-----------------------------------
+!will read a string - including spaces, convert it to u/c
+!and take the following as break chars ('/' ',' '=' '@' nl)
+%integer s,bracket seen
+   %on %event 9 %start
+      %return
+   %finish
+
+   %predicate terminator
+      %true %if s='/' %or s=',' %or s='=' %or s='@' %or s=nl
+      %false
+   %end
+
+   str=""; bracket seen=false
+   %cycle
+      s=next symbol
+      %if s='[' %then bracket seen=true
+      %if s=']' %then bracket seen=false
+      %exit %if bracket seen=false %and terminator
+      %if s<=sp %start
+         skipsymbol %until sp#nextsymbol#tab
+         s=nextsymbol
+         %exit %if terminator;  !do not include terminal spaces
+         str=str." "
+         %continue
+      %finish
+      skipsymbol
+      str=str.tostring(s)
+   %repeat
+%end
+
+%routine FORMAT ERROR ;      !here when a formatting error in a POST/... line is found
+   printstring("%Incorrect format of POST/name=name@dest..... line in SWITCH.INI"); newline
+   printstring("%POST/"); printstring(str); printsymbol('=') %if nm#""; printstring(nm)
+   printsymbol('@') %if ds#""; printstring(ds); newline
+%end
+
+swini=0; swini_file="switch"; swini_ext="ini"; swini_ppn=ppn
+xdefine input(mail,swini)
+in=instream
+select input(mail)
+%cycle
+   readone(str)
+   %if casematch(str,"POST") %and nextsymbol='/' %start;  !got a POST line
+      skip symbol
+      %if nextsymbol#nl %start
+         %cycle
+            readone(str)
+            %unless nextsymbol='=' %then FORMAT ERROR %and ->cont
+            skipsymbol
+            readone(nm)
+            %unless nextsymbol='@' %then FORMAT ERROR %and ->cont
+            skipsymbol
+            readone(ds)
+            %if casematch(name,str) %start;  !got a match
+               name=nm; dest=ds
+               close input; select input(in)
+               %true
+            %finish
+            %exit %if nextsymbol=nl
+            %unless nextsymbol=',' %then FORMAT ERROR %and ->cont
+            skip symbol
+            nm=""; ds=""
+         %repeat
+      %finish
+   %finish
+cont:
+   skip rest of line
+   skipsymbol %while nextsymbol<=sp;   !move to next alphanum
+   nm=""; ds=""
+%repeat
+%end
+
+!main program
+%on %event 1,2,3,4,5,6,7,8,9,10 %start
+   SELECT OUTPUT(TTY)
+   newline; printsymbol('?')
+   printstring(errmsg); newline
+   ->end1
+%finish
+
+macini;  !set up contrl c trapping
+cntrlc=false
+N=-JOBNUM
+%IF PPN#OPRPPN %AND CALLI2(8_61,N) %START;   !GET JOB STATUS AND SEE IF JACCT BIT SET
+   %IF N&8_010000 000000=0 %START
+      ERRMSG="No privileges to modify the queue - must be RUN from SYS:"
+      %signal 10
+   %FINISH
+%FINISH
+
+today=day
+today=substring(today,1,3)
+init nodes
+read aliases
+get from field
+select input(tty); select output(tty)
+*8_051400 000000;  !get command line(rescan)
+*8_255000 000000;  !jfcl
+!GET A COMMAND LINE
+skip run command
+->end1 %unless do post
+end:
+;!*8_051440 000000;    !clrbfi
+*8_047000 000000;    !reset
+*8_047000 000012;    !exit 0,
+end1:
+select output(mail); abort output
+->end
+
+%endofprogram
+$$$$$$$$$$$$
+&&&&&&&&&&&& PSTLIB.IMP
+
+!PSTLIB.IMP  library file for POST/MAIL system
+%include "imp:iolib.inc"
+
+%externalintegerfnspec ppn
+%externalroutinespec readppn(%integername pn)
+%externalintegerfnspec get now
+%systempredicatespec gettab(%integer table,index %integername result)
+%externalintegerfnspec toudt(%integer date,time)
+%externalintegerfnspec todate(%integer day,month,year)
+%externalstring(8)%fnspec day
+%externalstring(8)%fnspec time
+%externalstring(9)%fnspec date
+%externalstring(12)%fnspec octtostr(%integer n)
+%externalstring(6)%fnspec sixtostr(%integer n)
+%externalpredicatespec calli2(%integer n,%integername result)
+%externalpredicatespec xisfile(%record(filespec)%name fs)
+%externalrecord(filespec)%fnspec strtofs(%string(255) str)
+%externalstring(255)%fnspec fstostr(%record(filespec)%name fs)
+%EXTERNALSTRING(6)%SPEC QDEV
+%externalstring(255)%spec errmsg
+%externalroutinespec run(%string(6) dev,file,%string(3) ext,%integer ppn,inc)
+%externalroutinespec writeppn(%integer n)
+%externalroutinespec writefs(%record(filespec)%name fs)
+%externalpredicatespec isfile(%string(255) spec)
+%externalstring(12)%spec our src node
+%externalpredicatespec is version 4
+%externalroutinespec mail(%record(filespec)%name fs,%string(1)%name jobnm,dest, %integer gate,%string(1)%name mess)
+%externalpredicatespec isnode(%string(1)%name node,type, %integername status)
+%externalpredicatespec address(%string(1)%name title,address,%integername node)
+%conststring(16) image mode="/mode:#10/byte:7"
+%constinteger max aliases=100
+%ownstring(17)%array aliases(0:max aliases)
+%constinteger true=1
+%constinteger comma=','
+%constinteger ini=10, als=11;  !stream numbers
+
+%externalroutine queueit
+!======================
+!just a dummy routine to satify undefined global symbols
+%end
+
+
+%externalpredicate casematch(%string(255) str1,str2)
+!===================================================
+!does a case independent match of two strings
+   %integer n,len
+   len=length(str1)
+   %false %if len#length(str2)
+   %true %if len=0
+   %for n=1,1,len %cycle
+      %false %if charno(str1,n)&8_737 # charno(str2,n) &8_737
+   %repeat
+   %true
+%end
+
+%EXTERNALROUTINE UPPER CASE(%STRING(1)%NAME STR)
+!================================================
+!Convert the given string to to upper case
+   %STRING(255) STR1
+   %INTEGER N,L,S
+   L=LENGTH(STR)
+   %RETURN %IF L=0
+   STR1=STR; STR=""
+   %FOR N=1,1,L %CYCLE
+      S=CHARNO(STR1,N)
+      S=S-32 %IF 'a'<=S<='z'
+      STR=STR.TOSTRING(S)
+   %REPEAT
+%END
+
+
+%EXTERNALROUTINE lower CASE(%STRING(1)%NAME STR)
+!================================================
+!Convert the given string to to lower case
+   %STRING(255) STR1
+   %INTEGER N,L,S
+   L=LENGTH(STR)
+   %RETURN %IF L=0
+   STR1=STR; STR=""
+   %FOR N=1,1,L %CYCLE
+      S=CHARNO(STR1,N)
+      S=S+32 %IF 'A'<=S<='Z'
+      STR=STR.TOSTRING(S)
+   %REPEAT
+%END
+
+%integerfn unique(%integer n)
+!============================
+!
+!returns a sort of random integer with at least N octal
+!digits guaranteed. Useful for creating random filenames.
+!
+%INTEGER I1,I3
+  I1=GET NOW
+  N=3*N   ;!Number of places to shift in each convolution
+  I3=I1>>N
+  %CYCLE
+    I1=I3+I1-I3<<N
+    I3=I1>>N
+  %REPEAT %UNTIL I3=0
+  %IF I1<(1<<(N-3)) %THEN I1=(-I1-1)&((1<<N)-1);  !Guarantee a leading digit
+  %RESULT=I1
+%END
+
+%EXTERNALSTRING(50)%FN DEFUNI(%INTEGER STREAM,%STRING(20)F1,F2)
+!==============================================================
+
+!This function creates a file with a generated unique filename of the
+!form F1.nnnnnn.F2, where F1 and F2 are strings passed to the function, 
+!and nnnnnn are 6 octal digits. It opens the file for output on stream
+!STREAM, and returns the filename used.
+!
+!The file is opened using the FILOP .FOCRE function, which will
+!give an error  if the file already exists.
+
+%STRING(50) FSPEC
+%EXTERNALRECORD(SCBNAME)%ARRAYSPEC OUTVEC(-1:MAXCHANS)
+%RECORD(FILESPEC) FS
+%INTEGER I,I1,ARG,DEVNAME
+%RECORDFORMAT DSKCHR(%INTEGER NAM,UFT,FCT,UNT,SNM)
+%RECORD(DSKCHR) D
+
+%FOR I1=1,1,10 %CYCLE
+I=UNIQUE(6);    !get 6 digit number
+FSPEC=F1.OCTTOSTR(I).F2
+%IF ISFILE(FSPEC) %START
+   %CONTINUE
+%ELSE
+   ->OK
+%FINISH
+%REPEAT
+ ERRMSG="Cannot create unique file within 10 attempts ".F1."??????".F2
+ %SIGNAL 10
+OK:
+FS=STRTOFS(FSPEC)
+FS_SWITCHES=IMAGE MODE."/ext:#16"
+XDEFINE OUTPUT(STREAM,FS)
+DEVNAME=OUTVEC(STREAM)_NAME_LKENT_DEV
+D=0
+D_NAM=DEVNAME
+ARG=5<<18!ADDR(D)
+%IF CALLI2(8_45,ARG) %START; %FINISH
+FS_DEV=SIXTOSTR(D_SNM); FS_SWITCHES=""
+FSPEC=FSTOSTR(FS)
+%RESULT=FSPEC
+%END
+
+
+%externalroutine get unique(%record(filespec)%name fs)
+!=====================================================
+!same as DEFUNI but for filespecs - only the filename is changed
+   %integer n
+   %for n=1,1,10 %cycle
+      fs_file=octtostr(unique(6))
+      %return %unless xisfile(fs)
+   %repeat
+   errmsg="Cannot create unique file within 10 attempts ".fstostr(fs)
+   %signal 10
+%end
+
+
+%externalroutine do ftp(%string(1)%name jobnm,dest,name,%record(filespec)%name file, %integer stream, %string(1)%name mess)
+!=======================================================================
+!
+!Routine to submit ARPA post file to FTP handler for onward transmission
+!
+!See FTPREQ.IMP for details of FTP request format
+!
+   %string(255) s
+   %string(12) type,jobname
+   %integer out,status,gate
+   out=outstream
+   upper case(dest)
+   %if length(jobnm)>6 %then jobname=substring(jobnm,1,6) %else jobname=jobnm
+   %if isnode(dest,type,status) %start; %finish
+   %if is version4 %and (type#"EMAS" %and type#"ARPA") %start;  !use galaxy v4
+      %unless address(dest,s,gate) %start
+          mess="Cannot find a definition of the destination ".dest." - mail not sent"
+          %return
+      %finish
+      mail(file,jobname,dest,gate,mess)
+   %else;  !use ftp77
+      s=defuni(stream,qdev.":",".ftp[3,3]")
+      select output(stream)
+      printstring(dest); newline
+      printstring(dest); printsymbol('_'); printsymbol('=')
+      printstring(our src node); printsymbol('_'); writefs(file); newline
+      writeppn(ppn); newline;         !ppn of submitter
+      printsymbol(','); printstring(name); printstring(",,,"); newline
+      printsymbol(','); writeppn(ppn); printstring(",,MAIL,"); newline
+      printstring("CWRITE,AFTER,TEXT"); newline;             !print, delete:after and a text file
+      printstring(",,,MAIL"); newline
+      close output
+      mess="OK, I have told FTP to send it"
+   %finish
+   select output(out)
+%end
+
+
+%externalstring(50)%fn datestamp
+!===================================
+!gets the stamp used for all mail
+   %integer year,weekday,start of bst,start of gmt,now
+   %ownstring(50) stamp=""
+   %result=stamp %if stamp#"";   !memo function
+   stamp=day.", ".date."  ".time
+   !now work out GMT or BST (3rd Sunday in March and Oct are change dates)
+   now=getnow
+   %if gettab(8_11,8_56,year) %start; %finish;  !get this year
+   start of bst=toudt(todate(1,3,year),0);      !calculate 1-Mar-?? in udt
+   weekday=rem(((start of bst>>18)+3),7);       !get day of week of 1-Mar-??
+   %if weekday=0 %then weekday=7 ;              !if it is a sunday
+   start of bst=((start of bst>>18) + (21-weekday))<<18; !calculate start of bst
+   start of gmt=toudt(todate(1,10,year),0);     !same again for start of gmt
+   weekday=rem(((start of gmt>>18)+3),7)
+   %if weekday=0 %then weekday=7 ; !if it is a sunday
+   start of gmt=((start of gmt>>18) + (21-weekday))<<18
+   %if start of bst <= now < start of gmt %start
+      stamp=stamp."-BST"
+   %else stamp=stamp."-GMT"
+   %result=stamp
+%end
+
+
+%externalroutine read aliases
+!============================
+!reads the file SYS:ALIAS.ADD into core
+!the format of the file is lines of text one list of aliaes per line e.g.
+!ERCC=EDXA,EDXAF,ERCC:DEC10
+!YORK=YKXA,YKXAF,YORK80,YORK:KL
+!it is stored in the aliases array with blank entries between each entry line
+!and a blank at the end
+   %integer n,last char
+   %on %event 9,10 %start
+      %if event=9 %start;  !end of file
+         aliases(n)=""
+         aliases(n+1)=""
+         close input
+         %return
+      %finish
+      aliases(0)=""
+      %return
+   %finish
+
+   %routine incr(%integername count)
+   !----------------------------
+      count=count+1
+      %if count>max aliases %start
+         select output(0)
+         printstring("Too many entries in SYS:ALIAS.ADD for internal tables")
+         %stop
+      %finish
+   %end
+
+   %routine readtext(%string(1)%name str,%integer sep1,sep2)
+   !------------------------------------------------------------------
+   str=""
+      %cycle
+         readsymbol(last char)
+         %continue %if last char=sp %or last char=tab
+         %exit %if last char=sep1 %or last char=sep2
+         str=str.tostring(last char)
+      %repeat
+   %end
+
+   define input(als,"sys:alias.add")
+   select input(als)
+   n=0
+   %cycle
+      read text(aliases(n),'=','=')
+      %cycle
+         incr(n)
+         readtext(aliases(n),comma,nl)
+      %repeat %until last char=nl
+      incr(n)
+      aliases(n)="";  !leave a blank inbetween lines
+      incr(n)
+   %repeat
+%end
+
+
+%externalroutine alias(%string(1)%name dest)
+!===================================
+!will return a single host identifier fronm a list of aliases
+   %ownstring(39) hold="",last dest=""
+   %integer n
+   %return %if aliases(0)="";  !no alias file
+   %if case match(dest,last dest) %start;   !same as last time
+      dest=hold   
+      %return
+   %finish
+   n=0
+   last dest=dest
+   %cycle
+      hold=aliases(n)
+      %cycle
+         n=n+1
+         %exit%if aliases(n)="";  !end of current list
+         %if casematch(dest,aliases(n)) %start
+            dest=hold
+            %return
+         %finish
+      %repeat
+      n=n+1
+   %repeatuntil aliases(n)="";  !end of all lists
+   hold=dest
+%end
+
+%externalroutine print via(%string(1)%name host)
+!=======================================
+!puts in a via field for the specified host
+   printstring("Via: "); printstring(host)
+   printstring("    ; "); printstring(datestamp); newline
+%end
+
+%externalpredicate delist(%string(1)%name user,user1,dest1)
+!================================================
+!take a list of the form FRED%JIM%JOHN and give FRED%JIM and JOHN
+   %integer n,len
+   user1=""; dest1=""
+   len=length(user)
+   %false%if len=0
+   %for n=len,-1,1 %cycle
+      %if charno(user,n)='%' %start
+         user1=substring(user,1,n-1) %unless n=1
+         dest1=substring(user,n+1,len) %unless n=len
+         alias(dest1)
+         %true
+      %finish
+   %repeat
+   %false
+%end
+
+%externalstring(25)%fn tell name(%integer ppn)
+!=============================================
+!returns a name from TELL.INI given a PPN and "" if none found
+   %integer s,pn,in
+   %string(25) name
+   %on %event 9,10 %start
+      close input; select input(in)
+      %if event=9 %or eventinfo=0 %then %result="";  !no file or not in file
+      printstring("%POST "); printstring(errmsg); write(eventinfo,3)
+      %result=""
+   %finish
+
+   in=instream
+   define input(ini,"sys:tell.ini")
+   select input(ini)
+   %cycle
+      readsymbol(s) %until s='(';   !after /group:(
+      readtext(name,'=')
+      skipsymbol %while nextsymbol=sp %or nextsymbol=tab
+      skipsymbol %if nextsymbol='['
+      %continue %unless '0'<=nextsymbol<='7';  !no names allowed
+      %cycle
+         readppn(pn)
+         readsymbol(s)
+         %exit %if s='?' %or s='*';   !cannot handle wildcards
+         %if pn=ppn %start
+            close input; select input(in)
+            %result=name
+         %finish
+         readsymbol(s) %if s=']'
+      %repeat%until s#'+'
+   %repeat
+%end
+
+%endoffile
+$$$$$$$$$$$$
+&&&&&&&&&&&& PSTMAC.MAC
+
+TITLE PSTMAC
+;COPYRIGHT K.FARVIS 1978,79
+
+	SEARCH	IMPPRM,UUOSYM
+	ENTRY	MACINI
+	TWOSEG	400000
+
+INTLOC:	PORTAL	.+1		;ALLOW EXECUTE ONLY ENTRY
+	CLOSE	0,140		;DO NOT WRITE ANY FILES
+	CLOSE	1,140
+	CLOSE	2,140
+	CLOSE	3,140
+	CLOSE	4,140
+	CLOSE	5,140
+	CLOSE	6,140
+	CLOSE	7,140
+	CLOSE	10,140
+	CLOSE	11,140
+	CLOSE	12,140
+	CLOSE	13,140
+	CLOSE	14,140
+	CLOSE	15,140
+	CLOSE	16,140
+	CLOSE	17,140
+	RESET			;CLEAR ANY JACCT
+	EXIT			;EXIT
+
+;MACINI SETS UP THE INTERRUPT BLOCK
+MACINI:	MOVE	1,[4,,INTLOC]
+	MOVEM	1,INTBLK	;STORE IN INTERRUPT BLOCK
+	MOVEI	1,2		;TRAP CTL C'S
+	MOVEM	1,INTBLK+1
+	SETZM	INTBLK+2
+	SETZM	INTBLK+3
+	MOVEI	1,INTBLK
+	MOVEM	1,.JBINT##	;STORE IN JOBDAT
+	POPJ	P,
+
+
+	RELOC 0
+
+INTBLK:	BLOCK	4
+
+	END
+$$$$$$$$$$$$
+&&&&&&&&&&&& FNODES.IMP
+
+!FNODES.IMP
+!COPYRIGHT K.FARVIS   1978,79
+!Contains the information and control of the currently acceptable nodes for FTP
+!to talk to, what kind of nodes they are and their state (whether up or down) etc.
+%include "imp:iolib.inc"
+%EXTERNALPREDICATESPEC CALLI2(%INTEGER N,%INTEGERNAME AC)
+%EXTERNALINTEGERFNSPEC GETNOW
+%EXTERNALSTRING(255)%FNSPEC FSTOSTR(%RECORD(FILESPEC)%NAME FS)
+%EXTERNALSTRING(6)%FNSPEC SIXTOSTR(%INTEGER N)
+%EXTERNALSTRING(12)%FNSPEC OCTTOSTR(%INTEGER N)
+%EXTERNALINTEGERFNSPEC STRTOOCT(%STRING(1)%NAME STR)
+%EXTERNALSTRING(12)%FNSPEC INTTOSTR(%INTEGER N)
+%EXTERNALSTRING(255)%SPEC ERRMSG
+%STRING(12)%FNSPEC OUR NODE
+%STRING(6)%FNSPEC ANF NODE NAME(%INTEGER N)
+%CONSTINTEGER TTY=0,TEMP=8;   !STREAMS
+%CONSTINTEGER OFFLINE=-1, DOWN=0, UP=1;   !NODE STATUS
+
+
+%CONSTINTEGER MAX MAX NODES=100;  !CURRENT MAX NODE LIMIT
+%EXTERNALINTEGER MAXNODES
+%EXTERNALSTRING(10)%ARRAY NODES(0:MAX MAX NODES)
+%EXTERNALSTRING(7)%ARRAY NODETYPE(0:MAX MAXNODES)
+%EXTERNALSTRING(150)%ARRAY NODE ADDRESS(0:MAX MAX NODES)
+
+%OWNSTRING(20)%ARRAY NODE NO(0:MAX MAX NODES)
+%OWNINTEGERARRAY LOCAL NODE(0:MAX MAX NODES)
+%OWNINTEGERARRAY NODE STATUS(0:MAX MAX NODES)
+%OWNINTEGERARRAY NODE TIME(0:MAX MAX NODES)
+%EXTERNALSTRING(12) OUR SRC NODE
+%CONSTINTEGER MAX SRC TABLE=9
+%CONSTSTRING(6)%ARRAY ANF TITLE(0:MAX SRC TABLE)=
+"ERCC", "DUNDEE", "YORK", "YORKS", "KELVIN", "OXFORD", "SXKL10", "BLUE", "ORANGE", "UCNWCS"
+%CONSTSTRING(12)%ARRAY SRC TITLE(0:MAX SRC TABLE)=
+"EDXA", "DDXA", "YKXA", "YORKS", "GWXA", "XXXA", "", "", "", "BGXA"
+
+%EXTERNALSTRING(6) QDEV;  !THE QUEUEING DEVICE
+
+%CONSTINTEGER WHERE CALLI=8_63
+%routinespec check netwrk file
+%routinespec read net file(%record(filespec)%NAME fs)
+%owninteger netwrk file time=0
+
+!THE NEXT ROUTINE IS FOR FTP
+
+
+%EXTERNALROUTINE LIST FTP NODES
+!=============
+!LISTS THE KNOWN NODES
+   %INTEGER N,M
+   PRINTSTRING("
+List of nodes to which file transfer is possible from this PPN
+Node	type	node	type	node	type"); NEWLINE
+   M=0
+   %FOR N=0,1,MAX NODES %CYCLE
+     %CONTINUE %IF NODES(N)="GATEWAY"
+      PRINTSTRING(NODES(N)); PRINTSYMBOL(TAB); PRINTSTRING(NODE TYPE(N))
+      M=M+1
+      %IF REM(M,3)=0 %THEN NEWLINE %ELSE PRINTSYMBOL(TAB)
+   %REPEAT
+   NEWLINE
+%END
+
+
+!THE NEXT THREE ROUTINES ARE USED BY THE SPOOLERS COMMANDS
+
+%EXTERNALROUTINE LIST SPOOL NODES
+!==========================
+!LISTS THE NODES FOR FTPSPL
+%INTEGER OUT,N
+   OUT=OUTSTREAM
+   SELECT OUTPUT(TTY)
+   PRINTSTRING("
+ Node   type    status  address"); NEWLINE
+   %FOR N=0,1,MAX NODES %CYCLE
+      PRINTSTRING(NODES(N)); PRINTSYMBOL(TAB)
+      PRINTSTRING(NODE TYPE(N)); PRINTSYMBOL(TAB)
+      %IF NODE STATUS(N)=UP %START
+         PRINTSTRING("UP")
+      %ELSEIF NODE STATUS(N)=DOWN %START
+         PRINTSTRING("DOWN")
+      %ELSE PRINTSTRING("OFF-LINE")
+      PRINTSYMBOL(TAB); PRINTSTRING(ANF NODE NAME(LOCAL NODE(N)))
+      PRINTSYMBOL('.'); PRINTSTRING(NODE ADDRESS(N))
+      NEWLINE
+   %REPEAT
+   SELECT OUTPUT(OUT)
+%END
+
+
+%EXTERNALPREDICATE NODE OFFLINE(%STRING(1)%NAME NODE)
+!===============================
+!SETS NODE OFF-LINE
+   %INTEGER N
+   %FOR N=0,1,MAX NODES %CYCLE
+      %FALSE %IF NODES(N)=""
+      %IF NODES(N)=NODE %THEN NODE STATUS(N)=OFFLINE %AND %TRUE
+   %REPEAT
+   %FALSE
+%END
+
+
+%EXTERNALPREDICATE NODE ONLINE(%STRING(1)%NAME NODE)
+!==============================================
+   %INTEGER N
+   %FOR N=0,1,MAX NODES %CYCLE
+      %FALSE %IF NODES(N)=""
+      %IF NODES(N)=NODE %THEN NODE STATUS(N)=UP %AND %TRUE
+   %REPEAT
+   %FALSE
+%END
+
+
+%ROUTINE REMOVE SPACES(%STRING(1)%NAME STR)
+!===========================================================
+!just that
+   %string(12) str1
+   %integer n
+   %return %if length(str)=0
+   STR1=""
+   %FOR N=1,1,LENGTH(STR) %CYCLE
+      %CONTINUE %IF CHARNO(STR,N)=SP;   !DELETE SPACES
+      STR1=STR1.TOSTRING(CHARNO(STR,N))
+   %REPEAT
+   STR=STR1
+%END
+
+%ROUTINE NO LEADING ZEROES(%STRING(1)%NAME NUMBER)
+!=================================================
+!Removes the leading zeoes of a string format number
+   %INTEGER N,M
+   N=LENGTH(NUMBER)
+   %RETURN %IF N<=1
+   %FOR M=1,1,N %CYCLE
+      %EXIT %IF '0'#CHARNO(NUMBER,M)#SP
+   %REPEAT
+   %RETURN %IF M=1;  !NO LEADING ZEROES
+   NUMBER=SUBSTRING(NUMBER,M,N)
+%END
+
+
+
+%EXTERNALSTRING(6)%FN QDEVICE
+!============================
+!returns the name of the device for queueing FTP requests i.e. SYS: device
+   %string(6) str
+   *8_561040 000135;  !hrroi  1,135   - move arg1,[xwd -1,.gtrdv]
+   *8_047040 000041;  !gettab 1,
+   *8_402000 000001;  !setzm  1
+   str=sixtostr(ac(1))
+   remove spaces(str)
+   %result=str
+%end
+
+
+%EXTERNALSTRING(6)%FN ANF NODE NAME(%INTEGER NODE)
+!======================================
+!Returns the node name for a given octal node number
+%STRING(12) STR
+%INTEGER N
+%INTEGERARRAY ARGS(0:1)
+   %RESULT=OUR NODE %IF NODE=-1
+   ARGS(0)=2; !NUMBER OF ARGS
+   ARGS(1)=NODE;  !NODE NUMBER
+   N=2<<18!ADDR(ARGS(0));   !RETURN NODE NAME
+   %IF CALLI2(8_157,N) %START
+      STR=SIXTOSTR(N)
+      REMOVE SPACES(STR)
+      %RESULT=STR
+   %FINISH
+   %RESULT=OCTTOSTR(NODE)
+%END
+
+
+
+%EXTERNALSTRING(10)%FN NODE NAME(%STRING(1)%NAME NUMBER)
+!===========================================================
+!returns the node title for a given address
+   %integer n,IN
+   %ON %EVENT 3 %START
+     CLOSE INPUT; SELECT INPUT(IN)
+     %RESULT=""
+   %FINISH
+   IN=INSTREAM
+   NO LEADING ZEROES(NUMBER)
+   CHECK NETWRK FILE
+   %FOR N=0,1,MAX NODES %CYCLE
+      %IF NODENO(N)=NUMBER %THEN %RESULT=NODES(N)
+   %REPEAT
+   %RESULT=""
+%END
+
+
+%EXTERNALSTRING(12)%FN OUR NODE
+!==============================
+!returns the node name for the node we are running on.
+%INTEGER N
+   N=8_436471 000000;   !SIXBIT/CTY/ TO GET OUR NODE NUMBER
+   %UNLESS CALLI2(WHERE CALLI,N) %THEN %RESULT=""
+   %RESULT=ANF NODE NAME(N)
+%END
+
+%STRING(12)%FN OUR SRC NAME
+!=================================================
+%INTEGER N
+%STRING(6) ANF NAME
+   ANF NAME=OUR NODE
+   %FOR N=0,1,MAX SRC TABLE %CYCLE
+      %RESULT=SRC TITLE(N) %IF ANF NAME=ANF TITLE(N)
+   %REPEAT
+   %RESULT=""
+%END
+
+
+
+%ROUTINE UPDATE STATUS(%INTEGER N)
+!=============================
+!UPDATE THE STATUS OF A NODE WHEN THE TIME LIMIT HAS ELAPSED
+   %RETURN %IF NODE STATUS(N)=OFFLINE
+   %IF NODE TIME(N)<GETNOW %START
+      NODE STATUS(N)=UP
+   %FINISH
+%END
+
+%EXTERNALROUTINE INIT NODES
+!==========================
+!INITIALISE the node tables
+   QDEV=QDEVICE;   !GET THE DEVICE WE ARE RUNNING FROM
+   OUR SRC NODE=OUR SRC NAME
+   CHECK NETWRK FILE
+%end
+
+%EXTERNALROUTINE CHECK NETWRK FILE
+!===========================
+!Determines whether or not there is a later netwrk file to the one which was read
+   %externalrecord(scb)%namespec inscb
+   %record(filespec) fs
+   %integer in,time
+   %on %event 10 %start
+      select output(tty)
+      newline; printstring(errmsg)
+      %stop
+   %finish
+
+   in=instream
+   fs=0; fs_dev="sys"; fs_file="netwrk"; fs_ext="add"; fs_switches="/ext:#35"
+   xdefine input(temp,fs)
+   select input(temp)
+   time=inscb_lkent_tim
+   %if time#netwrk file time %start
+      netwrk file time=time
+      fs_switches=""
+      read net file(fs)
+   %finish
+   close input
+   select input(in)
+%end
+
+
+%PREDICATE READ NET ITEM(%INTEGER N)
+!========================
+!READS AN ITEM INTO THE NODE ARRAYS
+   %INTEGER S
+   %STRING(100) LOCAL,DUMMY,STR,STR1
+   %ON %EVENT 1,2,3,4,5,6,7,8,10 %START; !CATCH ALL
+      %FALSE
+   %FINISH
+
+   %ROUTINE READLINE(%STRING(1)%NAME STR)
+   !---------------------------------------
+      %INTEGER S
+      STR=""
+      %CYCLE
+         READSYMBOL(S) %UNTIL S#SP %AND S#TAB
+         %IF S=';' %START;  !A COMMENT
+            READSYMBOL(S) %UNTIL S=NL %OR S=FF
+         %FINISH
+         %EXIT %IF S=NL %OR S=FF
+         S=S-32 %IF 'a'<=S<='z';    !MAKE UPPER CASE
+         STR=STR.TOSTRING(S)
+      %REPEAT
+   %END
+
+   READLINE(NODES(N))
+   %IF NODES(N)="" %THEN %SIGNAL 9
+   READLINE(NODE ADDRESS(N))
+   READLINE(STR); %IF LENGTH(STR)>7 %THEN NODE TYPE(N)=SUBSTRING(STR,1,7) %ELSE NODE TYPE(N)=STR
+   NODE STATUS(N)=UP
+   %UNLESS NODE ADDRESS(N)->LOCAL.(".").STR %THEN ERRMSG="?Incorrect format of address line" %AND %FALSE;  !MUST HAVE ANF-10 NODE
+   LOCAL NODE(N)=STRTOOCT(LOCAL)
+   %IF STR->DUMMY.("TSK.").STR1 %AND DUMMY="" %THEN STR=STR1;  !"TSK" IS NOISE
+   NODE ADDRESS(N)=STR;    !GET MAIN PART OF ADDRESS
+1: %IF STR->STR1.(".").DUMMY %THEN STR=STR1 %ELSE DUMMY="";   !GET NEXT ELEMENT UP TO '.'
+   %IF STR="" %THEN NODENO(N)="0" %AND %TRUE
+!*   %IF STR="" %THEN ERRMSG="?No numeric address field" %AND %FALSE
+2: S=CHARNO(STR,1)
+   %IF '0'<=S<='9' %START
+      NODENO(N)=STR
+      NO LEADING ZEROES(NODENO(N))
+   %ELSEIF S='(' %START
+      ->2 %IF STR->STR1.(")").STR %AND STR#"";   !IF  (USER,PASS,5W,8P)ADDR
+      STR=DUMMY;   !GET REST OF ADDRESS AND TRY NEXT FIELD
+      ->1
+   %ELSE NODENO(N)="0";  !NAME OR NUMBER
+  %TRUE
+%END
+
+%ROUTINE READ NET FILE(%RECORD(FILESPEC)%NAME FS)
+!========================
+!put all nodes on line
+   %INTEGER N
+   %ON %EVENT 9 %START
+      MAX NODES=N-1
+      %RETURN
+   %FINISH
+
+
+    %FOR N=0,1,MAX MAX NODES %CYCLE
+      ->ER1 %UNLESS READ NET ITEM(N)
+   %REPEAT
+   ERRMSG="?Too many entries in ".FSTOSTR(FS)." for internal tables =".inttostr(n)
+   ->ER
+ER1: ERRMSG=ERRMSG." in ".FSTOSTR(FS)." - ".NODE ADDRESS(N)
+ER:
+   SELECT OUTPUT(TTY)
+   PRINTSTRING(ERRMSG); NEWLINE
+   %STOP
+%END
+
+%EXTERNALROUTINE UPD NODES
+!=========================
+!update the tables to the current state
+   %INTEGER N
+   %FOR N=0,1,MAX NODES %CYCLE
+      %CONTINUE %IF NODE STATUS(N)=OFFLINE
+      NODE STATUS(N)=UP
+   %REPEAT
+%END
+
+
+%EXTERNALPREDICATE ADDRESS(%STRING(1)%NAME TITLE,TS ADDRESS,%INTEGERNAME NODE NUM)
+!==================================================================================
+!gets the transport service address of the the given title and also the
+!node number for the task connect
+   %STRING(255) DUMMY
+   %INTEGER N   ;!G ,N1,N2
+   %FOR N=0,1,MAX NODES %CYCLE
+      %IF NODES(N)=TITLE %START
+         TS ADDRESS=NODE ADDRESS(N)
+         NODE NUM=LOCAL NODE(N)
+         %TRUE
+      %FINISH
+   %REPEAT
+   ERRMSG="Unknown node ".TITLE
+   %FALSE
+%END
+
+%STRING(255)%FN UPPER CASE(%STRING(1)%NAME STR)
+!=============================================
+!Convert the given string to to upper case
+   %STRING(255) STR1
+   %INTEGER N,L,S
+   L=LENGTH(STR)
+   %RESULT="" %IF L=0
+   STR1=""
+   %FOR N=1,1,L %CYCLE
+      S=CHARNO(STR,N)
+      S=S-32 %IF 'a'<=S<='z'
+      STR1=STR1.TOSTRING(S)
+   %REPEAT
+   %RESULT=STR1
+%END
+
+%EXTERNALPREDICATE ISNODE(%STRING(1)%NAME NODE,TYPE %INTEGERNAME STATUS)
+!=======================================================================
+!determines whether a given node name is a supported one, and if so,
+!returns the type of node and it's status
+   %INTEGER N
+   %STRING(100) NOD
+   NOD=UPPER CASE(NODE)
+   %FOR N=0,1,MAX NODES %CYCLE
+      %IF NODES(N)=NOD %START
+         TYPE=NODE TYPE(N)
+         %IF NODE STATUS(N)=DOWN %THEN UPDATE STATUS(N)
+         STATUS=NODE STATUS(N)
+         %TRUE
+      %FINISH
+   %REPEAT
+   STATUS=DOWN; TYPE=""
+   %FALSE
+%END
+
+
+
+%EXTERNALROUTINE SET NODE DOWN(%STRING(1)%NAME NODE,%INTEGER SECS)
+!===================================================
+!Makes a note that the node is down and sets a time stamp on it
+   %INTEGER N
+   %FOR N=0,1,MAX NODES %CYCLE
+      %IF NODES(N)=NODE %START
+         NODE TIME(N)=GETNOW+(SECS*3)
+         NODE STATUS(N)=DOWN
+         %RETURN
+      %FINISH
+   %REPEAT
+%END
+%ENDOFFILE
+$$$$$$$$$$$$
+&&&&&&&&&&&& CONFIG.MAC
+
+TITLE CONFIG	CONTAINS VERSION NUMBER AND EDIT HISTORY
+;	COPYRIGHT K.FARVIS ERCC 1980,1981,1982
+
+VWHO==0
+VFTP==16
+VMINOR==0
+VEDIT==74
+
+	SEARCH	JOBDAT
+	LOC	.JBVER
+	BYTE	(3)VWHO(9)VFTP(6)VMINOR(18)VEDIT
+	RELOC
+
+REPEAT 0,<
+**REVISION HISTORY**
+
+Prior to version 10 it worked ok to DEC-10s and GECs and the IBM but not with all
+facilities of the latter two.
+;VERSION 10
+;15	Add ability to delete entries in FTP queue when they have started transferring
+	Add support for defaulting to XFORMAT=0 for text mode transfers.
+	Allow the type of /ACCESS switch determine what one is prompted for in
+	an FTP request.
+	Add ability to send to GEC devices as well as files.
+;16	REMOVE XFORMAT=0 FACILITY IT WAS WRONG. CHECK FOR /DEL:NEVER TO GECS
+	AS THE ONLY VALID SWITCH
+
+17	ADD ESSEX AND HATFIELD MACHINES, INCREASE TIMEOUT TO 30 MINUTES AND
+	SET A NODE DOWN AFTER 3 SUCCESSIVE TIMEOUTS. ALSO FIX XOUTDEV PARAMETER ON A /ACC:PRINT
+
+20	ADD PRIME SUPPORT
+
+21	ADD SET NODE= COMMAND AND FIX TEST MODE TRANSFERS TO GECS
+
+22	ADD OXFORD
+
+VERSION 11
+
+23	add support for network mail (xoutdev=POST) and allow job submission
+	on the DEC-10s both for mail and IBM output (xoutdev=D60)
+	also change node names to 4 chars and only generate the end "f" in TRANSP module
+	and in FSTORE when checking SWITCH.INI
+
+24	MAKE MORE ROBUST, CATCH MORE ERRORS
+
+25	Make set gateway=? work
+
+26	PROGRAM ROUND PROBLEM WITH BYTE COUNT BEING WRONG IN TSKSER
+
+VERSION 12   -START VERSION 1 COMPATIBILITY
+
+27	DO NOT OUTPUT VERSION ID PARAMETER AND ACCEPT 0 OR 1
+	ALLOW POST TO A DEVICE
+	ALLOW A FILE SPEC TO DEFAULT TO CURRENT PATH RATHER THAN PPN
+30	ALLOW POST TO GO TO A TTY DEVICE - E.G. CTY: FOR EASY COMMNS.
+
+31	make changes for ARPA post format compatibility
+
+VERSION 13 FTP80 COMATIBILITY PHASE 1
+
+32	make major FTP80 compatibility changes up to stage one as defined
+	in Chris Coopers paper to SERCNET network devel meeting 25-aug-81
+	also add Private transfer code parameter to allow a value="36BIT"
+	for DEC-10 interworking
+
+33	Add full support for ARPA MAIL according to Chris Bennets revised paper
+	use TSK. UUO to get name of remote process
+	prompt for nul IBM DATASET name
+
+34	start sending full [P,PN]s as username
+	only use one listening task TSK:FTP
+	do not send out node number to DEC-10s but get it from TSK. UUO
+	but tolerate an incoming old type of task
+	change to allow remote node names in /USERS field
+35	make complete use of TSK. UUO and iuse NETWRK.ADD for the addresses
+
+36	make qdevice and our SRC name be generated in FNODES so that we
+	do not have to build new versions for every machine
+37	A FEW BUG FIXES FOR FTP80 AND MAIL
+
+40	bug fixes to recover from bad packet/window size, send EORs on blank
+	lines at level 2 and move to proper TS addresses in NETWRK.ADD
+
+41	sort problem of not always sending mapping params and not sending
+	filename and username back on a mail request. also look upand read
+	netwrk.add whenever it changes
+
+VERSION 14
+
+42	ADD ABILITY FOR USER TO DEFINE HIS LOCAL NETWRK.ADD FILE
+	add allowance for take job input with no filename
+
+43	Sort SET NODE *XXXX OFFLINE and do a frig for Queueing under galaxy v4
+	REMOVE LOCAL NETWRK.ADD FACILITY AND INSTEAD ADD /GATEPASS SWITCH
+
+44	INCREASE MAX DATA RECORD SIZE TO 1024
+
+45	fix ABORT OUTPUT routine to work correctly and increase TS address
+	length to 150 chars
+
+46	search multiple FTP lines in switch.ini
+	output a PSS log to FTPPSS.LOG[3,3]
+	test that a set phys guide 40 or 50 pages makes it work better - it does
+	check for newer NETWRK.ADD file when you check for requests
+
+47	INCLUDE SUPPORT FOR DL PROTOCOL CONVERTER
+
+50	DO NOT REJECT NEW FTP-80 PARAMS BUT JUST MONITOR THEM
+
+51	(POST) CONVERT TO INTERFACE TO GALAXY V4 FTP80
+	(FTP) ON A /KILL: COMMAND, FOR POST, DELETE POST FILE AS WELL
+	(MAISPL) SORT OUT BUGS WITH SENDING BACK BUM MESSAGES
+
+52	(FTPSPL) send STOPACK to FTP80s and wait for another SFT or TS RESET
+	(POST) add a To: field
+
+53	(FTP)(FTPSPL) add EMAS private code
+
+54	(FTP)(FTPSPL) use 36BIT private code between DEC10s
+
+55	(FTP)(FTPSPL) for DEC10s start sending destination PPN as username
+	and remove requirement for/USERS switch in switch.ini
+
+57	(FTPSPL) various fixes for EAAK, including:
+	a) sending monitoring back on RPOS of parameters which I have changed
+	b) making code to read NETWRK.ADD file more secure
+	c) make a "Reading level 2 data beyond record boundary" a fatal error
+
+**VERSION 15**
+
+60	(FTXSPL) CHANGE name to FTXSPL and add TASK <name> command.
+	(MAISPL) make more inteligent for error reporting and fix a bug
+	whereby "[1,2]" became [1,2]"
+
+61	(FTXSPL) make all error messages have the SENDING etc line prefixing them
+	(MAISPL) put in mail-list and relaying code
+
+62	(post) make mail to oneself work properly
+	(mailspl) make SRC mail work properly
+
+63	(post) make POST send only JNT mail - maispl still receives old SRC
+
+64	(post) create post file with <077> protection
+	(maispl) change Comment: to Comments: field, and do relaying properly
+		and change logging information format. and convert TELL messages to own
+
+65	(post) add support for TELL.INI names and make a reply-to field
+	(maispl) sort out various problems with MIC file and recover from bad
+		mail files
+66	(maispl) add SETUSR program use and make MIC file more robust.
+
+67	(all) make galaxy version 4 code dependent on a sigle module - QUEUE
+		(not quite true - a hack in PSTLIB to force old mail)
+		and make mail even more robust.
+
+*****VERSION 16****
+
+70	(FTXSPL) fix enormously longstanding problem where TSK input buffers
+	get set up in the wrong place - randomly. I have no idea how FTXSPL
+	ever worked properly.
+	(FTXSPL) put raw TS address at start of incoming mail file rather than
+	interpreting it in order to be compatible with  York code.
+	(FTXSPL) change the way that the log file is opened so that it is closed
+	between transfers.
+	(FTXSPL) be more intelligent about putting nodes down.
+	(FTXSPL) convert the task name in the TASK command to upper case.
+	(POST) put in a via field when sending mail so that we know exactly
+	which ANF-10 node it came from.
+	(POST) put post files in users own area rather than [3,5]
+	(MAISPL) put * at the start of each line to POST on an error, so as not
+	to ^C out with a . at the start of a line.
+	(MAISPL) interpret TS address at head of mail file.
+
+71	(POST) DO NOT ALLOW WILDCARDS IN TELL.INI FILE DEFINITIONS
+	(FTXSPL) USE KBYTES IN WHAT MESSAGE
+
+72	(MAISPL+ FTXSPL) fix mail addressing problems from ANF-10 hosts
+	(MAISPL) fix problem of relaying to our own host by another name
+	(MAISPL) if mail is sent to me as as a funny host name I will now
+	accept it.
+	(POST) sort problem of mail being created on wrong [3,5] disk area
+	(FTXSPL) make private codes work again
+	(FTXSPL) remove support for EMAS-EMAS private code, fix 36BIT private code
+	(POST) make queue. UUO work (except that /dispose:delete does not work)
+	(POST) use the destination user name as the jobname
+	(MAISPL) add logging to print out the headers of each file in MAIL.LOG
+	(POST) do not use a via field to indicate the local ANF-10 node -use
+	a comment in the From field.
+
+73	(FTXSPL) make P process wait for other end to clear call down or send
+	stopack
+	(FTXSPL) fix Fortran formatting problem as a P station
+	(FTXSPL) fix NEXT command and remove extra <CR>s from log file
+	(FTXSPL) do not fall over if FTP request in for non-existent node
+	(MAISPL) double up ' and ^ chars in mail to be returned, so that
+	MIC does not munge them.
+	(POST) sort out replies of 'yes' or 'no' to REPLY-TO prompt
+	(POST) did not delete null post file when it bombed out (say no
+	indirect file)
+	(MAISPL) add logging of headers as a runtime option switch
+		.RUN MAISPL-HEADERS
+
+****RELEASE TAPE TO YORK,DUNDEE,BANGOR,HATFIELD,ESSEX,OXFORD****
+
+74	(MAISPL) change name of job back to MAIL SYSTEM when finished
+
+****VERSION 17****
+
+**END OF REVISION HISTORY**
+>;end of repeat 0
+
+	END
+$$$$$$$$$$$$
+&&&&&&&&&&&& POST.RNH
+
+.ps 600,79
+POST is the network wide mailing facility and can be invoked by typing:
+.nf.s
+#####_.POST username @ host
+or
+#####_.R POST
+.f.s
+POST will then respond by prompting for a username and a destination
+machine.
+.s
+The username must be the userid, PPN, ID or whatever is appropriate for the
+destination  machine. The destination machine must be a machine title that
+FTP understands.
+.s
+If only a username is specified, SWITCH.INI will be searched for lines of
+the form, e.g.
+.s
+post/fred=fred smith@host1, jane=[100,100]@host2
+.s
+and the string on the right of the equals sign will be substituted for a
+match of the string on the left of the equals sign.
+.s
+For further details please consult 3A01C in the Installation Manual.
+$$$$$$$$$$$$
+&&&&&&&&&&&& POST.RND
+
+.ps 66,79
+^&The DEC10 POST system comprises:-\&
+.nf.s
+.lm 5
+TELL system	;Univ of Arizona V4 mail system with ERCC and YORK mods
+FTP system	;ERCC's version 11 FTP system or later or YORK's system
+POST.EXE	;program to send post to network users
+MAIL.CTL	;a control file to be submitted at regular intervals by the
+		;site to de-spool incoming mail
+MAISPL.EXE	;spooler run by control file to pass mail to tell
+SETUSR.EXE	;program to change the current job's USERNAME
+.lm 0
+.s
+.f
+The POST system uses the user's own area for outgoing mail and a special area for
+it's incoming mail files. The outgoing files have names dsk:nnnnnn.PST[-] and
+the incoming mail has names of the form  SSL:nnnnnn.mai[3,5].
+.s
+^&Sequence of operation.\&
+.s2
+^&Outgoing post\&
+.s
+The user runs POST which generates both a DSK:nnnnnn.PST[-] file on the user's
+area and an FTP request to the destination machine using
+the JNT Mail protocol.
+After FTP transfers the file it deletes it from the user's area. A log file
+called SSL:POST.LOG[3,5] shows all outgoing mail. See 3A01C.MEM for description
+of the user interface.
+.s
+^&For incoming mail.\&
+.s
+Mail is sent from network users to FTPSPL and FTPSPL creates a
+unique file SSL:nnnnnn.MAI[3,5] in the mail area, and puts the source network host
+address and the DEC10 user name or ppn in as the first two lines.
+The site should then arrange for a batch job (CTL:MAIL.CTL) to be run periodically in
+order to de-spool this incoming mail. ERCC do so every half-hour.
+This batch job runs SYS:MAISPL.EXE which generates a MIC file called MAIL.MIC on the 
+mail area which the batch file then executes. This MIC file does a TELL
+to the DEC-10 user and then deletes the mail file. If TELL gives an error,
+this error is interpreted and
+sent back to the mail originator by issuing a POST command.
+MAISPL also generates a log file on the mail area called MAIL.LOG this contains
+a full log of what mail has been sent, to whom and from whom.
+.s 2
+Below is a listing of the control file and a typical MIC file.
+.nf
+CTL:MAIL.CTL
+.lm 5
+.s
+.lit
+.delete ctl:mail.log               ;delete old log file
+.if (error)                        ;do nothing on error
+.set default buffer 2              ;that is all we need
+.r maispl                          ;create the mic file which does the TELLing
+.if (error) .goto err1
+.do mail[3,5]                      ;send the mail using TELL
+.if (error)                        ;ignore errors
+.delete mail.mic[3,5]              ;ok I have finish with that
+.GOTO END
+err1::
+.print ctl:mail.log
+end::
+
+.end lit
+.s 2
+If it is desired to have more logging on the incoming mail, or debugging is
+required, the headers of each message can be displayed when they are being
+processed by adding the command "-headers" to the .r maispl command in the
+control file. i.e.
+_.r maispl-headers          ;process the files and have extended logging
+.s 3
+.i-5
+And the MIC file
+.page
+.lit
+.MIC SET NO LC
+.ERROR ?
+
+;Incoming mail from YKXA in file DSKE:723151.mai[3,5]
+;To:   K.FARVIS
+
+;here to use TELL to issue the command file we have built up
+.R SETUSR
+*NOBODY@YORK           ;set the account name to be the mail originator
+.IF (ERROR)            ;so that TELL says who it is from
+.mic set no parameter
+.MIC RESPONSE R(30)
+.TELL @DSKE:723151.mai[3,5]  ;do the TELL
+.IF (NOERROR) .GOTO 1B
+;here on an error
+.R SETUSR
+*(MAIL ERROR)          ;set the account name to be from the mail system
+.IF (ERROR)
+;here on an error from TELL
+.LET R=$R.[1,"
+"]
+.let S=$R.[2,12]
+;here if TELL is busy -  will try again later
+.if ($S="I couldn't T") .goto 1C
+;Real error - give a negative ack. and interpret the TELL message
+.SILENCE
+.if ($S="%You can't T") .let B="is not able to receive mail"
+.if ($S="Do you mean ") .let B="is not unique - use the project-programmer number"
+.if ($S="I don't know") .let B="is unknown"
+.if ($S="") .let B="was missing"
+.if ($B#"") .let B="The mailbox specified in the To: field "+$B
+.if ($B="") .let B="The local mailer message was "+$R
+.mic set parameter
+.REVIVE
+.R POST-NOBODY@YORK      ;send error message back to originator
+*ERROR - could not deliver mail
+*'B
+*The start of the original message was:-
+
+*Via: ERCC    ; Sunday, 17-Oct-82  21:56:55-GMT
+*Date:       Sunday, 17-Oct-82  21:56:55-GMT
+*From:       SOMEBODY  <Nobody@ykxa>
+*To:         k.farvis@edxa
+*Subject:    test
+*
+*--------
+*hello
+*--------
+*
+*^Z
+.IF (NOERROR) .GOTO 1B
+
+;here if invalid user/invalid return address/error in sending negative ack.
+.PRINT/AFT:+0:5:0/DELETE CTL:MAIL.LOG,DSKE:723151.mai[3,5]
+.GOTO 1C
+1B::
+.DELETE DSKE:723151.mai[3,5]
+1C::
+.mic set parameter
+;----------------- end of work on file DSKE:723151.mai[3,5] -----------------
+
+; ************** END OF MAIL RUN *************
+.end lit
+.page
+.f
+.lm0
+Installation instructions.
+.s
+1) Create a mail area - the same disk as SYS: and [3,5].
+.s
+2) Copy POST.EXE, SETUSR.EXE and MAISPL.EXE to SYS: and make POST a JACCTed
+   monitor command.
+.S
+3) Copy MAIL.CTL to CTL:
+.s
+4) Mount FTP, either the YORK system or the ERCC system (version 11 or later).
+.s
+5) Mount the TELL system from University of Arizona, Version 4 with ERCC/YORK mods
+   especially a /BATCH switch, which does not allow conversational interraction.
+.s
+6) If required, create a file called SYS:ALIAS.ADD in which various aliases for
+   the same host can be given. It is used by MAISPL to determine when different given
+   host titles refers to the same host. (All names must be
+   defined in SYS:NETWRK.ADD).
+   The form of ALIAS.ADD is one line per host and
+.b
+<primary name>=<secondary name>,<secondary name>, ....
+.b
+e.g.
+.b
+.lit
+ERCC=EDXA,EDDA
+YORK=YKXA,YKDA
+YORKS=YKDB
+.end lit
+.s
+7) It has proved useful at ERCC to give users unique mailbox names, rather than
+use the account names, PPNs or octal strings to define them. This is because
+of the possible non-uniqueness of the account names and the user-unfriendliness
+of PPNs. We therefore use the file SYS:TELL.INI to define unique user names
+of the form  Initial dot Surname e.g. K.Farvis. This is described in UPDATE.MEM.
+.s
+8) Both POST and MAISPL use either FTP77 (ERCC version) or FTP80 (YORK version)
+automatically. It tests to see if there is a PID for MDA and if so assumes that
+because Galaxy V4 is running that FTP80 should be used. If there is no MDA PID
+then FTP77 is used.
+.s2
+Finally if the system needs to be modified or rebuilt use the two LINK command
+files POST.CMD and MAISPL.CMD.
+The general edit history of POST and MAISPL (and FTXSPL) is contained in
+CONFIG.MAC.
+$$$$$$$$$$$$
+&&&&&&&&&&&& 3A01C.RNO
+
+.vr h,{,}
+.vr v,{,}
+.vr d,{,}
+.vr i,{,}
+.vr o,{,}
+.in h
+.in i
+.if d
+.ps 60,64
+.lm0
+.t3A01C#####Communicating with Operators and Other Users
+3A01C#####################################################Page#1
+##########################################################Apr 81
+.st                                                           Apr 81
+.nap
+.s10
+.ei d
+.if o
+.ps 6000,72
+.nj
+.s3
+.ei o
+.c64
+COMMUNICATING WITH OPERATORS AND OTHER USERS
+.s3
+There are several commands and programs which can be used for communicating with
+the operators and other users: MOUNT, SEND, TELL and MESSAGE.
+The use of each is described in this document along with examples.
+Some general guidance is given on choosing the most appropriate means of
+communication.
+The commands, MOUNT and SEND, are fully described in the DECsystem-10 Operating
+System Commands Manual.
+In addition the network mail command POST is described.
+.s3
+.nf
+.if d
+                       CONTENTS                            page
+.ei d
+.if o
+CONTENTS
+.ei o
+.s2
+.if o
+1##GENERAL
+.ei o
+.if d
+1##GENERAL  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..  2
+.ei d
+.s
+.if o
+2##THE MOUNT COMMAND
+.ei o
+.if d
+2##THE MOUNT COMMAND .. .. .. .. .. .. .. .. .. .. .. .. ..  2
+.ei d
+.s
+.if o
+3##THE SEND COMMAND
+.ei o
+.if d
+3##THE SEND COMMAND  .. .. .. .. .. .. .. .. .. .. .. .. ..  3
+.ei d
+.s
+.if o
+4##THE TELL AND MESSAGE COMMANDS
+.ei o
+.if d
+4##THE TELL AND MESSAGE COMMANDS .. .. .. .. .. .. .. .. ..  4
+.ei d
+.s
+.if o
+5##THE POST COMMAND
+.ei o
+.if d
+5##THE POST COMMAND  .. .. .. .. .. .. .. .. .. .. .. .. .. 12
+.ei d
+.s
+.if o
+6##REFERENCES
+.ei o
+.if d
+6##REFERENCES  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. 18
+.ei d
+.f
+.s2
+.if d
+.footnote 10
+.ei d
+.if o
+.s2
+.ei o
+This issue of this document supersedes that of Mar 80 which should be discarded.
+.if d
+.end footnote
+.pg
+.lm+4
+.i-4
+.ei d
+1.  GENERAL
+.s2
+1.1 Introduction
+.s
+It is useful and often necessary to facilitate smooth working on the
+DECsystem-10 to be able to communicate with the operators and other users
+through the machine itself.
+There are several ways of doing this which are summarised briefly in Section
+1.2 below.
+.s2
+1.2 How to choose the appropriate command
+.s
+The primary factors in choosing a command are purpose of message, immediacy of
+reply required and length of message.
+Table 1.2 summarises the possibilities:
+.s2
+.nf
+.lm+5
+############Message##############Command
+.s
+Short one-line messages,         SEND
+.s
+Brief messages to operators      SEND CTY:
+not requiring a reply.
+.s
+Mail to other users;             TELL 
+lengthy messages,    
+.s
+Communicating with User          TELL SERVICE_#BOX
+Support, Systems Staff or
+Installation Secretary.
+.s
+Requests for operators           MOUNT
+to mount magnetic tapes
+or private disc packs.
+.s
+Mail to users on other network   POST
+machines.
+.s
+.c64
+ Table 1.2 Summary of the machine communications
+.c64
+methods
+.lm-5
+.f
+.s2
+.if d
+.tp10
+.i-4
+.ei d
+2.  THE MOUNT COMMAND
+.s2
+2.1 Function
+.s
+The MOUNT command is used to request the operator to assign a device for use
+with a magnetic tape or private disc pack for the execution of user-specified
+tasks for the duration of those tasks only.
+.s2
+2.2 General Format
+.s
+The MOUNT command has the following format:
+.s
+#####MOUNT dev:logical-name/switch1/switch2/..
+.s
+For use with magnetic tape:
+.if d
+.lm+5
+.ei d
+.s
+.nf
+- dev######MTA: for 9 track magnetic tapes
+.f
+.lm+11
+.s
+.i-11
+- logical-name (optional)
+.br
+may be any SIXBIT name.
+.s
+.i-11
+- switches#must include REELID:name giving the name by which the tape will be 
+dentified when the MOUNTrequest is actioned by the operator, and may include
+the switch WENABL which permits writing during the user's job (this will be
+necessary if a tape is to be written).
+.s
+.lm-11
+.if d
+.lm-5
+.ei d
+.s2
+2.3 Example
+.s
+#####_.MOUNT MTA:TAPE1/REELID:5088MR/WENABL
+.s
+would result in the tape with the label 5088MR being mounted on tape drive,
+write enabled and with the logical name TAPE1.
+.s2
+.if d
+.tp10
+.i-4
+.ei d
+3.  THE SEND COMMAND
+.s2
+3.1 Function
+.s
+The SEND command is used for brief one-way communications to the operators
+or to another logged-in user whose terminal number is known.
+.s2
+.tp10
+3.2 General format
+.s
+The SEND command has the following format:
+.s
+#####SEND dev:<text>
+.s
+where:
+.lm+12
+.s
+.i-7
+dev####is the number of the terminal with which the user wishes to communicate
+and has the general form TTYn: (or just n) where n is the number of the
+terminal.
+Default is to OPR:, the 'operator' of the node to which the user is connected.
+As some nodes are unmanned, SEND messages can go unheeded.
+To ensure that any message intended for the ERCC Operations Staff reaches its
+intended destination, the device CTY: should be specified.
+.s
+.i-7
+<text>#is the text which the user wishes to transmit.
+This text may occupy only the remainder of the command line.
+.lm-12
+.s
+If a message is to be sent to anyone other than the Operations Staff, that
+person's PPN must be known and the SYSTAT command should be used to ascertain
+that that person is logged-in and to determine their terminal number, before 
+they can be sent any messages.
+.s2
+.tp10
+3.3 Example
+.s
+#####_.SEND TTY62: YOU HAVE THE SYSTEM STAND-ALONE
+.S
+Would send the message to the user logged in at TTY62, and:
+.s
+#####_.SEND CTY: I NEED PRIVATE PACK DSKZ IN APPROX 30 MIN
+.s
+would send the message to the operator's console at ERCC.
+.s2
+.if d
+.tp10
+.i-4
+.ei d
+4.  THE TELL AND MESSAGE COMMANDS
+.s2
+4.1 Function
+.s
+.f
+The TELL command is used to send messages to other users;  the MESSAGE command
+is used to receive messages that have been sent to you and may also be used
+to forward messages to other users. 
+Most usage of TELL and MESSAGE can be demonstrated by the following examples:
+.s
+.nf
+To  send a message to another user any of the following forms will work:
+.s
+.nf
+.lm+5
+_.TELL <name>                 ;<name> is user's name
+_.TELL [p,pn]                 ;ppn in square brackets
+_.TELL p,pn                   ;ppn with no square brackets
+.lm-5
+or###_.TELL ppn               ;ppn as 12 digit octal number
+.f
+.s
+TELL will respond with the message:
+.s
+#####Enter message, end with _^Z
+.s
+.f
+and will prompt you to enter the message by throwing to the next line.
+After you have typed the message (as many lines as you want) and have typed the
+_^Z, TELL will respond with:
+.s
+#####OK, I told <name>.
+.s2
+.tp10
+.f
+If, when you log in, there are any messages for you, you will be so informed.
+To receive your messages, just type:
+.s
+#####_.MESSAGE
+.s
+After the message has been typed, you will be questioned as to the disposal of
+the message record.
+The options are discussed in detail in section 4.3.
+.s
+The following paragraphs describe more command options, multiple TELLs, group
+names, setting default values in initialisation files (or SWITCH.INI files, see
+4.5), specifying dates when sending messages, etc.
+.s2
+.tp10
+4.2 The TELL Command
+.s2
+The general format of a TELL command is:
+.s2
+.nf
+#####_.TELL/switches user-list (date/time spec) message
+.s
+where:
+.f
+.s2
+.lm+7
+.i-2
+.f
+-#User-list is a list of names separated by "+" and "-".
+ A "+" specifies that the name following is to be added to the list of users to
+whom this message is  sent;   a  "-" specifies  that  the name following is to
+be deleted from the list of users receiving the message.
+Names may be abbreviated, so long as they are unique.
+If they are not, TELL will enter a dialogue, typing out each possible name  and
+asking you if it is the correct one.
+Names are user names (actually the name given to the  account  when the account
+was set up) or one of the following:
+.s
+The string "ME" means yourself.
+.s
+A group name (see GROUP switch in 4.4 below).
+.s
+A project  programmer  number  (brackets  are  optional).
+Wild cards, ie:  "*" and "?" are legal, but not all users may be allowed to
+TELL with certain wild  card constructions.
+.s
+A system wide mail name as described for POST in section 5.7 below.
+.s
+Some examples:
+.s
+#####_.TELL [120,126]+NEWSLETTER+000120000127
+.s
+sends the message to to ppns [120,126] and [120,127] and to user NEWSLETTER.
+.s2
+#####_.TELL 1,*-DEWOLF
+.s
+sends the message to everyone who has a project 1 account except for DEWOLF.
+.s2
+#####_.TELL ME 
+.s
+sends the message to yourself (you get it the next time you ask for messages).
+.s2
+.f
+.i-2
+-#(Date-time spec) must be enclosed  within parentheses and is the date/time be
+ore which the message is not to be delivered. 
+The date specification may be a standard date (ie: 15 JUNE 1980) or a mnemonic
+day of the week (MONDAY) or a keyword (WEEK).
+The time specification may be in hours in minutes (12:30) or mnemonic (NOON).
+.s2
+The date specifications recognized are the following: 
+(1) MM DD YY (2) DD MON YY (3) MON DD YY, where DD is the day 
+number, MM is the month number, YY is the year number and MON is the month name
+(first three letters only are required although the full month name may be used
+if desired).
+Missing numbers are filled in from today's date, except in the case of a
+mnemonic month with no day following, when the first of the month is assumed.
+Mnemonic dates are a weekday (SUNDAY, MONDAY, etc), TODAY, TOMORROW, WEEK,
+MONTH and YEAR.
+Weekdays are always in the future; if today is Saturday and the mnemonic date
+SATURDAY is specified, then the message will be delivered in a week's time.
+"WEEK" specifies the next week (weeks start on a SUNDAY).
+"MONTH" specifies next month (which of course starts on the first).
+"YEAR" specifies next year (starting 1 January).
+.s2
+The following are considered redundant or 'noise' words: NEXT, AFTER, AT, SINCE.
+.s2
+Time specifications are in the form HH:MM, on a 24 hour clock. 
+Mnemonic times are available: BREAKFAST (8:00 AM), LUNCH (12:00), NOON (12:00),
+TEA (4:00 PM), DINNER (8:00 PM), and MIDNIGHT.
+.s2
+.lm-7
+.nf
+Examples:
+.s
+#####_.TELL ME (AFTER LUNCH TOMORROW)
+.s
+.f
+will deliver the message after 12:00 tomorrow.
+.nf
+.s2
+#####_.TELL FORTUNE (NEXT WEEK)
+.s
+.f
+will deliver the message the first time Fortune asks for messages after next
+Sunday.
+.s2
+#####_.TELL ME (13)
+.s
+will deliver on or after the 13th of the month, all mesages left for you up to
+the time you first log-in on (or after) the 13th of the month.
+.s2
+#####_.TELL ME (16 JUNE 80)
+.s
+will deliver the message the first time the user logs-in on or after June 16
+1980.
+.s2
+The message can be of any length and is terminated by _^Z.
+The message text may be in a pre-edited file.
+To use this feature, type:
+.s
+.i5
+_.TELL namelist (date)".
+.s
+When TELL prompts by throwing a line, respond by typing
+.s
+.i5
+_@file-spec
+.s
+where file-spec is a standard file specification.
+You can put the file-spec on the same line as the TELL command itself.
+However, if TELL is forced into a dialogue peculiar things will happen.
+.s2
+The switches applicable to the TELL command are:
+.s2
+.lm+11
+.i-6
+CC####if set, a message sent to more than one user will have line with:
+.s
+CC:<list of people receiving message> appended to the end.
+.s
+If more than ten people get the message, the line:
+.s
+[Distribution to more than ten users]
+.s
+will be shown at the end.
+This is the default setting.
+.s
+.i-6
+NOCC##turns off the action of CC, ie: no trailer line is appended.
+.s
+.i-6
+SMART#indicates that the user is  familiar  with  the intricacies of TELL
+commands and need not be prompted with lengthy messages.
+.s2
+.lm-11
+.tp10
+.s2
+4.3 TELL SERVICE_#BOX
+.s
+The PPN SERVICE_#BOX is used by all Installation staff as a message reception 
+area and:
+.s
+#####_.TELL SERVICE_#BOX
+.s
+is the desirable machine-based method of communicating with the Installation
+staff without the need to specify an individual.
+SERVICE_#BOX is  inspected at 1000 and 1500 hrs daily (Mon-Fri) by the
+Installation Secretary and the messages in it routed to an appropriate
+member of staff.
+.s
+SERVICE_#BOX is intended for all routine requests for service, supplies
+_& documentation; queries and complaints.
+It should not be used for lengthy discussions of programming problems.
+Suitable means of communicating with Installation staff in these circumstances
+are described in  2B01 - Installation Services (1).
+.s
+Note that the _# in the string SERVICE_#BOX is required, because a
+space will be treated as a delimiting character between names.
+.s
+The more helpful the information which can be given, the easier it will 
+be  for the Installation staff to give a helpful reply. 
+Such extremes as either saying "the machine is giving the wrong answers" or
+sending a 1000 line assembler language program which will not run are not likely
+to get speedy or helpful responses.
+.s
+Because the Operations Staff are not exclusively concerned with the
+DECsystem-10, their direct responsibilities to DECsystem-10 users are
+necessarily restricted (See reference (1) Section 2.2), and users should in
+this context find that MOUNT and TELL CTY: (see Sections 2 and 3 above) will
+cover most needs for communicating with the Operations Staff.
+Requests for services which require non-immediate operator action such
+as requests to restore accidentally deleted files should be made via
+TELL SERVICE_#BOX.
+.s2
+4.4 The MESSAGE Command
+.s
+The general format of a MESSAGE command is: 
+.s
+#####_.MESSAGE /Switches
+.s2
+The switches are described below.
+The MESSAGE command will type out all messages which have been sent to the
+user and have delivery dates and times less than or equal to the current date 
+and time.
+.s2
+The action of the MESSAGE command depends on the value of the QUERY switch
+(default value is AFTER).
+If QUERY:AFTER is set, MESSAGE will type each message, followed by "Dispose:"
+and wait for a command.
+If QUERY:BEFORE is set, MESSAGE will type the header of the message and the
+number of lines in the message followed by the header of the message and the
+number of lines in the message followed by the prompt "Action:".
+.s2
+The commands for responding to either the Action: query or the Dispose: query
+are:
+.s2
+.lm+13
+.i-8
+HELP####type a brief help message listing some of the options
+.s
+.i-8
+TYPE####type the message.
+If the message has already been typed, it will be typed again.
+.s
+.i-8
+SAVE####save the message (will be printed the next time MESSAGE is typed).
+.s
+.i-8
+HOLD####puts the message on 'hold'.
+It will not be printed again until the user explicitly requests that it be
+printed by specifying the HOLD switch, ie entering the monitor command:
+#####_.MESSAGE/HOLD
+.s
+The user will be told that he has messages in hold when he types MESSAGE without 
+the HOLD switch.
+the only way to delete a message in HOLD is to type DELETE in response to the
+Dispose: query.
+.s
+.i-8
+REPLY###This command is used to reply to the sender of the message.
+It enters TELL and asks for the text of the message. 
+If you want to send your reply to users other than the sender of the message,
+you can add the names following the REPLY command (using the  "+"  and  "-"
+constructions of the TELL command), eg:
+.s
+#####Dispose: REPLY FINKE+DEWOLF
+.s
+sends the message you type to the sender of the message you have just received
+and to FINKE and DEWOLF.
+You cannot reply to a message you have sent to yourself, and you cannot add
+your name to the list of people to whom the reply is directed.
+.s
+.i-8
+FORWARD#forwards the message to other users specified by you (as in a TELL
+command) after the FORWARD command.
+The line:
+.s
+.i5
+[Forwarded from <your name>]
+.s
+will be appended to the end of the message.
+You cannot forward mail to yourself.
+.s
+.i-8
+COPY####copies this message to a file.
+The file specificationcan be specified after the COPY command, eg:
+.s
+#####Dispose: COPY BUG.FIX
+.s
+copies the message into the file BUG.FIX.
+.s2
+.lm-13
+.s2
+Another useful switch which may be employed with MESSAGE is UNREAD, eg
+.s
+.i5
+_.MESSAGE/UNREAD
+.s
+this will display only unread messages.
+.tp10
+4.5 Use of TELL and MESSAGE with initialisation (SWITCH.INI) files
+.s2
+TELL switches that affect MESSAGE (all of these may appear in SWITCH.INI) are:
+.lm+13
+.s2
+.i-8
+QUERY###determines whether or not the user is queried when typing messages.
+The possible values are BEFORE, AFTER, NEVER, and BOTH.
+If QUERY:AFTER is set, the message will be typed and the user will be queried
+about what is to be done with the message.
+If QUERY:BEFORE is set, the header message and the number of lines in the
+message will be typed, and the user queried about what is to be done with the 
+message.
+If QUERY:BOTH is set, the user will be queried both before and after the
+message is typed.
+If QUERY:NEVER is set, the user will not be queried.
+
+In this case the disposition of the messages depends on the DISPOSE switch
+(defaults to SAVE).
+.s
+.i-8
+DISPOSE#sets the default value for response to a "Dispose:" request printed by
+MESSAGE.
+It is used if carriage return is typed or if QUERY:AFTER is not in effect.
+The acceptable values are the same as the responses to "Dispose:"; however the 
+only useful ones are DELETE, SAVE and HOLD.
+.s
+.i-8
+HOLD####if this is set, messages on hold instead of normal messages will be
+printed.
+The default value for this switch is off.
+.s
+.i-8
+SAVE####is the same as DISPOSE:SAVE.
+If specified, all messages typed will be saved.
+.s
+.i-8
+GROUP###This switch may appear only in SWITCH.INI.
+This switch allows you to define "group names".
+For example, if you find that you are sending messages to the same group of
+people frequently, you could define a group name for that list.
+Then rather than explicitly specifying the list of recipients in the TELL 
+command, you can just specify the group name.
+Group names are defined by enclosing the group name, an "=", and a list of the 
+people in the group, in parentheses following a GROUP switch. 
+For example:
+.s
+.i-4
+TELL#/GROUP:(PROJECT=345,*-ME)/GROUP:(STEVE=[1,752])
+.s
+defines two groups.
+The first is called PROJECT, which includes all users with project number 345
+except for yourself.
+The second group defines STEVE to be one user.
+Group names may be nested to any reasonable level (but may not be recursively
+defined).
+The TELL at the beginning of this line in SWITCH.INI specifies that this line
+is applicable to the TELL program and should not be looked at by any other
+program reading SWITCH.INI (such as DIRECT).
+.lm-13
+.s2
+The switch MAIL affects messages and may appear in SWITCH.INI files or with
+the LOGIN program to control the options pertaining to the user's mail.
+.s2
+The formats for the MAIL switch are:
+.s
+.lm+17
+.i-12
+MAIL:IGNORE#will tell LOGIN to ignore any mail that has been directed to you
+and thus not inform you that it exists.
+The advantage is that no lookup will be done and LOGIN will be slightly faster.
+.s
+.i-12
+MAIL:INFORM#(Default) directs LOGIN to inform you if you have any mail, but the
+mail itself is not printed (until you type MESSAGE).
+.s
+.i-12
+MAIL:PRINT##will start printing your messages at the terminal as soon as you
+have logged in.
+.s
+.i-12
+MAIL:BRIEF##is similar to MAIL:INFORM except that it will not inform you of
+messages on hold.
+.s
+.i-12
+MAIL:NAMES##is a recent development which includes the feature of MAIL:INFORM
+but also lists up to 3 senders of messages.
+For example, "You have a message from Smith, Dewolf, Edwards and others."
+.s2
+.lm-17
+.tp10
+4.6 Example
+.s2
+Since the greatest benefit of the various switches is realized by  including
+them in SWITCH.INI,some examples are given.
+.s2
+.nf
+#####LOGIN/MAIL:NAMES
+.s
+#####TELL/GROUP:(BILL=ROUSE)/GROUP:(OPRS=7,*-THRONEBURG)
+.s
+#####TELL/QUERY:BOTH/DISPOSE:SAVE/SMART
+.s
+#####TELL/GROUP:(STAFF=11,*-EDWARDS+DEW+PAUL)
+.f
+.s2
+.if d
+.tp10
+.i-4
+.ei d
+5.  THE POST COMMAND
+.s2
+5.1 Introduction
+.s
+The POST system is a network mail system which conforms to the Joint Network
+Team's Mail Protocol Standard for the academic community (3).
+This is in turn based on the ARPA mail standard RFC-733 transmitted over
+FTP (2).
+It interfaces to the  TELL system on the DECsystem-10.
+.s
+POST is run by entering the monitor command:
+.s
+#####_.POST <mailbox>
+.br
+or###_.POST
+.s
+(in the second case, the user will be prompted for the <mailbox>
+specification).
+.s
+where <mailbox> specifies the destination machine and user to whom the message
+is addressed, and may be either:
+.s
+#####<name>%<relay> @ <host>
+.s
+or a locally defined alias which translates to a specification as above (see
+section 5.5 below)
+.s
+The <name> is the name by which the intended recipient of the mail is known
+to the destination machine (see section 5.2 below), and <host> is the name of
+that machine.
+The <relay> is the name of an intermediate switching machine which
+may be required to transmit the message on to its ultimate destination, (see
+section 5.3 below).
+.s
+Some examples of POST commands are given in section 5.7 below,sections 5.2 to
+5.6 describe the working of the POST command in detail.
+.s2
+5.2 Usernames
+.s
+Most machines have two different forms of identification for users: 
+.s
+.lm+7
+.i-2
+-#A mailbox name which is either a person's name or a descriptive identifier 
+which has been registered with the mail system at the destination site, eg:
+.s
+A.Brown, Arthur.Brown, Liaison
+.s
+It is this identification which is meant by <name> in the description of the
+POST facility which follows.
+.s
+.i-2
+-#A user identifier or number, or process name which is in the identifier used
+by the machines' operating system, eg:
+.s
+[123,456], NSUM06, ERCC44
+.s
+It is this identification which corresponds with <ppn>, <userid> or <process>
+in the description of POST which follows.
+.s
+.lm-7
+Either one or both of these identifiers may be used by a mail system  (although
+the first is preferable) and both are often printed in the From: field of the message
+header.
+A typical message would look as follows:
+.nf
+.s
+.lm+5
+.if d
+.tp10
+.ei d
+From Mail-System[1,2] on July 7, 1982 at 12:33 PM
+Via: ykxa    ; Wednesday, 7-Jul-82  12:33:36-BST
+Date:       Wednesday, 7-Jul-82  12:32:46-BST
+From:       account name <a.user@ykxa>
+To:         a.n.other at edxa
+Subject:    mail example
+.s
+--------
+The message text
+.s
+--------
+.f
+.s
+.lm-5
+For DECsystem-10 destinations, the user identifier should be the unique mailbox
+name, if the user has registered one with that system.
+If not, then a ppn (with or without square brackets and comma) or the account
+name associated with each ppn will do, that is, as if one were doing a TELL on
+the destination machine (see section 4.2 above). 
+Note that account names must be unambiguous, as no questions can be relayed
+back from remote machines by TELL, and that hash characters (_#) should be used
+in place of spaces in the name.
+.s
+DECsystem-10 users can register the mailbox name by which they wish to be known
+for inclusion in a local database, by sending a message to the user support
+staff, specifying the mailbox name required and the ppn with which it is to be
+associated.
+The form of the name is recommended to be the user's initial(s) and surname
+separated by dots.
+The name may be up to 25 characters long but must be unique within the first 12,
+eg: A.Brown, A.D.Brown, Arthur.Brown are all valid names.
+.s2
+5.3 Hosts and Relays
+.s
+The host name should be the unique name by which that host is known to the
+DECsystem-10, for example SERCnet host names are of 4 characters, 2 for the
+site, 1 for the machine type and 1 for an identifier. eg: RLGB (GEC B at the
+Rutherford-Appleton Laboratory (RAL) ).
+.s
+Where the mail needs to be forwarded by a mail relay before it reaches its
+destination, these relays are delimited by percent characters (%) in the 
+username, for example, to POST to a user at CMU-10A on the ARPAnet, the
+command:
+.s
+.lm+5
+_.POST <name>%CMU-10A@UCL
+.lm-5
+.s
+would be entered.
+.s
+At each relay, addressing information relevant only to that relay is stripped
+off the address information, that is at UCL in the above example.
+In the case of messages to the USA, UCL itself relays the mail through a system
+called ISID in California and mail from the USA should also be relayed through
+that system.
+.s
+When sending mail via a relay, an attempt is made by the POST program to generate
+a return address to be used by the mail recipient and the sender is given the
+opportunity to inspect and alter it.
+In the example of mail To: name%CMU-10A@UCL, POST would prompt:
+.s
+.nf
+.lm+5
+Reply-To:##myname%EDXA%UCL-CS@ISID#####-#is that correct?
+Type new address or <cr>:
+.s
+.lm-5
+.f
+For incoming mail, each relay adds a header line to the message containing the
+name of the host from which the mail has been received which indicates
+to the recipient which relays the message has been transmitted through. 
+For example, a reply from a user on CMU-10A  would have its initial header lines
+looking like:
+.s
+.nf
+via:CMU-10A#####;Friday, February 12 1982 05:29:02-PST
+via:ISID########;13 Feb 82 = 12:17-GMT
+via:UCL#########; Saturday,  13-Feb-82  12:20:04-GMT
+.f
+.s2
+5.4 The Message Text
+.s
+The POST program will next prompt for a message subject, ie:
+.s
+#####SUBJECT:          ;user types the subject here
+.s
+It will then prompt for the message text which can be typed in directly,
+or may be copied from a file by typing:
+.s
+#####@<filename>
+.s
+Messages are terminated with a _^Z.
+Once the message has been inserted, it is passed to FTP for transmission
+to the destination machine.
+.s2
+5.5 Locally Defined Names or Aliases
+.s
+It is possible to use locally defined names  or aliases to define the
+<mailbox>.
+If only a username is given to POST, it will interrogate the SWITCH.INI file in
+the users area and search for lines of the form:
+.s
+.nf
+.lm+5
+POST/<alias1>=<mailbox1>,<alias2>=<mailbox2>,.....
+.f
+.s
+.lm-5
+where <alias> is some user defined name for the recipients address, eg:
+.nf
+.s
+#####POST/FRED=SGEN @ RLGB, JANE=[100,100]@EDXA
+.f
+.s
+would define FRED to be user SGEN on the RAL GEC machine B,
+and JANE to be user [100,100] on the DECsystem-10 at Edinburgh.
+.s
+Thus, commonly used destinations can be abbreviated.
+Spaces in the username field are significant and multiple spaces are reduced to
+a single space.
+Matching of names is done in a case independant manner.
+Some more examples are given in section 5.7 below.
+.s2
+5.6 Incoming Mail
+.s
+Users on other machines wishing to transmit mail to the DECsystem-10 should 
+use the mail system implemented on their home machine and should consult the
+appropriate local documentation for details of how to do this.
+.s
+Messages from users on other network machines will be entered into the ERCC
+TELL system via the FTP system and a special area on the DECsystem-10 filestore.
+Users will be notified that they have a message from MAIL-SYSTEM at login time
+if the MAIL/NAMES option is set on their SWITCH.INI file.
+.s
+Note that because of the way TELL and FTP interface with one another
+to provide the POST facility,
+it is not possible to provide an equivalent of the TELL "REPLY" and 
+"FORWARD" facilites to send messages to network users, and POST
+must be used explicitly for all network mail.
+.s2
+5.7 Examples
+.s
+5.7.1 POST to ANF-10 users.
+.s
+The only other host on the local ANF-10 network capable of supporting
+users is the DECsystem-10 at Dundee University.
+A POST command directing a message to a user there would look like:
+.s
+.i5
+_.POST <name> @ DUNDEE
+.br
+or###_.POST <ppn> @ DUNDEE
+.s
+where <name> is the name of the user to whom the message is directed and <ppn>
+is the ppn associated with a name and may be used instead of the name, eg:
+.s
+.i5
+_.POST A.USER @ DUNDEE
+.s
+Alternatively, if the user had in his or her SWITCH.INI file on the DECsystem-10,
+a line of the form:
+.s
+.i5
+POST/ALBERT=A.USER@DUNDEE
+.s
+the command:
+.s
+.i5
+_.POST ALBERT
+.s
+would have the same effect.
+.s2
+.tp10
+5.7.2 POST to RCONET users
+.s
+If the user concerned is registered as an RCONET mail recipient, the command may
+be entered in the form:
+.s
+.i5
+_.POST <name> @ RCO
+.s
+where <name> is the RCONET mail process name for the user concerned and will 
+enable POST to direct mail to the correct user and machine.
+.s
+If the user concerned is not a registered RCONET mail user, a command of the 
+form:
+.s
+.i5
+_.POST <process>%<host> @ RCO
+.s
+should be entered, where <process> is the user number and <host> is
+the name of the destination machine, eg:
+.s
+.i5
+_.POST ERCA02%2972 @ RCO
+.s
+would direct the message concerned to user ERCA02 on the RCONET ICL 2972.
+.s
+Thus, in the example above, if ERCA02 was a process on the RCONET ICL 2972 and
+the name associated with that process was A.User, the two commands are equivalent.
+.s
+Again aliases in SWITCH.INI files may be used, for the examples given above, a 
+SWITCH.INI entry might be:
+.s
+.nf
+#####POST/AL=A.USER@RCO
+.br
+or###POST/ALBERT=ERCA02%2972@RCO
+.f
+.s
+Remember though that in practice only one of these alternatives would be used.
+.s2
+.tp10
+5.7.3 POST to SERCnet users
+.s
+POST to registered mail users on SERCnet machines is sent with a command of the form:
+.s
+.i5
+_.POST <name> @ <host>
+.s
+where <name> is the user's name on the destination machine, and 
+<host> is the name of the destination machine, eg:
+.s
+.i5
+_.POST  A.USER @ HWGA
+.s
+If the user is not a registered mail user or the name is not known, a POST
+command of the form:
+.s
+.i5
+_.POST <userid> @ <host>
+.s
+may be used, where <userid> is the user number on the host machine concerned,
+eg:
+.s
+.i5
+_.POST PMAN @ HWGA
+.s
+Aliases of the form:
+.s
+.i5
+POST/ALARIC=A.USER@HWGA
+.br
+or###POST/AL=PMAN@HWGA
+.s
+may be included in SWITCH.INI files allowing commands of the form:
+.s
+.i5
+_.POST ALAN
+.s
+to be used.
+.s2
+5.7.4 POST to ARPANET users
+.s
+POST to ARPANET users is used as the vehicle for the  step-by-step description
+of the POST command in sections 5.1 to 5.6 above but is described again here for
+completeness.
+.s
+POST to registered mail users on an ARPA-net host is sent with a command of the form:
+.s
+.i5
+_.POST <name>%<relay> @ <host>
+.br
+or###_.POST <userid>%<relay> @ <host>
+.s
+where <name>, <relay>, <userid> and <host> have the meanings already defined, eg:
+.s
+.i5
+_.POST E.V.E.RYMAN%CMU-10 @ UCL
+.s
+Again, aliases may be defined locally in a SWITCH.INI file, eg:
+.s
+.i5
+POST/ERIC=E.V.E.RYMAN%CMU-10@UCL
+.s2
+.if d
+.tp10
+.i-4
+.ei d
+6.  REFERENCES
+.s2
+.lm+5
+.i-5
+(1)##2B01##-#Installation Services
+.s
+.i-5
+(2)##3A55B#-#FTP#-#Transferring Files Across the Network
+.s
+.i-5
+(3)##Bennet. C.J., JNT Mail Protocol, Jan 82.
+.lm-5
+.ei i
+.ei h
+.if i
+.nf
+.ts35
+<INSERT INDEX ITEMS HERE>
+.ei i
+.if h
+<INSERT HELP TEXT HERE>
+.ei h
+$$$$$$$$$$$$
+&&&&&&&&&&&& POST.CMD
+
+POST.IMP,PSTLIB.IMP,CONFIG.MAC,PSTMAC.MAC,FNODES.IMP,queue.imp
+$$$$$$$$$$$$
+&&&&&&&&&&&& MAISPL.IMP
+
+!MAISPL.IMP
+!This generates a MIC file to be used by TELL to forward on messages in
+!the disk area QDEV:[3,5] which have been put there by FTPSPL for post files.
+!
+!the form of the mail file is as follows
+!
+!address of host from which this mail received <nl>
+!username@host, ...<nl>  - list from ARPA standard system
+!<nl>
+!header lines
+!<nl>
+!body of message
+!<eof>
+!
+!MAISPL converts this form to the following:-
+!
+!username/BATCH
+!Via:  host from which mail recieved
+!header lines
+!<nl>
+!body of message
+!<eof>
+!
+!the /BATCH switch converts the file to act as a command file for TELL,
+!MAISPL generates a MIC file for PIP to delete the messages once they have
+!been processed.
+%begin
+%externalstring(255)%spec errmsg
+%externalroutinespec init nodes
+%externalpredicatespec isnode(%string(1)%name host,type,%integername status)
+%externalstring(6)%fnspec qdevice
+%externalstring(12)%fnspec  our node
+%externalstring(10)%fnspec node name(%string(1)%name number)
+%externalpredicatespec is version 4
+%externalstring(6)%fnspec sixtostr(%integer i)
+%systempredicatespec gettab(%integer tab,ind,%integername res)
+%externalstring(255)%fnspec fstostr(%record(filespec)%name fs)
+%externalpredicatespec isfile(%string(255) file)
+%externalroutinespec xdelete(%record(filespec)%name fs)
+%externalroutinespec delete(%string(255) file)
+%externalroutinespec readline(%string(1)%name str)
+%externalstring(50)%fnspec datestamp
+%externalstring(12)%fnspec octtostr(%integer n)
+%externalstring(12)%fnspec inttostr(%integer n)
+%externalroutinespec reset input
+%externalroutinespec rewind input
+%externalintegerfnspec get now
+%externalroutinespec writefs(%record(filespec)%name fs)
+%externalroutinespec get unique(%record(filespec)%name fs)
+%externalroutinespec do ftp(%string(1)%name jobnm,dest,name,%record(filespec)%name file,%integer stream,%string(1)%name mess)
+%externalroutinespec read aliases
+%externalroutinespec alias(%string(1)%name dest)
+%externalpredicatespec delist(%string(1)%name user,user1,dest1)
+%externalpredicatespec casematch(%string(255) str1,str2)
+%externalroutinespec print via(%string(1)%name host)
+%record(filespec) qdirfs,fs,fs1
+%string(255) number,dummy,user
+%string(255) return address,remote host
+%string(6) qdev
+%string(12) this host
+%conststring(15) mail file=":mail.mic[3,5]", mail log=":mail.log[3,5]"
+%constinteger tty=0, mail=1, ufd=2, fil=3, log=4, this=5, other=6, fil1=7, log1=8;  !stream numbers
+%constinteger comma=',', colon=':'
+%constinteger true=-1, false=0
+%constinteger sixbit mai=8_554151
+%integer f,e,last char,num files,local mail,some local mail,log headers
+%routinespec skip to header line
+%routinespec skip blank lines
+%routinespec read text(%string(1)%name str,%integer sep1,sep2)
+
+
+%routine newline
+!===============
+!do not put in double <cr>s
+   printsymbol(nl)
+%end
+%routine copy rest of file
+!=========================
+!copies file from input stream to output stream
+   %integer s
+   %on %event 9 %start
+      %return;  !do nothing
+   %finish
+
+   %cycle
+      readsymbol(s); print symbol(s)
+   %repeat
+%end
+
+%routine err report(%string(255) report)
+!======================================
+!reports problem to cty and log file
+   %integer out
+   out=outstream
+   select output(log)
+   printsymbol('?'); printstring(report); newline
+   define output(log1,"cty:/trmop"); select output(log1)
+   printstring("MAIL-SYSTEM error - look at log file ");printstring(qdev.mail log); newline
+   printstring(report); newline
+   close output
+   select output(tty)
+   printstring("!?"); printstring(report); newline
+   select output(out)
+%end
+
+%routine abort run(%string(255) report)
+!======================================
+!aborts run and outputs error message to log and operator
+   err report(report)
+   %stop
+%end
+
+
+%routine print info(%record(filespec)%name fs,%string(1)%name user,return address)
+!================================================================================
+!generates logging information to the current output stream - suitable for mic
+   %integer out
+   out=outstream
+   %if out=mail %then printsymbol(';')
+   printstring("Incoming mail from "); printstring(remote host); printstring(" in file ")
+   writefs(fs); newline
+   %if out=mail %then printsymbol(';')
+   printstring("To:   "); printstring(user); newline
+   %if out#mail %start;  !can cause problems for mic if in the mail file
+      printstring("From: "); printstring(return address); newline
+   %finish
+   %if user="" %or return address="" %start
+      %if out=mail %then printsymbol(';')
+      printstring("%Illegal user and/or return address specification"); newline
+   %finish
+%end
+
+%routine open log
+!================
+!open the log file
+   define output(log,qdev.mail log."/fun:6")
+%end
+
+
+%routine dolog(%record(filespec)%name fs,%string(1)%name user,return address)
+!============================================================================
+!outputs logging info to a log file
+   newline
+   printstring(datestamp); newline
+   print info(fs,user,return address)
+%end
+
+
+%routine do relay log(%record(filespec)%name fs,%string(1)%name host,%integer number)
+!=========================================================================================
+!does logging in the relay code
+   %if host=this host %start
+      %return
+   %else
+      printstring("Relaying mail for ")
+   %finish
+   write(number,1); printstring(" user(s) at host ")
+   printstring(host); printstring(" in file "); writefs(fs); newline
+%end
+
+
+%routine do telling log(%record(filespec)%name fs,%string(1)%name user)
+!======================================================================
+!does logging in TELLing code
+   printstring("	To:   """); printstring(user)
+   printstring(""" in file "); writefs(fs); newline
+%end
+
+
+%routine do no process log(%record(filespec)%name fs,%string(1)%name user, ret add)
+!======================================================================================
+!does logging in do not process file routine
+   printstring("Local mail (already processed)"); newline
+   printstring("   To:   """); printstring(user);
+   printstring(""" in file "); writefs(fs); newline
+   printstring("   From: "); printstring(ret add); newline
+%end
+
+
+%routine log mail header
+!=======================
+!for debugging purposes, log the JNT and RFC headers
+%integer s,num lines,heads
+%on %event 9 %start
+   newline; printsymbol(tab)
+   ->end
+%finish
+
+   num lines=0; heads=0
+   newlines(2)
+   printsymbol(tab); printstring("***Start of incoming mail file (precedes the proper log of the file)***"); newline
+   printsymbol(tab)
+   %cycle
+      readsymbol(s); printsymbol(s)
+      %if s=nl %start
+         num lines=num lines+1
+         %if next symbol=nl %and num lines>1 %then heads=heads+1;  !mark when a header group finishes
+         printsymbol(tab)
+      %finish
+   %repeat %until heads=2 %or num lines=24
+end:printstring("***End of headers (now the log proper)***"); newline
+%end
+
+%integerfn upper case(%integer char)
+!================================
+   char=char-32 %if 'a'<=char<='z'
+   %result=char
+%end
+
+%routine remove trailing space(%string(1)%name str)
+!==================================================
+   %integer n
+   n=length(str)
+   %return %if n=0 %or charno(str,n)#sp
+   str=substring(str,1,n-1)
+%end
+
+
+%routine skip lws
+!================
+   skip symbol %while %not (sp#next symbol#tab)
+%end
+
+%routine skip line
+!=================
+!skips a line of input - upto and including a newline
+   %integer s
+   readsymbol(s) %until s=nl
+%end
+
+%routine skip blank lines
+!========================
+   skipsymbol %while nextsymbol=nl
+%end
+
+
+%routine skip to header line
+!===========================
+!skips the file upto the first header line
+   skip blank lines
+   skipline;  !tell command line
+   skipline %until nextsymbol=nl;  !address line(s)
+   skip blank lines;  !until header section
+%end
+
+%routine skip header line
+!========================
+!skips a header line-possible folded in a mail file
+   %cycle
+      skip line
+      %exit %if tab#nextsymbol#sp;   !exit if not a continuation line
+   %repeat
+%end
+
+%routine discard comment
+!=======================
+!have read a '(' will read upto and including a ')'
+   %integer s
+   %cycle
+      readsymbol(s)
+      %if s='\' %start
+         readsymbol(s)
+      %elseif s='(' %start;  !a nested comment
+         discard comment
+      %elseif s=')' %start
+         %exit
+      %finish
+   %repeat
+   readsymbol(last char)
+%end
+
+%routine dequote(%string(1)%name user)
+!=====================================
+!this routine removes quotes if they are present
+   %return %if user=""
+   %if charno(user,1)=('"') %start
+      user=substring(user,2,length(user))
+      %if user->user.("""").dummy %start; %finish
+   %else%if charno(user,1)=('''') %start;  !and single quotes
+      user=substring(user,2,length(user))
+      %if user->user.("'").dummy %start; %finish
+   %finish
+%end
+
+%routine read fname(%string(1)%name text)
+!========================================
+!reads a field name
+   %integer n
+   text=""
+   skip lws
+   %for n=1,1,45 %cycle
+      readsymbol(last char)
+      %if last char=sp %or last char =tab %start
+         skip lws; last char=sp
+      %elseif last char=colon %start;  !end of field
+         %exit
+      %finish
+      text=text.tostring(upper case(last char))
+   %repeat
+%end
+
+%routine read text(%string(1)%name text %integer sep1, sep2)
+!===========================================================
+!read some text upto and including the given separators - throwing away comments
+   text=""
+   skip lws
+   %cycle
+      readsymbol(last char)
+      %if last char=sp %or last char=tab %start
+         skip LWS
+         last char=sp
+      %elseif last char='"' %start;  !handle a quoted string
+         %cycle
+            readsymbol(last char)
+            %if last char='\' %start;  !handle a quoted char
+               readsymbol(last char)
+            %elseif last char='"' %start
+               ->loop
+            %finish
+            text=text.tostring(upper case(last char))
+            %if last char=nl %then skip lws
+         %repeat
+      %elseif last char='(' %start;    !a comment
+         discard comment
+         skip lws;  !we already have a space from before the comment as a separator so ignore all after
+      %elseif last char='\' %start;  !handle a quoted char
+         read symbol(last char)
+      %finish
+      last char=upper case(last char)
+      %exit %if last char=sep1 %or last char=sep2
+      text=text.tostring(last char)
+loop:
+   %repeat
+%end
+
+
+%routine read jnt head(%string(1)%name text,%integer sep1,sep2)
+!==============================================================
+!reads the jnt address list up to the given two separators
+   text=""
+   skip lws
+   %cycle
+      readsymbol(last char)
+      %if last char=sp %or last char=tab %start
+         %continue;  !omit lws
+      %elseif last char='"' %start;  !handle a quoted string
+         text=text.""""
+         %cycle
+            readsymbol(last char)
+            %if last char='\' %start;  !handle a quoted char
+               text=text."\"
+               readsymbol(last char)
+            %elseif last char='"' %start
+               %exit
+            %finish
+            text=text.tostring(last char)
+         %repeat
+         text=text.tostring(last char)
+         %continue
+      %elseif last char='\' %start;  !handle a quoted char
+         read symbol(last char)
+         text=text."\".tostring(last char)
+         %continue
+      %finish
+      %exit %if last char=sep1 %or last char=sep2
+      text=text.tostring(last char)
+   %repeat
+%end
+
+%routine read header line(%string(1)%name text)
+!=============================================
+!reads a header line into 'text' - unfolded and without LWS  and comments
+   %string(255) text1
+   text=""
+   %cycle
+      read text(text1,nl,nl)
+      text=text.text1
+      %return%if tab#nextsymbol#sp;    !not a folded line
+      skip lws
+      text=text." "
+   %repeat
+%end
+
+
+%routine get params(%string(1)%name return address)
+!===================================================
+!this routine gets the parameters required, from the currentfile for src format
+%string(255) str,dummy,str1
+%string(50) sender,host
+
+%on %event 9 %start
+   ->end
+%finish
+
+   select input(fil)
+   rewind input
+   skip line; skip line
+   skip blank lines
+!now parse the header to find the sender
+   sender=""; host=""
+   readline(str)
+   %if str->dummy.("Message from ").str1 %start;    !gec
+     %if str1->sender.(" at ").str %start
+         %if str->host.(" on ").dummy %start; %finish
+      %finish
+   %else%if str->dummy.("Post at ").dummy %start;  !PRIME
+      readline(str)
+      %if str->dummy.("From ").str1 %start;   !prime
+         %if str1->host.(" ").str %start
+            %if str->sender.("=").dummy %start; %finish
+         %finish
+      %finish
+   %finish
+!dont know who you are - I hope I can send the mail without having to reply
+end:
+   %if sender#"" %and host#"" %then return address=sender."@".host %else return address=""
+%end
+
+%routine get return address(%string(1)%name return address)
+!=======================================================
+!runs through the message header lines and gets preferably a SENDER field
+!or else a FROM field and extracts the senders address adding VIA fields, if present
+   %string(50) name,sender,host,last host
+   %string(255) host phrase,text,dummy,address,host phrase 1
+   %string(1) prefix
+   %integer read sender,lines,first via
+
+   %on %event 9 %start
+      ->end
+   %finish
+
+   read sender=false; first via=true
+   sender=""; host=""; address=""; host phrase=""; last host=""; prefix="@"
+   select input(fil)
+   lines=0
+   %if return address#"" %start
+      alias(return address);  !get a common name for this host
+      last host=return address;  !remember it
+      host phrase=return address; ->1;  !pretend you got it from a via: field
+   %finish
+   %cycle
+      read fname(name)
+      lines=lines+1
+      %if name="SENDER" %or (name="FROM" %and read sender=false) %start
+         %if name="SENDER" %then read sender=true
+         read header line(text)
+         host phrase1= text %unless text->dummy.("<").host phrase1 %and host phrase1->host phrase1.(">").dummy
+         %unless host phrase1->sender.(" AT ").host %start
+            %unless host phrase1->sender.("@").host %start
+               sender=""; host=""
+            %finish
+         %finish
+      %elseif name="VIA" %start
+         read header line(host phrase)
+         %if host phrase->host phrase.(";").dummy %start; %finish; !remove comment
+         remove trailing space(host phrase)
+         %if last host#"" %start;  !try and remove multiple hosts of the same name
+            alias(host phrase)
+            %continue %if case match(host phrase,last host);  !same host
+            last host="";  !end of alias host list
+         %elseif first via=true %start;  !or initialisehost phrase if first time through
+            alias(host phrase)
+            last host=host phrase
+         %finish
+1:       address=prefix.host phrase.address
+         prefix="%"; first via=false
+      %else skip header line
+   %repeat %until next symbol=nl %or lines=45;  !blank line at end of header
+end:
+   %if sender="" %then sender="Postmaster"
+   %if host="" %then host="""unknown"""
+   %if address="" %start;  !if no via fields
+      return address=sender.prefix.host
+      %return
+   %finish
+   %if last host#"" %start;  !here if only one via
+      alias(host)
+      %if case match(last host,host) %start
+         return address=sender."@".host
+         %return
+      %finish
+   %finish
+   %if case match(host phrase,host) %start; !is sender host name same as last via field
+      return address=sender.address;  !yes, do not addhost name twice
+   %else
+      return address=sender."%".host.address
+   %finish
+%end
+
+
+%routine copy tell command file(%record(filespec)%name fs,%string(1)%name user)
+!================================================================
+!copies the rest of the current input file with a tell command file header
+!into the specified output file
+   %on %event 10 %start
+      errmsg="cannot open output file ".fstostr(fs)
+      %signal 11
+   %finish
+
+   xdefine output(fil,fs)
+   select output(fil)
+   printstring(user); printstring("/BATCH"); newline
+   rewind input
+   skip to header line
+   print via(remote host)
+   copy rest of file
+   close output
+   select output(log)
+   do telling log(fs,user)
+   select output(tty)
+   do telling log(fs,user)
+   select output(fil)
+%end
+
+
+%routine do the tell(%record(filespec)%name fs,%STRING(1)%NAME USER,RETURN ADDRESS)
+!=================================================================================
+!this generates the MIC file
+   %owninteger count=0
+   %string(50) frm
+
+   %routine copy start of file
+   !--------------------------
+      %integer s,num lines
+      %on %event 9 %start
+         newline
+         %return
+      %finish
+
+      num lines=0
+      printsymbol('*')
+      %cycle
+         readsymbol(s)
+         %if s='''' %or s='^' %then printsymbol(s);  !double up significant chars
+         printsymbol(s)
+         %if s=nl %start
+            num lines=num lines+1
+            printsymbol('*');  !move any funny chars off column 1
+         %finish
+      %repeat %until num lines=49
+      printstring(".....etc......"); newline
+   %end
+
+   count=count+1
+   select output(mail)
+   newline
+   print info(fs,user,return address);   !tell the MIC file what is happening
+   newline
+   %if user="" %start;   !a good user?
+      printstring(";%Cannot do the TELL as I do not have a valid username"); newline
+   %else
+      printstring(";here to use TELL to issue the command file we have built up"); newline
+      %if return address="" %start
+         frm="MAIL-SYSTEM"
+      %else
+         %if length(return address)>12 %then frm=substring(return address,1,12)  %else frm=return address
+      %finish
+      printstring(".R SETUSR"); newline
+      printsymbol('*'); printstring(frm); newline; !set up USRname
+      printstring(".IF (ERROR)"); newline
+      printstring(".mic set no parameter"); newline
+      printstring(".MIC RESPONSE R(30)"); newline
+      printstring(".TELL @"); writefs(fs); newline
+      printstring(".IF (NOERROR) .GOTO "); write(count,0); printsymbol('B'); newline
+   %finish
+   newline
+   printstring(".R SETUSR"); newline
+   printsymbol('*'); printstring("(MAIL ERROR)"); newline
+   printstring(".IF (ERROR)"); newline
+   %if return address="" %start;  ! a valid return address?
+      printstring(";%Cannot send back negative ack. as I do not have a legal return address"); newline
+   %else
+      printstring(";here on an error from TELL"); newline
+      printstring(".LET R=$R.[1,""
+""]"); newline
+      printstring(".let S=$R.[2,12]"); newline;  !now get first bit of response 
+      printstring(";here if TELL is busy -  will try again later"); newline
+      printstring(".if ($S=""I couldn't T"") .goto "); write(count,0); printsymbol('C'); newline
+      printstring(";Real error - give a negative ack."); newline
+      printstring(".SILENCE"); newline
+      printstring(".let U=""(To: ".user.") """); newline
+      printstring(".if ($S=""%You can't T"") .let B=""is not able to receive mail"""); newline
+      printstring(".if ($S=""Do you mean "") .let B=""is not unique - use the project-programmer number"""); newline
+      printstring(".if ($S=""I don't know"") .let B=""is unknown"""); newline
+      printstring(".if ($S="""") .let B=""was missing"""); newline
+      printstring(".if ($B#"""") .let B=""The mailbox specified ""+$U+$B"); newline
+      printstring(".if ($B="""") .let B=""The local mailer message was ""+$R"); newline
+      printstring(".mic set parameter"); newline
+      printstring(".REVIVE"); newline
+      printstring(".R POST-"); printstring(return address); newline
+      printstring("*ERROR - could not deliver mail"); newline
+      %if user="" %start
+         printstring("*No legal user name was specified for the destination mailbox")
+      %else
+         printstring("*'B")
+      %finish
+      newline
+      printstring("*The start of the original message was:-"); newline; newline
+      copy start of file
+      printstring("*^Z"); newline
+      printstring(".IF (NOERROR) .GOTO "); write(count,0); printsymbol('B'); newline
+   %finish
+   newline
+   printstring(";here if invalid user/invalid return address/error in sending negative ack."); newline
+   printstring(".PRINT/AFT:+0:5:0/DELETE CTL:MAIL.LOG,"); writefs(fs); newline
+   printstring(".GOTO "); write(count,0); printsymbol('C'); newline
+   write(count,0);printstring("B::"); newline
+   printstring(".DELETE "); writefs(fs); newline
+   write(count,0); printstring("C::"); newline
+   printstring(".mic set parameter"); newline
+   printstring(";----------------- end of work on file "); writefs(fs)
+   printstring(" -----------------");newline
+%end
+%routine return to sender(%record(filespec)%name fs,%string(1)%name host,name,%integer stream, %string(1)%name message)
+!========================================================================================================
+!I don't know who to relay this message on to so I will return to sender
+   %string(6) mailer
+   xdefine input(fil1,fs); select input(fil1)
+   xdefine output(fil1,fs); select output(fil1)
+   printstring(return address);newline; newline
+   print via(this host)
+   printstring("From: (mail-system@"); printstring(this host); printsymbol(')'); newline
+   printstring("Subject:  Relaying of mail to "); printstring(host); newline
+   printstring("Comments: Unknown host name """); printstring(host)
+   printstring(""". So I return the following mail"); newline
+   newline
+   printstring("--------"); newline
+   skip line; skip blank lines
+   copy rest of file
+   newline; printstring("--------"); newline
+   close input; close output
+   mailer="MAILER"  ;!meaning mail error
+   do ftp(mailer,remote host,name,fs,stream,message)
+   message="Unknown host """.host.""" - am returning mail to sender
+".message;  !log message
+   select input(fil)
+%end
+
+%routine do relaying(%string(1)%name return address,%integername local mail)
+!===========================================================================
+!sorts out the address list at the start of the file and does any relaying required
+   %string(255) address list,message
+   %string(100) dest,user,user1,dest1,name,str
+   %string(39) other host,next host
+   %string(12) type,relay
+   %record(filespec) old fs,fs1
+   %integer this first, other first,this number,other number,status
+
+   %routine read address list(%string(1)%name address list)
+   !-------------------------------------------------------
+   !get the address list off the top of the file
+      %integer n,s,len
+      len=length(address list)
+      %for n=len,1,254 %cycle
+         readsymbol(s)
+         %return %if s=nl %and nextsymbol=nl;  !end of list
+         address list=address list.tostring(s)
+      %repeat
+      address list=address list."+"
+   %end
+
+   read jnt head(user,'@',nl);  !get the first user
+   %if last char=nl %start;  !an src style file
+      copy tell command file(fs,user)
+      get params(return address)
+      select output(log)
+      do log(fs,user,return address)
+      select output(tty)
+      do log(fs,user,return address)
+      rewind input; skip to header line
+      do the tell(fs,user,return address)
+      errmsg=""; %signal 11,1;  !escape
+   %finish
+!otherwise an ARPA format file
+   address list=user."@"
+   read address list(address list)
+   skip blank lines
+   get return address(return address)
+   close input
+   select output(log)
+   do log(fs,address list,return address)
+   select output(tty)
+   do log(fs,address list,return address)
+   %cycle
+      this first=true; other first=true; other host=""; next host=""
+      this number=0; other number=0
+      xdefine input(fil,fs); select input(fil);  !re-open basic file for this host
+      !which is remade every time round this loop
+      skip line;  !previous host line
+      skip blank lines;  !get to start of address list
+      old fs=fs; getunique(fs)
+      xdefineoutput(this,fs);   !open a new output file for this host(+others)
+      fs1=fs; fs1_ext="pst"; fs1_prot=8_077;  !create a post file for the other host
+      get unique(fs1)
+      xdefineoutput(other,fs1);  !open a new post file for one other host
+      %cycle
+         read jnt head(user,'@','@')
+         read jnt head(dest,comma,nl)
+         alias(dest)
+         !if I do not know the first host name, assume it is me by a name I do not know
+         %if %not isnode(dest,type,status) %then dest=this host
+         %while delist(user,user1,dest1) %cycle;  !remove multiple occurrences of this site
+            user=user1; dest=dest1
+            alias(dest)
+            %exit %unless case match(dest,this host)
+         %repeat
+         %unless case match(dest,this host) %start;  !for somebody else
+         !note if there is another host pending in 'next host'
+            %if other host="" %then other host=dest %else next host=dest
+         %finish
+         %if case match(dest,other host) %start;  !for the other host
+            select output(other)
+            %if other first=true %start
+               other first=false
+               name=user
+            %else printsymbol(',')
+            printstring(user); printsymbol('@'); printstring(dest)
+            other number=other number+1
+         %else;   !for this host and any others
+            select output(this)
+            %if this first=true %start
+               this first=false
+               printstring(remote host); newline;  !duplicate start of file
+            %else printsymbol(',')
+            printstring(user); printsymbol('@'); printstring(dest)
+            this number=this number+1
+         %finish
+         %if last char=nl %start;   !end of list
+            skip blank lines;  !now sort out file for other host
+            select output(other)
+            %if other host#"" %start
+               newline; newline
+               print via(remote host)
+               copy rest of file
+               close output
+               select output(log)
+               do relay log(fs1,other host,other number)
+               select output(tty)
+               do relay log(fs1,other host,other number)
+               select output(other)
+               name=""; relay="RELAY"
+               %if isnode(other host,type,status) %start
+                  do ftp(relay,other host,name,fs1,other,message)
+               %else
+                  return to sender(fs1,other host,name,other,message)
+               %finish
+               select output(tty);  !log the information
+               printstring(message); newline
+               select output(log)
+               printstring(message); newline
+               select output(other)
+               rewind input; skip to header line
+            %else;  !no output for other host
+               close output
+               xdelete(fs1)
+            %finish
+            !now sort out this host  (in this order in case of crash)
+            select output(this)
+            newline; newline
+            copy rest of file
+            close output;close input
+            xdelete(old fs);   !ok release original
+            %exit %if next host#"";  !more hosts to relay to
+            %if this number>0 %start;  !got some local mail
+               local mail=true
+               select output(log)
+               do relay log(fs,this host,this number)
+               select output(tty)
+               do relay log(fs,this host,this number)
+            %else
+               local mail=false
+               xdelete(fs)
+            %finish
+            %return;   !finished relaying
+         %finish;   !more in the address list
+      %repeat
+   %repeat
+%end
+
+%routine do not process file
+!===========================
+!this routine is called when the mail files have already
+!been processed by an earlier run of the program and we just want to do the tell.
+   get return address(return address)
+   %if return address="" %start
+      rewind input
+      skip line;   !the /batch line
+      skip line;   !the via line
+      get params(return address)
+   %finish
+   rewind input; skip line; skip line
+   select output(tty)
+   do no process log(fs,user,return address)
+   select output(log)
+   do no process log(fs,user,return address)
+   do the tell(fs,user,return address)
+   close input
+%end
+
+
+%routine process file(%string(1)%name return address)
+!====================================================
+!this has the main body of the work, it is a recursive routine which
+!processes files according to the list of addresses at its head
+!it deals only with files destined for this host
+   %string(100) dest,user
+   read text(user,'@','@');  !get the first user
+   readtext(dest,comma,nl)
+   %if last char=comma %start;    !have got a list
+      skip symbol %if next symbol=nl; !optional newline
+      process file(return address)
+      fs1=fs
+      getunique(fs1)
+      copy tell command file(fs1,user)
+      rewind input; skip to header line
+      do the tell(fs1,user,return address)
+   %else
+      copy tell command file(fs,user)
+      rewind input; skip to header line
+      do the tell(fs,user,return address)
+   %finish
+%end
+
+%routine open mic file
+!=====================
+!check to see if MIC file already present and if not open it
+!and close a dummy file in order to block another version of myself from running
+   %on %event 10 %start
+      abort run("command file already present - ".qdev.mail file)
+   %finish
+
+   define output(mail,qdev.mail file."/fun:2");   !define the mic file - unless present already
+   select output(mail)
+   close output
+   define output(mail,qdev.mail file); !now reopen in order to write
+   printstring(".MIC SET NO LC"); newline
+   printstring(".ERROR ?"); newline
+%end
+!main program
+
+%on %event 1,2,3,4,5,6,7,8,9,10,11 %start
+   %if event=9 %start;   !end of directory
+      %if instream=ufd %start
+         ->endok
+      %else errmsg="Premature end of file in ".fstostr(fs)
+   %finish
+   dummy=" (".inttostr(event).",".inttostr(subevent).",".inttostr(eventinfo).")"
+   err report(errmsg.dummy) %unless event=11 %and subevent=1
+   select input(fil); close input
+   select output(mail); newline
+   printstring(";here when a file does not look like a mail file - just dump it"); newline
+   print string(".print/delete "); writefs(fs); newline
+   printstring(";-------------------------------------------------"); newline
+   select output(fil); close output
+   ->1
+%finish
+
+   this host=our node
+   qdev=qdevice
+   open log
+   open mic file
+   init nodes
+   read aliases
+   alias(this host)
+   select input(tty)
+   *8_051400 000000;  !rescan
+   *8_255000 000000;  !jfcl
+   log headers=false
+   skipsymbol %until nextsymbol=esc %or nextsymbol='-' %or nextsymbol=nl;  !skip to end of Run command
+   %if nextsymbol='-' %start;  !note if command was .r maispl-headers
+      skipsymbol %until tab#nextsymbol#sp;  !skip spaces
+      %if nextsymbol='h' %or nextsymbol='H' %then log headers=true
+   %finish
+   skipsymbol %while esc&nextsymbol#nl; skipsymbol;  !skip rest of line
+!open the directory
+   qdirfs=0
+   qdirfs_dev=qdev
+   qdirfs_file=sixtostr(8_3000005)
+   qdirfs_ext="ufd"
+   qdirfs_ppn=8_1000001
+   qdirfs_switches="/mode:#10"
+   xdefine input(ufd,qdirfs)
+   select input(ufd)
+   num files=0; some local mail=false
+   %cycle
+1:    select input(ufd); select output(mail)
+      %cycle;   !get a ??????.mai file
+         readsymbol(f); readsymbol(e)
+      %repeat%until e>>18=sixbit mai
+      num files=num files+1
+      fs=0
+      fs_dev=qdev; fs_file=sixtostr(f); fs_ext="mai"; fs_ppn=8_3 000005
+      %if fs_file->fs_file.(" ").dummy %start; %finish;  !remove trailing spaces
+      xdefine input(fil,fs); select input(fil)
+      %if log headers=true %start;      !for debugging
+         select output(log)
+         log mail header
+         rewind input
+         select output(tty)
+         log mail header
+         rewind input
+         select output(mail)
+      %finish
+      readtext(remote host,nl,nl);     !get who sent it.
+      %if remote host->user.("/BATCH").dummy %start;  !already processed - i.e. a rerun
+         remote host="";   !I have lost that information
+         return address=""
+         some local mail=true
+         do not process file
+      %else
+         skip blank lines
+         %if remote host->number.(".").dummy %start;  !get the address
+            remote host=node name(number);  !get the name
+            %if remote host="" %then remote host=number;  !an ANF-10 node name
+         %finish
+         return address=remote host
+         do relaying(return address,local mail)
+         %if local mail=true %start
+            some local mail=true
+            xdefine input(fil,fs); select input(fil)
+            skip line; skip blank lines;   !set up input for 'process file'
+            process file(return address)
+            close input
+         %finish
+      %finish
+   %repeat
+
+endok:
+   select output(log)
+   close output
+   select output(mail)
+   newline; printstring(".R SETUSR"); newline
+   printstring("*MAIL SYSTEM"); newline
+   printstring("; ************** END OF MAIL RUN *************"); newline
+   close output
+   %if some local mail=false %start
+      delete(qdev.mail file)
+   %finish
+   select output(tty)
+   newline
+   %if num files=0 %start
+      printstring("No mail files found")
+   %else
+      write(num files,0); printstring(" mail file processed")
+   %finish
+   newline
+
+%endofprogram
+$$$$$$$$$$$$
+&&&&&&&&&&&& MAISPL.CMD
+
+MAISPL.IMP,PSTLIB.IMP,FNODES.IMP,CONFIG.MAC,queue.imp
+$$$$$$$$$$$$
+&&&&&&&&&&&& SETUSR.MAC
+
+TITLE SETUSR	A PROGRAM FOR CHANGING THE USERNAME
+
+repeat	0,<
+	This program requires peek and poke privs and prompts for a 12 char 'name'
+	and sets the current user name to be 'name'
+	where name is up to 12 characters long
+>;end repeat 0
+
+	SEARCH	UUOSYM
+	AC==1
+	T1==2
+	T2==3
+	T4==5
+	J==6
+	PNT==7
+
+	twoseg	400000
+
+start:	outstr	[asciz/New user name: /]
+lp:	movei	t4,^d12		;get loop counter
+	move	pnt,[point 6,t1] ;set up byte prointer
+	setzb	t1,t2		;and clear initial status
+lp1:	inchwl	ac
+	caige	ac,40		;end of name
+	  jrst st2		;yes
+	cail	ac,140		;if lower case
+	subi	ac,40		;make upper case
+	subi	ac,40		;and make sixbit
+	idpb	ac,pnt		;and deposit it
+	sojg	t4,lp1		;loop for 12
+st2:	clrbfi			;clear input buffer
+	movem	t1,newnm1	;store for poke
+	movem	t2,newnm2	;ditto
+	pjob	j,		;get job number
+	movei	ac,.gtpdb
+	hrl	ac,j
+	gettab	ac,		;get base address for the PDB table for this job
+	 jrst err
+	hrrz	ac,ac		;just use address
+	move	t1,[xwd .gtnm1,.gtslf]
+	gettab	t1,		;get base address for the username in the PDB
+	 jrst err
+	hrrz	t1,t1		;just the address
+	add	ac,t1		;get the full address of the username(1) in jobs PDB
+	movem	ac,arg1		;save it
+	peek	ac,		;get current name
+	movem	ac,oldnm1	;save it
+	move	ac,arg1		;get address again
+	addi	ac,1		;for part2
+	movem	ac,arg2		;save it
+	peek	ac,		;get it
+	movem	ac,oldnm2	;and save it
+	move	ac,[xwd 3,arg1]
+	poke.	ac,		;change part1
+	  jrst err
+	move	ac,[xwd 3,arg2]
+	poke.	ac,		;change part2
+	  jrst err
+	exit
+
+err:	exit
+
+	reloc	0
+
+;first poke block
+arg1:	z
+oldnm1:	z
+newnm1:	z
+;second poke block
+arg2:	z
+oldnm2:	z
+newnm2:	z
+
+	end	start
+
+	$$$$$$$$$$$$
+&&&&&&&&&&&& QUEUE.IMP
+
+!QUEUE.IMP
+!ENTERS A FILE INTO A GIVEN GALAXY QUEUE
+
+%INCLUDE "IMP:IOLIB.INC"
+
+%CONSTINTEGER MAX STREAMS=15
+%EXTERNALRECORD(SCBNAME)%ARRAY %SPEC INVEC(-1:MAX STREAMS)
+%EXTERNALRECORD(SCB)%NAMESPEC INSCB
+%EXTERNALRECORD(FILESPEC)%FNSPEC STRTOFS(%STRING(255) STR)
+%EXTERNALPREDICATESPEC CALLI2(%INTEGER N,%INTEGERNAME X)
+%EXTERNALSTRING(6)%FNSPEC SIXTOSTR(%INTEGER N)
+%EXTERNALINTEGERFNSPEC PPN
+%SYSTEMPREDICATESPEC GETTAB(%INTEGER N,M,%INTEGERNAME RES)
+%externalstring(255)%fnspec asctostr(%name adr)
+%systemroutinespec zero(%name from,to)
+%externalintegerfnspec strtosix(%string(6) s)
+%externalintegerfnspec strtooct(%string(1)%name s)
+%externalroutinespec strtoasc(%string(1)%name s, %name adr)
+%externalstring(12)%fnspec inttostr(%integer n)
+%EXTERNALROUTINESPEC QUEUEIT(%NAME N,%STRING(1)%NAME MESS);   !TO SEND REQUEST TO QUASAR
+%EXTERNALSTRING(255)%SPEC ERRMSG
+%owninteger edinburgh
+%constinteger true=-1, false=0
+
+!now the galaxy v4 data
+%constinteger maxarg=25
+%recordformat arg pair(%integer type,value)
+%recordformat queue argument(%integer function,node,response %record(arg pair)%array arg(1:max arg))
+%ownrecord (queue argument) quearg
+
+!now the galaxy v4 symbols
+%constinteger quprt=1, quplt=4, qubat=5
+%constinteger qbfil=8_10, qbfrm=8_12, qbodp=8_14, qblim=8_17, qblog=8_22
+%constinteger qbnod=8_25, qbnam=8_26, qboid=8_27, qbnot=8_30, qbblt=8_31
+%constinteger qbjbn=8_32, qbfrr=8_37
+!now the FTP ones
+%constinteger quftp=8_777777
+%constinteger qbfad=8_777777, qbfun=8_777776, qbfup=8_777775, qbfan=8_777774
+%constinteger qbfap=8_777773, qbfma=8_777772 ,qbflo=8_777771, qbfmo=8_777770
+%constinteger qbffn=8_777767, qbffp=8_777766, qbfco=8_777765, qbfde=8_777764
+%constinteger qbfio=8_777763, qbfpr=8_777762, qbfso=8_777761, qbfml=8_777760
+!now the values
+%constinteger qblnl=1, qbllg=2, qblle=3
+%constinteger qbnty=1
+%constinteger qbbnd=1, qbbde=2, qbbsp=3
+%constinteger print device=8_5460, plot device=8_6054, batch device=8_5156; !sixbit/lp/pl/in/
+
+
+%STRING(6)%FN DEVICE OF(%RECORD(FILESPEC) FS)
+!==================================================
+!returns the device on which a file exists
+!
+%STRING(6) DEV
+%INTEGER N,M,TEMP,ARG,DEVNAME
+%RECORDFORMAT DSKCHR(%INTEGER NAM,UFT,FCT,UNT,SNM)
+%RECORD(DSKCHR) D
+   %IF FS_DEV#"" %THEN %RESULT=FS_DEV %ELSE FS_DEV="ALL"
+   %FOR N=1,1,MAX STREAMS %CYCLE
+      %IF INVEC(N)_NAME_DEVTYP=UNDEV %START
+         TEMP=N; ->OK
+      %FINISH
+   %REPEAT
+   ERRMSG="No free streams for routine QUEUE "
+   %SIGNAL 10
+OK: FS_SWITCHES="/EXT:#16"
+   XDEFINE INPUT(TEMP,FS)
+   N=INSTREAM; SELECT INPUT(TEMP)
+   DEVNAME=INSCB_LKENT_DEV
+   CLOSE INPUT
+   SELECT INPUT(N)
+   D=0
+   D_NAM=DEVNAME
+   ARG=5<<18!ADDR(D)
+   %IF CALLI2(8_45,ARG) %START; %FINISH
+   %RESULT = SIXTOSTR(D_SNM)
+%END
+
+
+
+%INTEGERFN ERSATZ(%STRING(6) DEV)
+!================================
+!RETURNS THE PPN IMPLIED BY AN ERSATZ DEVICE NAME
+%INTEGER PN
+%CONSTINTEGER DEVPPN=8_55, DSK=8_446353 000000;   !SIXBIT 'DSK'
+   %RESULT=0 %IF LENGTH(DEV)#3
+   PN=STRTOSIX(DEV)
+   %RESULT=0 %IF PN=DSK %OR %NOT CALLI2(DEVPPN,PN)
+   %RESULT=PN
+%END
+
+%INTEGERFN GETJOB(%INTEGER N)
+   %INTEGER M
+   %UNLESS GETTAB(N,-1,M) %START
+      M=0
+   %FINISH
+   %RESULT=M
+%END
+
+%externalpredicate is version 4
+!==============================
+!IS THIS VERSION 4 GALAXY?
+%integer cty,n
+%constinteger where=8_63, get special pid=8_126
+   cty=8_436471 000000;  !sixbit/cty/
+   %if calli2(where,cty) %and cty=8_50 %then edinburgh=true %else edinburgh=false;  !i.e. EDXA
+   %true %IF GETTAB(get special pid,3,N) %AND N#0;   !PID for MDA
+   %false
+%END
+
+%routine set arg(%integername args,%integer type,value)
+!======================================================
+!fill in a value for the queue argument record
+   args=args+1
+   quearg_arg(args)_type=type; quearg_arg(args)_value=value
+%end
+
+%externalroutine FTP(%record(filespec)%name file, %string(1)%name jobnm,dest,dfile,user, %c
+pass %integer gateway,mode,mail,dispose,log %string(1)%name resp)
+!================================================================================================================
+!routine for issuing ftp requests to galaxy v4 using QUEUE. UUO
+!
+!FILE      name of DEC-10 file
+!JOBNM     name of the job
+!DEST      name of remote machine
+!DFILE     name of remote file
+!USER      name of remote user
+!PASS      password for remote user
+!GATEWAY   node through which to send transfer
+!MODE      1=Make 2=Replace 3=Replace-make 4=Append 5=Append-make 6=Job input 7=Job output
+!MAIL      non-zero for mail
+!DISPOSE   non-zero for delete
+!LOG       1=Append 2=Supercede 3=Spool log file
+!RESP      is a (255) string for response from GALAXY
+!
+%integerarray response(1:52)
+%integerarray address(1:4)
+%integerarray filename,dfilename(1:11)
+%integerarray username,userpass(1:4)
+%string(12) str
+%integer n,i,error,disp,jobnam,d,node,args
+   zero(response(1),userpass(4)); !zero arrays
+!file in file block
+   filename(1)=strtosix(file_dev)
+   filename(2)=strtosix(file_file)
+   filename(3)=strtosix(file_ext)
+   filename(4)=file_ppn
+   filename(5)=strtosix(file_sfds(1))
+   filename(6)=strtosix(file_sfds(2))
+   filename(7)=strtosix(file_sfds(3))
+   filename(8)=strtosix(file_sfds(4))
+   filename(9)=strtosix(file_sfds(5))
+!now the destination file
+   strtoasc(dfile,dfilename(1))
+!fill in the destination address
+   %if length(dest)>6 %start
+      address(1)=strtosix(substring(dest,1,6))
+      %if length(dest)>=12 %then n=12 %else n=length(dest)
+      address(2)=strtosix(substring(dest,7,n))
+   %else address(1)=strtosix(dest)
+   address(3)=gateway
+!the job name
+   jobnam=strtosix(jobnm)
+!Now the username
+   strtoasc(user,username(1))
+!now the password
+   strtoasc(pass,userpass(1))
+   %if dispose#0 %then disp=1 %else disp=0
+!set up the request
+   quearg=0; args=0
+   quearg_function=1<<35!quftp;  !set response bit
+   quearg_node=-1            ;!central site
+   quearg_response=52<<18!(addr(response(1))&8_777777)
+   set arg(args,9<<18!qbfil,addr(filename(1)))
+   set arg(args,10<<18!qbffn,addr(dfilename(1)))
+   set arg(args,3<<18!qbfad,addr(address(1)))
+   set arg(args,4<<18!qbfun,addr(username(1)))
+   set arg(args,4<<18!qbfup,addr(userpass(1)))
+   set arg(args,8_400001<<18!qbjbn,jobnam)     ;!/jobname:?
+   set arg(args,8_400001<<18!qbflo,log)        ;!/ftplog:?
+   set arg(args,8_400001<<18!qblog,qbllg)      ;!/output:always
+   set arg(args,8_400001<<18!qbodp,disp)       ;!/disp:?
+   set arg(args,8_400001<<18!qbnot,qbnty)      ;!/notify
+   set arg(args,8_400001<<18!qbfmo,mode)       ;!/mode:?
+   set arg(args,8_400001<<18!qbfio,1)          ;!/direc:out
+   set arg(args,8_400001<<18!qbfml,mail)       ;!/mail:?
+   ac(1)=(3+(args*2))<<18!addr(quearg)&8_777777
+   *8_047040 000201;   !queue. 1,
+   *8_634100 000002;   !tdza 2,2
+   *8_476000 000002;   !setom 2
+   %if ac(2)=0 %start
+      error=ac(1)
+      resp="[File did not get queued to GALAXY - error code = ".inttostr(error)."]"
+      %return
+   %finish
+   resp=asctostr(response(1))
+%end
+
+%externalroutine mail(%record(filespec)%name file, %string(1)%name jobnm,dest, %c
+ %integer gateway, %string(1)%name resp)
+!============================================================================================
+!to do v4 mail
+%string(12) blank
+   blank=""
+   FTP(file,jobnm,dest,blank,blank,blank,gateway,1,1,1,1,resp)
+%end
+%externalroutine que v4(%record(filespec)%name file, %string(1)%name jobname,user, %c
+device %integer user ppn,size,limit,dispose,log %string(1)%name resp)
+!================================================================================================================
+!routine for issuing mail requests to galaxy v4 using QUEUE. UUO
+%integerarray response(1:52)
+%integerarray filename(1:9)
+%integerarray username(1:2)
+%string(12) str
+%integer n,i,error,disp,jobnam,d,node,args
+   zero(response(1),username(2)); !zero arrays
+!file in file block
+   filename(1)=strtosix(file_dev)
+   filename(2)=strtosix(file_file)
+   filename(3)=strtosix(file_ext)
+   filename(4)=file_ppn
+   filename(5)=strtosix(file_sfds(1))
+   filename(6)=strtosix(file_sfds(2))
+   filename(7)=strtosix(file_sfds(3))
+   filename(8)=strtosix(file_sfds(4))
+   filename(9)=strtosix(file_sfds(5))
+!Now the username
+   N=LENGTH(USER)
+   %IF N=0 %START
+      USERNAME(1)=GETJOB(8_31)
+      USERNAME(2)=GETJOB(8_32)
+   %ELSE
+      %IF N<6 %THEN I=N %ELSE I=6
+      USERNAME(1)=STRTOSIX(SUBSTRING(USER,1,I))
+      USERNAME(2)=STRTOSIX(SUBSTRING(USER,7,N)) %IF N>6
+   %FINISH
+   %IF USER PPN=0 %THEN user ppn=PPN
+   %IF JOBNAME="" %THEN JOBNAM=STRTOSIX(FILE_FILE) %ELSE jOBNAM=STRTOSIX(JOBNAME)
+   %if dispose#0 %then disp=1 %else disp=0
+   d=strtosix(device); node=(d&8_777777)>>6; d=d>>24;    !get device and node
+   %if node#0 %start
+      str=sixtostr(node)
+      node=strtooct(str)
+   %finish
+!set up the type of request
+   quearg=0; args=0
+   %if d=print device %start
+      quearg_function=quprt
+   %elseif d=plot device %start
+      quearg_function=quplt
+   %elseif d=batch device %start
+      quearg_function=qubat
+      disp=0
+   %else
+      resp="[Cannot queue to device ".device."]"
+      %return
+   %finish
+   quearg_function=1<<35!quearg_function;  !set response bit
+   quearg_node=-1            ;!central site
+   quearg_response=52<<18!(addr(response(1))&8_777777)
+   set arg(args,9<<18!qbfil,addr(filename(1)))
+   set arg(args,2<<18!qbnam,addr(username(1)))
+   set arg(args,8_400001<<18!qblim,size<<18!limit)   ;!/limit:? and /core:? ***requires patch to QSRQUE
+   set arg(args,8_400001<<18!qbnod,node)             ;!/node:?
+   set arg(args,8_400001<<18!qboid,user ppn)         ;!/ppn:
+   set arg(args,8_400001<<18!qbjbn,jobnam)           ;!/jobname:?
+!   set arg(args,8_400001<<18!qbfrm,0)                ;!/forms:
+!   set arg(args,8_400001<<18!qbnot,qbnty)            ;!/notify
+   %if quearg_function=1<<35!qubat %start;   !for batch output
+      set arg(args,8_400001<<18!qblog,log)           ;!/output:?
+      set arg(args,8_400001<<18!qbblt,2)             ;!/batlog:supercede
+   %else
+      set arg(args,8_400001<<18!qbodp,disp)          ;!/disp:?
+   %finish
+   ac(1)=(3+(args*2))<<18!addr(quearg)&8_777777
+   *8_047040 000201;   !queue. 1,
+   *8_634100 000002;   !tdza 2,2
+   *8_476000 000002;   !setom 2
+   %if ac(2)=0 %start
+      error=ac(1)
+      resp="[File did not get queued to GALAXY - error code = ".inttostr(error)."]"
+      %return
+   %finish
+   resp=asctostr(response(1))
+%end
+
+%EXTERNALROUTINE QUEUE(%STRING(70) FILSPEC, %STRING(12) JOB NAME, USER NAME,DEVICE,%INTEGER USER PPN,SIZE,LIMIT,DISPOSE,LOG,%STRING(1)%NAME MESSAGE)
+!====================================================================================================
+!
+!This routine sends a file request to QUASAR for V2 or calls QUE V4 for version 4
+!
+!Arguments are:
+!FILSPEC       a full filespec which if it does not include a structure name
+!              the file will be looked up for it.
+!JOB NAME      the JOB NAME in the queue which defaults to the file name
+!USER NAME     which defaults to the user name of this job
+!DEVICE        any device recognised by QUASAR, may include node number
+!USER PPN      PPN of request, defaults to this jobs PPN
+!SIZE          OUTPUT size of file in blocks, INPUT memory size in pages
+!LIMIT         OUTPUT page limit or INPUT time limit(seconds)
+!DISPOSE       for OUTPUT  0 = preserve, 1=delete, 2=rename
+!              for INPUT /output:value
+!LOG           what to do with the log file for batch jobs
+!              1=nolog, 2=always, 3=only on error
+!
+%RECORDFORMAT FPARAM(%INTEGER SIZE,INF,START,REP1,REP2)
+%RECORDFORMAT FD(%INTEGER DEV,FILE,EXT,PPN,%INTEGERARRAY SFD(1:5))
+%RECORDFORMAT EQ(%INTEGER HEAD,PID,LEN,REQDEV,JOBNAME,SEQ,SPC,AFT,DED,LIM1,  %C
+LIM2,LIM3,LIM4,LIM5,%INTEGERARRAY CHECK(1:5),ACC(1:8),USERNAME(1:2),  %C
+%INTEGER OWNER, %INTEGERARRAY OWN PATH(1:5),%RECORD(FPARAM) FP, %RECORD(FD) F,  %C
+%RECORD(FPARAM) FP1, %RECORD(FD) F1)
+%RECORD(EQ) E
+%RECORD(FILESPEC) FS
+%INTEGER N,I,EPPN,LEN,SIZ,NUM OF FILES, DELETE, OUTPUT SW,CTY
+%CONSTINTEGER QSRVER=8_33; !QUEUE VERSION
+%CONSTINTEGER EQLEN=35, FPLEN=9 ;  !LENGTH OF EQ AND BASIC F
+%CONSTINTEGER INP DEV=8_515660;   !SIXBIT/INP/
+   %ON %EVENT 15 %START
+      PRINTSTRING(ERRMSG)
+      PRINTSTRING("IN QUEUE routine")
+      %RETURN
+   %FINISH
+
+   FS=STRTOFS(FILSPEC)
+   %IF FS_FILE="" %START
+      ERRMSG="filename missing in QUEUE request"
+      %signal 15
+   %FINISH
+   EPPN=ERSATZ(FS_DEV)
+   %IF EPPN#0 %START
+      FS_PPN=EPPN; FS_DEV="";    !USE ERSATZ PPN
+   %FINISH
+   FS_DEV=DEVICE OF(FS)
+   %if is version 4 %or edinburgh=true %start; !galaxy v4
+      que v4(fs,job name,user name,device,user ppn,size,limit,dispose,log,message)
+      %return
+   %FINISH
+   E=0;  !initialise the record
+   E_LEN=QSRVER<<18!EQLEN
+   E_REQDEV=STRTOSIX(DEVICE)
+   %if DISPOSE>1 %then DISPOSE=1
+   %IF E_REQDEV>>18=INP DEV %START;   !DISTINGUISH BETWEEN INPUT AND OUTPUT QUEUES
+      NUM OF FILES=2; DELETE=0; OUTPUT SW=DISPOSE!8_500!LOG;  !UNIQUE AND NON-RESTARTABLE
+   %ELSE
+      NUM OF FILES=1; DELETE=DISPOSE; OUTPUT SW=0
+   %FINISH
+   %IF JOBNAME="" %THEN E_JOBNAME=STRTOSIX(FS_FILE) %ELSE E_JOBNAME=STRTOSIX(JOBNAME)
+   E_SEQ=8_600!(GETJOB(8_26)<<12);   !STATION # OF LAST LOCATE COMMAND AND PRIV BIT TO ALLOW DELETES AFTER PRINTING
+   E_SPC=NUM OF FILES  ;!NUMBER OF REQUESTS
+   E_LIM1=OUTPUT SW<<27
+   E_LIM2=SIZE<<18!LIMIT
+   N=LENGTH(USERNAME)
+   %IF N=0 %START
+      E_USERNAME(1)=GETJOB(8_31)
+      E_USERNAME(2)=GETJOB(8_32)
+   %ELSE
+      %IF N<6 %THEN I=N %ELSE I=6
+      E_USERNAME(1)=STRTOSIX(SUBSTRING(USERNAME,1,I))
+      E_USERNAME(2)=STRTOSIX(SUBSTRING(USERNAME,7,N)) %IF N>6
+   %FINISH
+   %IF USER PPN=0 %THEN E_OWNER=PPN %ELSE E_OWNER=USER PPN
+!Now fill the file parameter block
+   E_FP_INF=8_10001 000001!(DELETE&1)<<17;  !STANDARD BIT SETTINGS
+   E_FP_START=1
+!Now fill the file definition record
+   E_F_DEV=STRTOSIX(FS_DEV)
+   E_F_FILE=STRTOSIX(FS_FILE)
+   E_F_EXT=STRTOSIX(FS_EXT)
+   %IF FS_PPN=0 %THEN E_F_PPN=PPN %ELSE E_F_PPN=FS_PPN
+   SIZ=4;  !SIZE OF PATH BLOCK
+   LEN=EQLEN+FPLEN;  !BASIC LENGTH OF ENTRY
+   %FOR N=1,1,5 %CYCLE
+      %EXIT %IF FS_SFDS(N)=""
+      SIZ=SIZ+1;   !INCREASE LENGTH OF PATH BLOCK COUNT
+      LEN=LEN+1; !INCREASE LENGTH OF ENTRY COUNT
+      E_F_SFD(N)=STRTOSIX(FS_SFDS(N))
+   %REPEAT
+   E_FP_SIZE=5<<18!SIZ
+   %IF NUM OF FILES=2 %START
+      E_FP1=E_FP; E_F1=E_F; E_F1_EXT=STRTOSIX("LOG");   !PUT IN A LOG FILE
+      E_FP1_INF=E_FP1_INF!8_200000;   !SAY THIS IS THE LOG FILE
+      E_FP_SIZE=5<<18!FPLEN;   !USE MAX PATH SIZE FOR FIRST SPEC
+      LEN=LEN+FPLEN+5;  !ADD ONE MORE FILESPEC OVER THE BASIC LENGTH
+   %FINISH
+   E_HEAD=8_400000 000007!(LEN<<18);   !REPLY, LENGTH AND TYPE(7=CREATE)
+   QUEUEIT(E,MESSAGE)
+%END
+
+%ENDOFFILE
+$$$$$$$$$$$$
+&&&&&&&&&&&& SETSRC.IMP
+
+%INCLUDE "IMP:IOLIB.INC"
+%EXTERNALRECORD(SCB)%NAME%SPEC INSCB
+%EXTERNALSTRING(6)%FNSPEC SIXTOSTR(%INTEGER I)
+%EXTERNALROUTINESPEC RESET INPUT
+%EXTERNALROUTINESPEC USET INPUT(%INTEGER N)
+%OWNINTEGER N,F,C,CC,I,I1,I2,J,NENTRY
+%CONSTINTEGER MAX ENTRIES=5500
+%OWNINTEGERARRAY PPNS(1:MAX ENTRIES)
+%OWNINTEGERARRAY LOCATION(1:MAX ENTRIES)
+%CONSTINTEGER UUPHS=8_400000000000;          !Physical lookup
+%CONSTINTEGER IODMP=8_17;                     !Dump mode I/O
+%CONSTINTEGER OPEN=8_050;                     !Open UUO
+%CONSTINTEGER LOOKUP=8_076
+%CONSTINTEGER ENTER=8_077
+%CONSTINTEGER USETO=8_075
+%CONSTINTEGER UFD=8_654644000000;              !SIXBIT/UFD/
+%CONSTINTEGER RBDIR=8_400000;            !This is a directory bit
+%CONSTINTEGER STRUUO=8_50;                    !STRUUO code
+
+%OWNINTEGERARRAY STR ARG(1:50);                !Where STRUUO args get built
+!
+!Standard library ROUTINE  s
+!
+%EXTERNALSTRING(255)%SPEC ERRMSG
+%EXTERNALROUTINESPEC SLEEP(%INTEGER TIME)
+%EXTERNALPREDICATESPEC CALLI2(%INTEGER N,%INTEGERNAME AC)
+%SYSTEMROUTINESPEC CLOSE(%INTEGER CHAN)
+%SYSTEMINTEGERFNSPEC GET CHANNEL
+%SYSTEMPREDICATESPEC IO UUO(%INTEGER UUO,CHAN,%NAME ARG)
+%SYSTEMROUTINESPEC RELEASE(%INTEGER CHAN)
+!
+!
+%OWNINTEGER NSTRUCS;                           !No of structures
+%OWNINTEGER CREATION=0;             !Creation date/time of AUXACC.SYS
+%OWNINTEGER CHAN=0;              !I/O channel
+
+%CONSTINTEGER TEMP STREAM=13;          !TEMP STREAM NUMBER
+
+
+%ROUTINE READ AUXACC(%INTEGERNAME NO)
+!=============================================
+
+!
+!Reads AUXACC.SYS putting PPN's into array PPN, and Location of the
+!first word (-1) of an entry into Location
+!
+  %ON %EVENT 9 %START
+    NO=N
+    %RETURN
+  %FINISH
+
+  %INTEGERFN NEXT
+    READ SYMBOL(C)
+    F=F+1
+    %RESULT=C
+  %END
+
+  F=0
+  CC=NEXT;        !Throw away first entry
+  N=0
+  %CYCLE
+     %SIGNAL %EVENT 15,1,1 %UNLESS NEXT=-1
+     N=N+1
+     %IF N>MAX ENTRIES %THEN %SIGNAL 15,1,6
+     NO=NEXT;         !No of words to follow
+     PPNS(N)=NEXT;    !PPN
+     LOCATION(N)=F-3
+     CC=NEXT %FOR I=1,1,NO-1
+  %REPEAT
+ %END
+%INTEGERFN FIND(%INTEGER PPN)
+!=====================================
+     N=0
+     %FOR I=1,1,NENTRY %CYCLE
+      %IF PPN=PPNS(I) %THEN %RESULT=LOCATION(I)
+     %IF PPN<PPNS(I) %THEN %EXIT;    !PPN's are in ascending order, so we can stop when we exceed the bound
+     %REPEAT
+     PPN=PPN!8_777777;              !Now try for wildcard programmer - will be after the one we stopped at.
+       %FOR I=I,1,NENTRY %CYCLE
+         %IF PPN=PPNS(I) %THEN %RESULT=LOCATION(I)
+         %IF PPN<PPNS(I) %THEN %RESULT=0
+       %REPEAT
+     %RESULT=0
+   %END
+
+
+
+%ROUTINE ZERO SEARCH LIST
+!==================================
+!
+!Zap my current search list
+!
+%INTEGER AC
+%INTEGERARRAY ARG(1:4)
+
+  ARG(1)=1;     !FSDSL
+  ARG(2)=-1;    !Me
+  ARG(3)=-1;    !My PPN
+  ARG(4)=1;     !Zap search list rather than just place behind FENCE
+
+  AC=4<<18+ADDR(ARG(1))&8_777777
+  %UNLESS CALLI2(STRUUO,AC) %THEN %SIGNAL %EVENT 15,1,2
+%END
+
+%ROUTINE   SET SEARCH LIST
+!=================================
+!
+!Set up my search list. Uses global NSTRUCS and STRARG
+!
+%INTEGER AC
+
+  STRARG(1)=1;  !FSDSL
+  STRARG(2)=-1; !Me
+  STRARG(3)=-1; !My PPN
+  AC=(4+3*NSTRUCS)<<18+ADDR(STRARG(1))&8_777777
+  %UNLESS CALLI2(STRUUO,AC) %THEN %SIGNAL %EVENT 15,1,3
+%END
+
+%ROUTINE   LOCKUFD(%INTEGER STRUCTURE,PPN)
+!=================================================
+!
+!Puts on UFD interlock
+!
+  %INTEGERARRAY ARGS(1:3)
+  %INTEGER AC,AC1,COUNT
+
+  ARGS(1)=6;    !.FSULK
+  ARGS(2)=STRUCTURE
+  ARGS(3)=PPN
+
+  AC=3<<18+ADDR(ARGS(1))&8_777777
+  %FOR COUNT=1,1,10 %CYCLE
+    AC1=AC
+    %IF CALLI2(STRUUO,AC) %THEN %RETURN
+    %IF AC#AC1 %THEN %SIGNAL %EVENT 15,1,4 %ELSE SLEEP(6000)
+  %REPEAT
+  %SIGNAL %EVENT 15,1,5
+%END
+
+
+%ROUTINE   UNLOCK UFD(%INTEGER NAME,PPN)
+!==================================================
+%INTEGER %ARRAY ARGS(1:3)
+%INTEGER AC
+  ARGS(1)=7;     !.FSUCL
+  ARGS(2)=NAME
+  ARGS(3)=PPN
+  AC=3<<18+ADDR(ARGS(1))&8_777777
+
+  %UNLESS CALLI2(STRUUO,AC) %THEN %SIGNAL %EVENT 15,1,5
+%END
+
+%ROUTINE   DOUFD(%INTEGER PPN)
+!=======================
+%RECORD (OPENBLOCK) OBLOCK
+%RECORD (LOOKUPBLOCK) LBLOCK
+%INTEGER STR,I
+   %ON %EVENT 9 %START
+      ERRMSG="IN DOUFD "; %SIGNAL 9,0,EVENTINFO
+   %FINISH
+
+  READ SYMBOL(STR)
+  OBLOCK_STATUS=UUPHS+IODMP
+  OBLOCK_DEVNAM=STR
+  OBLOCK_BUFHEDS=0
+
+  %UNLESS IOUUO(OPEN,CHAN,OBLOCK) %START
+    SKIP SYMBOL %FOR I=1,1,4;     !skip rest of this entry in UFD
+    %%RETURN
+  %FINISH
+
+  SKIP SYMBOL;       !Skip reserved quota
+  LBLOCK=0     
+  LBLOCK_CNT=29
+  LBLOCK_PPN=8_1000001
+  LBLOCK_NAM=PPN
+  LBLOCK_EXT=UFD
+  READ SYMBOL(LBLOCK_QTF)
+  READ SYMBOL(LBLOCK_QTO)
+  LBLOCK_STS=RBDIR
+
+  LOCK UFD(STR,PPN)
+  %IF IOUUO(LOOKUP,CHAN,LBLOCK) %START
+  %ELSE %IF IOUUO(ENTER,CHAN,LBLOCK) %START
+    %UNLESS IOUUO(USETO,CHAN,AC(2)) %THEN CHAN=CHAN
+  %ELSE %START
+    SKIP SYMBOL
+    CLOSE (CHAN)
+    UNLOCK UFD(STR,PPN)
+    %RETURN
+  %FINISH
+
+  CLOSE (CHAN)
+  UNLOCK UFD(STR,PPN)
+  STRARG(3*NSTRUCS+5)=STR
+  STRARG(3*NSTRUCS+6)=0
+  READ SYMBOL(STRARG(3*NSTRUCS+7))
+  NSTRUCS=NSTRUCS+1
+%END
+
+%EXTERNAL %PREDICATE SETSRC(%INTEGER PPN)
+!========================================
+   %OWNINTEGER PREVIOUS PPN=0
+%EXTERNALSTRING(12)%FNSPEC INTTOSTR(%INTEGER N)
+%EXTERNALSTRING(12)%FNSPEC OCTTOSTR(%INTEGER N)
+   %INTEGER IN
+
+   %ON %EVENT 9,15 %START
+      %IF EVENT=9 %START
+         ERRMSG="IN SETSRC"; %SIGNAL 9,0,EVENTINFO
+      %FINISH
+      ->FALSE
+   %FINISH
+
+  %TRUE %IF PPN=PREVIOUS PPN
+  CHAN=-1
+  IN=INSTREAM
+  DEFINE INPUT(TEMP STREAM,"SYS:AUXACC.SYS/MODE:#400000000014/EXTEND:#35/BUFF:1")
+  SELECT INPUT(TEMP STREAM)
+  %IF CREATION#INSCB_LKENT_TIM %START
+    READ AUXACC(NENTRY)
+    CREATION=INSCB_LKENT_TIM
+    RESET INPUT
+  %FINISH
+
+  I1=FIND(PPN)
+  %IF I1=0 %THEN ->FALSE
+  I2=I1>>7
+  I1=I1&8_177
+  USET INPUT(I2+1)
+  %IF I1>0 %START
+    SKIP SYMBOL %FOR I=1,1,I1
+  %FINISH
+  READ SYMBOL(C)
+  READ SYMBOL(N)
+  READ SYMBOL(CC)
+  %SIGNAL %EVENT 15,1,1 %UNLESS C=-1 %AND (CC=PPN %OR CC=PPN!8_777777)
+
+  CHAN=GET CHANNEL
+  N=N//5
+  NSTRUCS=0
+  ZERO SEARCH LIST
+  DO UFD(PPN) %FOR I=1,1,N
+  SET SEARCH LIST
+  RELEASE(CHAN)
+  CLOSE INPUT; SELECT INPUT(IN)
+  PREVIOUS PPN=PPN
+  %TRUE
+FALSE:
+  RELEASE(CHAN) %IF CHAN>=0;     !IF ONE IN USE
+  CLOSE INPUT
+  SELECT INPUT(IN)
+  PREVIOUS PPN=0
+  %FALSE
+%END
+%ENDOFFILE
+$$$$$$$$$$$$
+&&&&&&&&&&&& GALAXY.MAC
+
+TITLE	GALAXY interface to GALAXY
+
+
+	SEARCH	QSRMAC		;GALAXY PARAMETERS
+	SEARCH	SBSMAC		;SUB-SYSTEMS GROUP MACROS
+	SEARCH	MACTEN		;USEFUL MACROS
+	SEARCH	UUOSYM		;TOPS10-UUO SYMBOLS
+IFN FTJSYS,<SEARCH MONSYM>	;TOPS20-JSYS SYMBOLS
+	SEARCH	QPRM		;MPB PARAMETERS
+	SEARCH	IMPPRM		;IMP PARAMETERS
+
+
+
+DEFINE	FAIL(MSG)<
+	JRST	[MOVEI	1,%A
+		MOVEI	2,ERRMSG##
+		JSP	J,.$MOVE##
+		POP	P,J	;GET ORIG RETURN ADDRESS
+		MOVEI	ARG1,^D15	;%SIGNAL 15
+		SETZB	ARG2,ARG3
+		GOTO	.$SNAL##
+%A:	MSG]
+>  ;END OF DEFINE FAIL
+
+
+
+;	MACRO TO MOVE DATA AROUND  -- WIPES TEMP
+
+DEFINE	DATAM(SWRD,SFIELD,DWRD,DFIELD)<
+	LOAD(TEMP,SWRD,SFIELD)
+	XLIST
+	STORE(TEMP,DWRD,DFIELD)
+	LIST
+	SALL
+>  ;END OF DEFINE DATAM
+
+	TWOSEG
+	RELOC	400000
+;%EXTERNALROUTINE QUEUEIT(%NAME ARG BLOCK,%STRING(1)%NAME MESSAGE)
+
+QUEUEIT::
+	SETMM	110(P)		;STACK CHECK
+	PUSHJ	P,SAVEACS##	;SAVE IMP REGISTERS
+	MOVEM	ARG2,SARG2#	;SAVE THE STRING NAME ADDRESS
+	HRRZ	M,ARG1		;SET UP M
+	MOVEI	T1,1000		;NUMBER OF WORDS
+	PUSHJ	P,CORGET	;GET A PAGE
+	MOVE	T1,.JBFF##	;GET TOP OF CORE
+	SOS	T1		;MAKE SURE IN LOWER PAGE
+	ANDI	T1,777000	;GET START OF PAGE
+	MOVEI	T2,(T1)		;GET ANOTHER COPY
+	SETZM	(T1)		;CLEAR IT
+	HRLI	T3,(T1)		;SET UP BLT POINTER
+	HRRI	T3,1(T1)
+	BLT	T3,777(T1)	;ZERO PAGE
+	HRL	T1,M		;SET UP BLT POINTER
+	BLT	T1,77(T2)	;COPY ARG BLOCK INTO FREE PAGE
+	MOVE	M,T2		;SET UP NEW M
+	TXO	M,1B0		;MARK AS PAGE MODE
+	PUSHJ	P,MSGSND	;SEND THE MESSAGE
+	PUSHJ	P,RCVACK	;GET THE ACK
+	PJRST	RESTORE##	;RESTORE ACS AND RETURN TO CALLER
+CPOPJ:	POPJ	P,
+
+
+CORGET:	ADDB	T1,.JBFF##		;BUMP HIGHEST, GET SAME
+	SUBI	T1,1			;BACK OFF BY ONE
+	CAMG	T1,.JBREL##		;ALREADY HAVE ENOUGH
+	  POPJ	P,			;YES, CAN SAVE A CORE UUO
+	CORE	T1,			;ACQUIRE THE CORE
+	  FAIL(IMPSTR<NEC Not enough core>)
+	POPJ	P,			;AND RETURN
+
+
+
+;ERROR ROUTINES
+
+;ERR CONCATENATES THE STRING POINTED TO BY T1 ONTO THE END OF ERRMSG
+ERR:	MOVE 1,T1
+	MOVEI	2,ERRMSG##
+	JSP	J,.$CONC##	;CONCATENATE ONTO ERRMSG
+	POPJ	P,
+
+
+IFN FTUUOS,<
+QUEQRY:	SETZB	T1,T2			;CLEAR QUERY BLOCK
+	SETZB	T3,T4			;FOR GOOD MEASURE
+	MOVE	S2,[4,,T1]		;LENGTH,,ARGUMENTS
+	IPCFQ.	S2,			;FIND OUT WHATS THERE
+	  SETZ	T4,			;NOTHING, CLEAR T4
+	MOVE	S2,T4			;COPY QUEUE STATUS INTO S2
+	JUMPE	S2,CPOPJ		;RETURN IF NOTHING THERE
+	CAMN	T2,QSRPID		;FROM QUASAR
+	  POPJ	P,			;YES, RETURN NOW
+	PUSHJ	P,QUEIGN		;FLUSH THE JUNK MAIL
+	JRST	QUEQRY			;LOOK AGAIN
+
+QUEIGN:	ANDX	T1,IP.CFV		;CLEAR ALL BUT PAGE MODE BIT
+	TXO	T1,IP.CFT		;SET TO TRUNCATE
+	SETZB	T2,T3			;CLEAR THEM AGAIN
+	MOVEI	T4,1			;LENGTH = 0 , LOC = 1
+	MOVE	S2,[4,,T1]		;SET UP LENGTH AND BLOCK ADDRESS
+	IPCFR.	S2,			;THROW AWAY THE MESSAGE
+	  FAIL(IMPSTR<CFR Cannot flush the IPCF receive queue>)
+	POPJ	P,			;RETURN
+
+QUEWAT:	PUSHJ	P,QUEQRY		;FIND OUT WHATS THERE
+	JUMPN	S2,CPOPJ		;SOMETHING, RETURN
+	MOVX	S2,<HB.IPC+^D2000>	;FLAGS,,NAP TIME
+	HIBER	S2,			;WAIT FOR A REASONABLE TIME
+	  JFCL				;WATCH THIS LOOP
+	JRST	QUEWAT			;TRY NOW
+
+>  ;END OF IFN FTUUOS
+; SUBROUTINE TO RECEIVE AN EXPECTED "ACK" FROM QUASAR
+;	IT RETURNS TO THE CALLER AFTER RECEIVING A "GOOD" ONE
+;	ISSUES AN ERROR MESSAGE AND QUITS ON A "BADDY"
+
+RCVACK:	MOVEI	M,FBTEMP		;AREA FOR SHORT RECEIVE
+
+IFN FTUUOS,<
+
+	PUSHJ	P,QUEWAT		;WAIT FOR A RETURNED MESSAGE
+	ANDX	T1,IP.CFV		;CLEAR ALL BUT THE PAGE MODE BIT
+	SETZB	T2,T3			;CLEAR THESE AGAIN
+	HRRI	T4,(M)			;WHERE TO RECEIVE INTO
+	TXNN	T1,IP.CFV		;IS IT A PAGE
+	  JRST	RCVA.1			;NO, GO GET IT
+	MOVE	M,.JBREL##		;GET A PAGE TO RECEIVE INTO
+	MOVEI	M,777(M)		;ROUND UP
+	ADR2PG	M			;CONVERT TO PAGE NUMBER
+	HRRI	T4,(M)			;SET THE ADDRESS
+	HRLI	T4,1000			;LENGTH OF A PAGE
+	PG2ADR	M			;STILL NEED TO POINT TO IT
+RCVA.1:	MOVE	S2,[4,,T1]		;READY TO GET IT
+	IPCFR.	S2,			;GET THE ACK FROM QUASAR
+	  FAIL(IMPSTR<ARF Acknowledgement Receive Failed>)
+
+>  ;END OF IFN FTUUOS
+
+IFN FTJSYS,<
+
+	SETZB	T1,T2			;CLEAR FLAGS, SENDER
+	MOVE	T3,MYPID		;RECEIVER
+	HRLI	T4,FBAREA		;SIZE OF SHORT MESSAGE
+	HRRI	T4,FBTEMP		;TEMPORARY BLOCK
+	PUSH	P,S1			;SAVE USER AREA BASE
+	MOVEI	S1,4			;FOUR WORDS
+	MOVEI	S2,T1			;IN T1-T4
+	MRECV				;RECEIVE THE ACK
+	  FAIL(IMPSTR<ARF Acknowledgement Receive Failed>)
+	POP	P,S1			;RESTORE USER BASE
+
+>  ;END OF IFN FTJSYS
+
+	LOAD	S2,TEX.ST(M)		;GET THE MESSAGE STATUS WORD
+	TXNE	S2,TX.NMS		;NORMAL "ACK" (NO MESSAGE ASSOCIATED)
+	  JRST	RCVA.3			;YES, SEE IF IT IS TIME TO RETURN
+
+
+;FALL ONTO THE NEXT PAGE FOR THE OUTPUT OF THE MESSAGE RECEIVED
+;HERE TO OUTPUT THE BODY OF THE ACK MESSAGE
+
+RCVA.4:
+	SETZM	ERRMSG##		;CLEAR ERROR MESSAGE
+	PUSH	P,S2		;SAVE S2
+	MOVEI	T1,[IMPSTR<[>]		;CHARACTER FOR INFORMATIONAL MESSAGES
+	TXNN	S2,TX.FAT!TX.WRN	;FATAL OR WARNING
+	  JRST	RCVA.2			;NEITHER, JUST REPORT THE TEXT
+	MOVEI	T1,[IMPSTR<?QSR>]	;FATAL CHARACTER
+	TXNN	S2,TX.FAT		;WAS IT FATAL
+	  MOVEI	T1,[IMPSTR<%QSR>]	;NO, LOAD WARNING CHARACTER
+	PUSHJ	P,ERR			;OUTPUT THE "?" OR "%"
+	LOAD	T1,TEX.ST(M),TX.SUF	;GET THE MESSAGE SUFFIX
+	HRLZS	T1			;INTO THE OTHER SIDE FOR TTYSIX
+	MOVE	ARG1,T1
+	ADDI	P,4
+	PUSHJ	P,SIXTOS##		;OUTPUT THE FULL ERROR CODE
+	MOVEI	T1,-1(P)
+	PUSHJ	P,ERR
+	SUBI	P,4
+	MOVEI	T1,[IMPSTR< >]
+RCVA.2:	PUSHJ	P,ERR			;MAKE THE OUTPUT PRETTY
+	MOVEI	ARG1,TEX.MS(M)		;AND FINALLY, OUTPUT THE MESSAGE
+	ADDI	P,103
+	PUSHJ	P,ASCTOS##
+	MOVEI	T1,-77(P)
+	PUSHJ	P,ERR
+	SUBI	P,103
+	MOVE	S2,(P)
+	TXNN	S2,TX.FAT!TX.WRN	;ANOTHER CHECK
+	  JRST	[MOVEI	T1,[IMPSTR<]>]			;GEE..IT TAKES A LOT TO DO NICE WORK
+		PUSHJ	P,ERR
+		JRST	.+1]
+	POP	P,S2
+	TXNE	S2,TX.FAT		;AGAIN, WAS IT FATAL
+	  JRST	FAIL1
+;NO, WELL STORE IT FOR IMP
+	PUSH	P,S2
+	MOVEI	1,ERRMSG
+	MOVE	2,SARG2
+	JSP	J,.$MOVE		;MOVE IT TO SECOND ARGUMENT
+	POP	P,S2
+RCVA.3:	TXNE	S2,TX.MOR		;MORE COMING
+	  JRST	RCVACK			;YES, DO THIS ALL OVER AGAIN
+	POPJ	P,			;CONTINUE PROCESSING
+FAIL1:	POP	P,J	;GET ORIGINAL RETURN ADDRESS
+	MOVEI	ARG1,^D15
+	SETZB	ARG2,ARG3
+	JRST	.$SNAL##
+IFN FTUUOS,<
+
+MSGSND:	MOVX	T4,%CNST2		;GET SECOND STATES WORD
+	GETTAB	T4,			;TO LOOK FOR GALAXY-10
+	  ZERO	T4			;WHAT!!
+	TXNN	T4,ST%GAL		;SYSTEM HAVE SUPPORT FOR GALAXY-10
+	  FAIL(IMPSTR<NGS No GALAXY-10 Support in this monitor>)
+	SETO	T4,			;FLAG INDICATING FIRST TRY
+MSGS.1:	MOVX	T3,%SIQSR		;GETTAB FOR PID OF [SYSTEM]QUASAR
+	GETTAB	T3,			;SEE IF IT IS RUNNING
+	  FAIL(IMPSTR<SGF SYSID. GETTAB failed>)
+	MOVEM	T3,QSRPID		;REMEMBER QUASAR'S PID
+	SETOM	RTYCNT		;INIT RETRY COUNTER
+	JUMPN	T3,MSGGO		;THERE HE IS, SEND THE MESSAGE
+	MOVEI	T3,3			;NOT UP YET, TRY A SLEEP
+	SLEEP	T3,			;GIVE IT A CHANCE
+	AOJN	T4,MSGS.1		;JUMP IF ALREADY GAVE A MESSAGE
+	OUTSTR	[ASCIZ/
+%QMRWFQ Waiting For [SYSTEM]QUASAR to Start
+/]
+	JRST	MSGS.1			;TRY NOW
+MSGGO:	SETZB	T1,T2			;CLEAR FLAGS,MY PID
+	MOVEI	T4,(M)			;MESSAGE ADDRESS, T3 = QSRPID
+	LOAD	S2,.MSTYP(M),MS.CNT	;GET THE LENGTH OF THE MESSAGE
+	TXNN	M,1B0			;IS THIS A PAGE MODE REQUEST
+	  JRST	MSGGO1			;NO, SEND IT
+	MOVX	T1,IP.CFV		;INDICATE A PAGE SEND
+	LSH	T4,-^D9			;CONVERT 'M' TO A PAGE NUMBER
+	MOVEI	S2,1000			;LENGTH MUST BE 1000
+MSGGO1:	HRL	T4,S2			;INCLUDE CORRECT SIZE IN HEADER
+MSGGO2:	MOVE	S2,[4,,T1]		;ARGUMENT FOR SEND
+	IPCFS.	S2,			;SEND THE MESSAGE
+	 SKIPA				;FAILED, SEE WHY
+	  POPJ	P,			;RETURN TO CALLER
+	CAIE	S2,IPCDD%		;QUASAR DISABLED
+	 CAIN	S2,IPCRS%		;OR MY QUOTA EXHAUSTED
+	  JRST	RETRY			;YES, TRY IT AGAIN
+	CAIE	S2,IPCRR%		;QUASAR FULL
+	 CAIN	S2,IPCRY%		;OR SYSTEM FULL
+	  JRST	RETRY			;YES, TRY IT AGAIN
+	FAIL(IMPSTR<SQF Send to [SYSTEM]QUASAR failed>)
+RETRY:	MOVEI	S2,2			;WAIT BEFORE TRYING AGAIN
+	SLEEP	S2,			;TAKE A QUICK NAP
+	AOSE	RTYCNT		;COUNT THE RETRIES
+	  JRST	MSGGO2			;TRY NOW
+	OUTSTR	[ASCIZ/
+%QMRMBR Send has failed, Message Being Re-sent
+/]
+	JRST	MSGGO2			;NOW RETRY IT
+
+>  ;END OF IFN FTUUOS
+IFN FTJSYS,<
+
+MSGSND:	SETO	T4,			;FLAG INDICATING FIRST TRY
+	PUSH	P,S1			;SAVE USER BASE
+MSGS.1:	MOVEI	S1,3			;NUMBER OF WORDS
+	MOVEI	S2,T1			;USE T1-T3
+	MOVEI	T1,.MURSP		;READ SYSTEM PID TABLE
+	MOVX	T2,.SPQSR		;WANT PID OF SYSTEM QUASAR
+	MUTIL				;READ THE TABLE
+	  SETZ	T3,			;ASSUME IT CONTAINS AN INVALID PID
+	MOVEM	T3,QSRPID		;REMEMBER QUASAR'S PID
+	SETOM	RTYCNT		;INIT RETRY COUNTER
+	JUMPN	T3,MSGGO		;JUMP IF QUASAR IS RUNNING
+	MOVEI	S1,^D3000		;WAIT FOR IT
+	DISMS				;TAKE A NAP
+	AOJN	T4,MSGS.1		;JUMP IF ALREADY GAVE A MESSAGE
+	OUTSTR	[ASCIZ/
+%QMRWFQ Waiting For [SYSTEM]QUASAR to Start
+/]
+	JRST	MSGS.1			;TRY NOW
+MSGGO:	SETZ	T1,			;ASSUME NO FLAGS
+	SKIPN	T2,MYPID		;DO I HAVE A PID
+	  TXO	T1,IP%CPD		;NO, CREATE ONE ON THIS SEND
+	MOVEI	T4,(M)			;POINT TO THE MESSAGE
+	LOAD	S2,.MSTYP(M),MS.CNT	;GET THE LENGTH OF THE MESSAGE
+	TXNN	M,1B0			;IS THIS PAGED
+	  JRST	MSGGO1			;NO, SEND IT
+	TXO	T1,IP.CFV		;SET PAGE MODE FLAG
+	LSH	T4,-^D9			;CONVERT ADDR TO A PAGE NUMBER
+	MOVEI	S2,1000			;LENGTH OF A PAGE
+MSGGO1:	HRL	T4,S2			;INCLUDE THE LENGTH
+	MOVEI	S1,4			;FOUR WORDS
+	MOVEI	S2,T1			;IN T1-T4
+	MSEND				;SEND THE PACKET
+	  JRST	MSGGO2			;FAILED, SEE WHY
+	SKIPN	MYPID		;DO I ALREADY HAVE THE PID
+	  MOVEM	T2,MYPID		;NO, SAVE IT
+	POP	P,S1			;RESTORE S1
+	POPJ	P,			;AND RETURN TO CALLER
+
+
+;MORE OF THE TOPS20 VERSION ON THE NEXT PAGE
+MSGGO2:	CAIE	S1,IPCFX6		;CHECK FOR EXHAUSTED QUOTAS
+	 CAIN	S1,IPCFX7		;AND RETRY IF POSSIBLE
+	  JRST	RETRY			;IS POSSIBLE
+	CAIE	S1,IPCFX8		;ANOTHER RECOVERABLE ERROR
+	 CAIN	S1,IPCFX5		;QUASAR DISABLED
+	  JRST	RETRY			;YES, TRY AGAIN
+	FAIL(IMPSTR<SQF Send to [SYSTEM]QUASAR failed>)
+RETRY:	SKIPN	MYPID		;DO I HAVE A PID
+	  MOVEM	T2,MYPID		;NO, MAYBE THIS IS IT
+	MOVEI	S1,^D2000		;WAIT BEFORE TRYING AGAIN
+	DISMS				;WAIT
+	AOSE	RTYCNT		;COUNT THE RETRIES
+	  JRST	MSGGO			;TRY NOW
+	OUTSTR	[ASCIZ/
+%QMRMBR Send has failed, Message Being Re-sent
+/]
+	JRST	MSGGO			;AND TRY THE SEND AGAIN
+
+>  ;END OF IFN FTJSYS
+SUBTTL	Data Storage
+
+	XLIST	;FORCED OUT LITERAL POOL
+	LIT
+	LIST
+	SALL
+
+FBSIZE==FPXSIZ+FDXSIZ		;THE LARGEST FD/FP WE CAN BUILD
+	MAX	<FBSIZE,KIL.SZ,LIS.SZ,DFR.SZ>
+FBAREA==MAXSIZ			;THE LARGEST FILE BLOCK/MESSAGE NEEDED
+
+	RELOC	0
+
+MYPID:	 BLOCK	1		;MY PID (NECESSARY FOR SEND/RECEIVE)
+QSRPID: BLOCK	1		;PID OF SYSTEM QUASAR
+RTYCNT: BLOCK	1		;RETRY COUNTER WHEN SEND TO QUASAR FAILS
+FBTEMP: BLOCK	FBAREA		;LARGEST FILE BLOCK THAT CAN BE BUILT FROM MPB DATA
+				;ALSO USED TO SEND/RECEIVE "SHORT" MESSAGES
+
+
+
+	END			;END, NO STARTING ADDRESS
+$$$$$$$$$$$$
+&&&&&&&&&&&& MAIL.CTL
+
+.delete ctl:mail.log               ;delete old log file
+.if (error)                        ;do nothing on error
+.set default buffer 2              ;that is all we need
+.r maispl                          ;create the mic file which does the TELLing
+.if (error) .goto err1
+.do mail[3,5]                      ;send the mail using TELL
+.if (error)                        ;ignore errors
+.delete mail.mic[3,5]              ;ok I have finish with that
+.GOTO END
+err1::
+.print ctl:mail.log
+end::
+$$$$$$$$$$$$
+&&&&&&&&&&&& NETWRK.ADD
+
+APGA
+53.TSK.(2W,8P,F,TTS).20.FTP
+GEC
+BANGOR
+53.TSK.(2W,8P,F,TTS).1050000.UCNWCS.FTP
+DEC10
+BDGA
+53.TSK.(2W,8P,F,TTS).11.FTP
+GEC
+BHGA
+53.TSK.(2W,8P,F,TTS).13.FTP
+GEC
+BRGA
+53.TSK.(2W,8P,F,TTS).10.FTP
+GEC
+CADA
+53.TSK.(2W,8P,F,T)8000020.FTP
+OTHER
+CAGA
+53.TSK.(2W,8P,F,TTS).8.FTP
+GEC
+CAVA
+53.TSK.(2W,8P,F,T)8003001.FTP
+VAX
+CAVS
+53.TSK.(2W,8P,F,T)8002001.FTP
+VAX
+CAXA
+53.TSK.(2W,8P,F,TTS)8002020.FTP
+IBM
+CAXU
+53.TSK.(2W,8P,F,TTS)8000010.FTP
+GEC
+CDGA
+53.TSK.(2W,8P,F,TTS).7.FTP
+GEC
+CFGA
+53.TSK.(2W,8P,F,TTS).12.FTP
+GEC
+CYPA
+53.TSK.(2W,8P,F,TTS).30.FTP
+PRIME
+DDXA
+60.FTP
+DEC10
+DLGA
+53.TSK.(2W,8P,F,TTS).1011700.FTP
+GEC
+DUNDEE
+60.FTP
+DEC10
+EAPA
+53.TSK.(2W,8P,F,TTS).24.FTP
+PRIME
+EDGA
+53.TSK.(2W,8P,F,TTS).7001100.FTP
+GEC
+EDXA
+53.TSK.(2W,8P,F,TTS)7001001.ERCC.FTX
+DEC10
+ERCC
+50.FTX
+DEC10
+ESSEX
+53.TSK.(2W,8P,F)40.PSS(blah,blah).ESSX.SXKL10.FTX
+DEC10
+GBXU
+53.TSK.(2W,8P,F,TTS)8004001.FTP
+GEC
+GWGA
+53.TSK.(2W,8P,F,TTS).5.FTP
+GEC
+GWXA
+53.TSK.(2W,8P,F,TTS).1101.KELVIN.FTP
+DEC10
+HWGA
+53.TSK.(2W,8P,F,TTS).7003001.FTP
+GEC
+IBM
+53.TSK.(2W,8P,F,TTS).1.FTP
+IBM
+KELVIN
+53.TSK.(2W,8P,F,TTS).1101.KELVIN.FTP
+DEC10
+KWGA
+53.TSK.(2W,8P,F,TTS).21.FTP
+GEC
+LLGA
+53.TSK.(2W,8P,F,TTS).1030100.FTP
+GEC
+MAGA
+53.TSK.(2W,8P,F,TTS).1020300.FTP
+GEC
+MAGB
+53.TSK.(2W,8P,F,TTS).1020100.FTP
+GEC
+MHXU
+53.TSK.(2W,8P,F,TTS).8005001.FTP
+GEC
+NEGA
+53.TSK.(2W,8P,F,TTS).9.FTP
+GEC
+NMPA
+53.TSK.(2W,8P,F,TTS).14.FTP
+PRIME
+ED2972
+53.TSK.(2W,7P,F,TTS)7001002.(blah,blah).2972-3.FTP
+EMAS
+REGA
+53.TSK.(2W,8P,F,TTS).16.FTP
+GEC
+REVA
+53.TSK.(2W,8P,F,T).7002002.FTP
+VAX
+RLGB
+53.TSK.(2W,8P,F,TTS).4.FTP
+GEC
+RLGC
+53.TSK.(2W,8P,F,TTS).15.FTP
+GEC
+RLGK
+53.TSK.(2W,8P,F,TTS).37.FTP
+GEC
+RLIA
+53.TSK.(2W,8P,F,TTS).1.FTP
+IBM
+RLPA
+53.TSK.(2W,8P,F,TTS).6.FTP
+PRIME
+RLPB
+53.TSK.(2W,8P,F,TTS).22.FTP
+PRIME
+RLPC
+53.TSK.(2W,8P,F,TTS).23.FTP
+PRIME
+RLVA
+53.TSK.(2W,8P,F,TTS).17.FTP
+VAX
+SHGA
+53.TSK.(2W,8P,F,TTS).34.FTP
+GEC
+SVPA
+53.TSK.(2W,8P,F,TTS).27.FTP
+PRIME
+SYPE
+53.TSK.(2W,8P,F,TTS).26.FTP
+PRIME
+TSO
+53.TSK.(2W,8P,F,TTS).1000200.FTP
+DLGP
+UCL
+53.TSK.(1W,8P,F,TTS).32.UCL-CS.FTP
+ARPA
+UMPA
+53.TSK.(2W,8P,F,TTS).28.FTP
+PRIME
+WKPA
+53.TSK.(2W,8P,F,TTS).25.FTP
+PRIME
+YKXA
+53.TSK.(2W,8P,F,TTS).6000000.YORK.FTP
+DEC10
+YORK
+53.TSK.(2W,8P,F,TTS).6000000.YORK.FTP
+DEC10
+YORKS
+53.TSK.(2W,8P,F,TTS).6000000.YORKS.FTP
+DEC10
+YORKVAX
+53.TSK.(2W,8P,F,TTS).6000003.FTP
+VAX
+YORK77
+53.TSK.(2W,8P,F,TTS).6000000.YORK.FTX
+DEC10
+ZUGA
+53.TSK.(2W,8P,F,TTS).18.FTP
+GEC
+ZUPA
+53.TSK.(2W,8P,F,TTS).29.FTP
+PRIME
+ZUXA
+53.TSK.(1W,8P,F,TTS).32.UCL-CS.FTP
+ARPA
+ZMGA
+53.TSK.(2W,8P,F,TTS).46.FTP
+GEC
+SELFPSS
+53.TSK.(2W,8P,F)40.PSS(blah,blah).SERC.S.EDXA.ERCC.FTX
+DEC10
+HATFIELD
+53.TSK.(2W,8P,F)40.PSS(blah,blah).HATF.ORANGE.FTP
+DEC10
+TEST
+53.TSK.(2W,7P,F,TTS).7000001.ERCC.FTP
+DEC10
+$$$$$$$$$$$$
+&&&&&&&&&&&& ALIAS.ADD
+
+ERCC=EDXA,EDDA
+UCL=ZUXA
+DUNDEE=DDDA
+RCO=ED2972,RCONET
+$$$$$$$$$$$$
+&&&&&&&&&&&& UPDATE.MEM
+
+Registering a user into the TELL database for the MAIL system.
+
+In order to update SYS:TELL.INI with a new user name the following steps should
+be taken.
+
+1) Get a reasonable name from the user and a PPN to be equated to it. It is
+   suggested that the form of name be initial and surname separated by a dot eg.
+   A.Brown  In fact any alpha-numeric sequence starting with a letter and
+   excluding spaces and graphic characters other than '.' will do. It must
+   be unique in the first 12 characters but can be up to 25 characters long.
+
+2) Do a "WHO A.Brown" to determine that the name is not already present in
+   SYS:TELL.INI.  If it is then try adding other initials or expand the first
+   name eg. A.D.Brown  or  Arthur.Brown
+
+3) When a unique name has been found, enter it into SYS:TELL.INI as a line
+   of the form eg.
+    /group(A.Brown=[16,17])   - in numeric order of PPNs for ease of searching.
+
+NOTE:
+
+   Only one name per PPN is recommended as the user will always be identified
+   for outgoing mail, with the first match of the PPN in the file, but would be
+   able to receive mail on any of the given names. However it obviously makes
+   the file large to have aliases for individuals.
+
+NB:
+
+   Lines containing wildcard characters in the PPN fields are ignored
+   by the mail programs.
+
+   It is also possible to have multiple PPNs assigned to the same name
+   eg. /group(A.Brown=[16,17]+[12,13])
+   doing so would cause incoming mail to be sent to each of these PPNs. This is
+   not usually desired and so is also not recommended.
+
+NOTE WELL:
+   The post program will ignore all lines in SYS:TELL.INI which use account names
+   in the group line e.g.
+   tell/group:(fred=fred#a+john#b)
+   as the only reliable piece of information the program has when searching this
+   file is the user's ppn because the account name nay have been changed by LOGIN.
+$$$$$$$$$$$$

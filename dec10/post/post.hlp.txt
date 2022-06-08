@@ -1,0 +1,21 @@
+POST is the network wide mailing facility and can be invoked by typing:
+
+     .POST username @ host
+or
+     .R POST
+
+POST will then respond by prompting for a username and a destination machine.
+
+The username must be the userid, PPN, ID or whatever  is  appropriate  for  the
+destination  machine.  The destination machine must be a machine title that FTP
+understands.
+
+If only a username is specified, SWITCH.INI will be searched for lines  of  the
+form, e.g.
+
+post/fred=fred smith@host1, jane=[100,100]@host2
+
+and the string on the right of the equals sign will be substituted for a  match
+of the string on the left of the equals sign.
+
+For further details please consult 3A01C in the Installation Manual.

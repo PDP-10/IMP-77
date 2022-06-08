@@ -1,0 +1,35 @@
+The  IMP-77 compiler for TOPS-10 is contained in three passes called:
+    IMP.EXE
+    IMPASS.EXE
+    IMPGEN.EXE
+and for TOPS20 in one multi-pass file called
+    IMP20.EXE
+
+The three files (or the single file - renamed to IMP.EXE) should be mounted on
+the system area together with a permanent routine file called PERMS.IMP and
+the runtime library file called IMPLIB.REL.
+
+Also enclosed are two dubugging utilities ALIST and RECODE which are described
+in the run-time manual. (They require to be loaded with DIAGFS.IMP, if being
+rebuilt).
+
+In order to get the source files, it is necessary to run the program CMPRES,
+which will extract the sources from the .COM files.
+
+IMPLIB.COM     contains the runtime sytem and library
+UTIL.COM       contains the utilities including alist and recode
+INCLUD.COM     contains the %include files
+IMPDOC.COM     contains the documentation sources.
+XLIB.COM       contains additional library type functions (undocumented)
+
+Further documentation is then obtainable in the .CTL files.
+You should also read the files IMP.BWR for known shortcomings and IMP.NEW for
+new features.
+
+Keith Farvis
+ERCC,
+Kings Buildings
+Mayfield Road
+Edinburgh EH9 3JZ
+
+tel. 031-667-1081 ext 2661
