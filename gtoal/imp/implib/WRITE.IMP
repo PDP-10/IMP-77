@@ -1,0 +1,24 @@
+!WRITE.IMP
+
+%EXTERNALROUTINE WRITE(%INTEGER N, S)
+   %ROUTINESPEC P(%INTEGER N)
+   %INTEGER SIGN
+   %IF S<=0 %THEN SIGN=S %ELSE SIGN = ' ';  !GIVE NO SIGN FOR WRITE(N,0)
+   S=IMOD(S); S=63 %IF S>63
+   %IF N < 0 %START
+      N = -N
+      SIGN = '-'
+   %FINISH
+   P(N)
+   %ROUTINE P(%INTEGER N)
+      S = S-1
+      P(N//10) %IF N >= 10
+      %IF SIGN > 0 %START
+         SPACES(S-1)
+         PRINTSYMBOL(SIGN);  SIGN = 0
+      %ELSE %IF SIGN<0 %THEN SPACES(S) %AND SIGN=0;   !FOR -VE S
+      PRINTSYMBOL(REM(N,10)+'0')
+   %END
+%END
+
+%ENDOFFILE

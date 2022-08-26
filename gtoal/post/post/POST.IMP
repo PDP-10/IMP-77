@@ -1,0 +1,526 @@
+!post.imp
+!A post program for JNT MAIL
+%include "imp:iolib.inc"
+%begin
+%externalroutinespec prompt(%string(255) str)
+%externalintegerfnspec ppn
+%externalroutinespec print via(%string(1)%name host)
+%externalstring(50)%fnspec datestamp
+%externalpredicatespec casematch(%string(255) str1,str2)
+%externalstring(8)%fnspec day
+%externalstring(15)%fnspec ppntostr(%integer n)
+%externalroutinespec writeppn(%integer n)
+%externalstring(12)%fnspec octtostr(%integer n)
+%externalroutinespec readline(%string(1)%name s)
+%externalroutinespec readfs(%record(filespec)%name fs)
+%externalrecord(filespec)%fnspec strtofs(%string(255) str)
+%externalstring(6)%fnspec sixtostr(%integer n)
+%externalstring(255)%fnspec fstostr(%record(filespec)%name fs)
+%systempredicatespec gettab(%integer n,m, %integername res)
+%externalintegerfnspec jobnum
+%externalpredicatespec calli2(%integer n,%integername m)
+%EXTERNALROUTINESPEC MACINI;  !SET UP ^C TRAPPING
+%predicatespec defined name(%string(1)%name name,dest)
+%EXTERNALINTEGER CNTRLC
+%EXTERNALSTRING(6)%SPEC QDEV
+%EXTERNALROUTINESPEC DO FTP(%STRING(1)%NAME JOBNM,DEST,NAME,%record(filespec)%name FILE, %INTEGER STREAM,%STRING(1)%NAME MESS)
+%EXTERNALSTRING(50)%FNSPEC DEFUNI(%INTEGER STREAM,%STRING(20)F1,F2)
+%externalpredicatespec is version 4
+%externalroutinespec read aliases
+%externalroutinespec init nodes
+%externalstring(12)%fnspec our node
+%externalpredicatespec address(%string(1)%name title,address,%integername node)
+%externalstring(12)%spec our src node
+%externalpredicatespec isnode(%string(1)%name node,type %integername status)
+%externalroutinespec uppercase(%string(1)%name s)
+%externalroutinespec lowercase(%string(1)%name s)
+%externalstring(25)%fnspec tell name(%integer n)
+%externalpredicatespec delist(%string(1)%name user,user1,dest1)
+%string(50) mail file
+%record(filespec) mail fs
+%externalstring(255)%spec errmsg
+%string(255) subject
+%string(100) name,dest
+%conststring(22) post log=":post.log[3,5]/fun:6"
+%conststring(16) image mode="/mode:#10/byte:7"
+%constinteger esc=8_33, control z=8_32,oprppn=8_1 000002
+%CONSTINTEGER FALSE=0, TRUE=1
+%constinteger tty=0, mail=1, log=2;           !stream numbers
+%ownstring(25) this user;  !the name of the current user
+%ownstring(25) this node;  !name of the current node
+%ownstring(72) from;   !the name of current user for the FRom: field
+%ownstring(120) replyto;  !the reply to field
+%ownstring(12) today
+%integer s,n,mail error
+
+!%routine newline
+!   printsymbol(nl);   !in order to avoid multiple <cr>s
+!%end
+
+
+
+%routine get from field
+!======================
+!this sets the value of 'from'
+   %integer part1,part2
+   this node=our src node; lower case(this node)
+   thisuser=tell name(ppn);  !get the name from TELL.INI
+   %if this user="" %start
+      this user=octtostr(ppn)
+   %finish
+   %if gettab(8_31,jobnum,part1) %start; %finish
+   %if gettab(8_32,jobnum,part2) %start; %finish
+   from=sixtostr(part1).sixtostr(part2)
+   %if ppn=oprppn %and from="(MAIL ERROR)" %start
+      mail error=true
+   %else
+      mail error=false;  !flag a fault generation
+      from=from." (on ".our node." DEC-10)  <".this user."@".this node.">"
+   %finish
+%end
+
+%predicate is batch
+!===================
+!is this a batch job?
+   %constinteger gtlim=8_40, jb lbt=8_200 000000
+   %integer n
+   %true %if gettab(gtlim,-1,n) %and n&jb lbt#0
+   %false
+%end
+
+
+%predicate get type(%string(1)%name dest,type)
+!======================================
+   %integer state
+   %string(25) d
+   d=dest; uppercase(d)
+   %unless isnode(d,type,state) %start
+      type="?The host name ".dest." is unknown"
+      %false
+   %finish
+   %true
+%end
+
+
+%ROUTINE ABORT OUTPUT
+!============================
+!This routine aborts the current output stream, i.e. does not update the disk
+!It works for disk only otherwise it simply does a close output
+   %EXTERNALRECORD(SCB)%SPEC OUNSCB
+   %EXTERNALRECORD(SCB)%NAMESPEC OUTSCB
+   %EXTERNALRECORD(SCBNAME)%ARRAYSPEC OUTVEC(-1:MAXCHANS)
+   %SYSTEMROUTINESPEC RELEASE(%INTEGER CHAN)
+   %SYSTEMROUTINESPEC FREEVEC(%INTEGER THIS)
+   %INTEGER CHAN,OUTST
+   %IF OUTSCB_DEVTYP#DSKDEV %THEN CLOSE OUTPUT %AND %RETURN
+   OUTST=OUTSTREAM
+   CHAN=OUTSCB_FILOPFN>>18&15
+   AC(2)=CHAN<<23
+   AC(1)=8_070000 000140;  !CLOSE N,140  - THROW AWAY FILE
+   *8_434040 000002;  !IOR 1,2
+   *8_256000 000001;  !XCT 1
+   RELEASE(CHAN)
+   FREEVEC(OUTSCB_BUFVEC&8_777777)
+   FREEVEC(ADDR(OUTSCB))
+   OUTVEC(OUTST)_NAME==OUNSCB
+   OUTSCB==OUTVEC(OUTST)_NAME
+%END
+
+
+%routine print address header
+!============================
+!output JNT compatible address list
+printstring(name); printsymbol('@'); printstring(dest); newline
+newline;  !finish with extra newline
+%end
+
+
+%routine print message separator
+!===============================
+!separating limne between messages
+   newline; printstring("--------"); newline
+%end
+
+
+%routine print ARPA header
+!=========================
+!prints the ARPA compatible header
+printstring("Date:       "); printstring(datestamp); newline
+printstring("From:       "); printstring(from); newline
+printstring("To:         "); printstring(name); printsymbol('@'); printstring(dest)
+newline
+%if replyto#"" %start
+   printstring("Reply-To:   "); printstring(replyto); newline
+%finish
+%if subject#"" %start
+   printstring("Subject:    "); printstring(subject); newline
+%finish
+print message separator
+%end
+
+
+%routine copy text
+!================
+!copies text from a file or a terminal to a mail file
+%integer s1
+   s1=0
+   %cycle
+      s1=s
+      %if s=nl %then newline %else printsymbol(s); readsymbol(s)
+      %if s=esc %start
+         s=nl
+         select output(tty); newline; select output(mail); !echo nl
+      %finish
+   %repeat %until s=control z
+%end
+
+
+%routine copy file
+!===============
+!get a file name and copy the contents to the mail file
+%string(100) str
+%integer s1
+   %on %event 9 %start
+      close input; select input(tty)
+      %return
+    %finish
+   readfs(mail fs)
+   %if nextsymbol#esc %and next symbol#nl %start
+      readline(str)
+      errmsg="Bad file specification ".fstostr(mail fs).str
+      %signal 10
+   %finish
+   mailfs_switches=image mode
+   xdefine input(mail,mailfs)
+   select input(mail)
+   s1=0
+   %cycle
+      s1=s
+      readsymbol(s); printsymbol(s)
+   %repeat
+%end
+
+
+%routine skip run command
+!========================
+!will skip over the command used to run the program
+   %integer s
+
+   %routine skip word
+      %cycle
+         skipsymbol
+         s=nextsymbol
+      %repeatuntil s=nl %or s=esc %or s=sp %or s=tab %or s='-'
+      skipsymbol %while nextsymbol=sp %or nextsymbol=tab
+   %end
+
+   s=nextsymbol
+   %if s='R' %or s='r' %start;  !a run command
+      skip word
+   %finish
+   s=nextsymbol
+   %if s='S' %or s='s' %or s='P' %or s='p' %start;   !a START or POST command
+      skip word
+   %finish
+   skipsymbol %if next symbol='-'
+%end
+
+
+%routine readword(%string(1)%name str,%integer spaces)
+!=====================================================
+!will read a word up to a separator which will include spaces if 'spaces'=true
+%integer n,s
+   str=""
+   %cycle;  !skip leading spaces
+      s=nextsymbol
+      %exit %if sp#s#tab
+      skip symbol
+   %repeat
+   %for n=1,1,100 %cycle;  !read 100 chars or up to nl esc or '@'
+      %if s=sp %or s=tab %start;   !either return or include one space
+         %exit%if spaces=true
+         skipsymbol %until sp#nextsymbol#tab
+         s=nextsymbol
+         %exit %if s=nl %or s=esc %or s='@';    !exclude terminal spaces
+         str=str." "
+         %continue
+      %finish
+      %exit %if s=nl %or s=esc %or s='@'
+      str=str.tostring(s) %unless s<sp;  !do not include control chars
+      skip symbol
+      s=next symbol
+   %repeat
+%end
+
+
+%routine skip rest of line
+!=========================
+   %cycle
+      %unless nl#nextsymbol#esc %then skipsymbol %and %return
+      skipsymbol
+   %repeat
+%end
+
+
+%routine dolog(%string(1)%name name,dest)
+!=============
+!outputs logging info to a log file
+   define output(log,qdev.post log); select output(log)
+   printstring(datestamp); newline
+   printstring("Posted- "); printstring(mail file); printstring(" from "); writeppn(ppn)
+   printstring(" to user "); printstring(name); printsymbol('@'); printstring(dest); newline
+   close output
+%end
+
+
+%predicate do post
+!=================
+!main routine for doing the post thing
+%string(100) str,t,to,u1,d1
+%string(255) message,TS address
+%string(25) type,dev
+%record(filespec) mail fs
+%integerarray patharg(1:3)
+%integer local mail,n
+%cycle
+   name=""; dest=""
+   read word(name,false);    !read a number of words
+   %if nextsymbol='@' %then skipsymbol %and readword(dest,true);  !read a single word
+   skip rest of line
+   ->1 %if name="" %or (name->str.(":").t %and ppn#8_1 000002); !only opr allowed to use devices
+   %if dest="" %start
+      %if defined name(name,dest) %start;    !get name from switch.ini
+         printstring("To: "); printstring(name); printstring(" at "); printstring(dest)
+      %else
+         printstring("?The name "); printstring(name); printstring(" is not defined in switch.ini")
+      %finish
+      newline
+   %finish
+   %if dest#"" %start
+      %exit %if get type(dest,type)
+      printstring(type); printsymbol(nl)
+   %finish
+1: ->errstop %if is batch; !not interactive
+   prompt("To: ")
+%repeat
+
+%if mail error=false %and name->d1.("%").to %start; !do not include code for error
+   %if to->d1.("%").to %start;%finish
+   replyto=this user."%".this node
+   %unless delist(to,u1,d1) %start
+      to=dest
+   %else
+      %if casematch(dest,"ucl") %start
+         replyto=replyto."%ucl-cs%isid"
+      %else
+         replyto=replyto."%".dest
+      %finish
+      %while delist(to,u1,d1) %cycle
+         replyto=replyto."%".d1
+         to=u1
+      %repeat
+   %finish
+   %if casematch(to,"ucl") %then replyto=replyto."%ucl-cs" %and to="isid"
+   replyto=replyto."@".to
+   newline; printstring("Reply-To:  "); printstring(replyto)
+   %if is batch %start
+      newline
+   %else
+      printstring("    -  is this correct?"); newline
+2:    printstring("Type new address or <cr>:  ")
+      skip symbol %while %not sp#nextsymbol#tab;  !remove leading spaces
+      %if nextsymbol=nl %start
+         skipsymbol
+      %else
+         readline(message)
+         %if length(message)<4 %start;  !probably yes or no
+            %if charno(message,1)='N' %or charno(message,1)='n' %then ->2
+            %if charno(message,1)='Y' %or charno(message,1)='y' %start
+               !do nothing
+            %else reply to=message; !looks funny but I don't know what else to do
+         %else reply to=message
+      %finish
+   %finish
+%else replyto=""
+%if casematch(dest,this node) %or case match(dest,our node) %then local mail=true %else local mail=false
+%if local mail %start
+   dev=qdev.":"; str=".MAI[3,5]"
+%else
+   dev=""; str=".PST"
+   patharg(1)=jobnum<<18!8_777777
+   patharg(2)=0; patharg(3)=0
+   ac(1)=3<<18!addr(patharg(1))
+   *8_047040000110;   !path 1,   - read default path
+   *8_255000000000;   !jfcl
+   !now use default path or else the home directory
+   %if patharg(3)=ppn %then str=str."[-]" %else str=str."[,]"
+%finish
+mail file=defuni(mail,dev,str."<177>");  !create mail file on own area
+prompt("Subject: "); readline(subject)
+printstring("Enter message, end with ^Z"); newline
+select output(mail)
+%if local mail %start;  !simulate the via route
+   TS address=this node; upper case(TS address)
+   %unless address(this node,ts address,n) %then TS address=this node
+   printstring(TS address); newline
+%finish
+print address header
+print ARPA header
+
+readsymbol(s)
+%if s='@' %start;  !a file
+   copy file
+%else
+   copy text
+%finish
+print message separator
+close output
+do log(name,dest)
+%if local mail %start
+   select output(tty)
+   printstring("OK, I have sent it to the mail system"); newline
+%else
+   str=name; name=""
+   mailfs=strtofs(mail file); mailfs_prot=0
+   do ftp(str,dest,name,mailfs,mail,message)
+   select output(tty)
+   Printstring(message); newline
+%finish
+%true
+errstop:!here on a fatal error
+*8_047040 000012;  !monrt.
+*8_047000 000012;  !exit
+%false
+%end
+
+
+%predicate defined name(%string(1)%name name,dest)
+!=================================================
+!looks up SWITCH.INI[,] for lines:-
+!POST/fred=fred@host,jim=jim@host
+!for locally defined names
+!it takes a single argument 'name' which should be compacted (no spaces) u/c
+!and if it finds a match it will return both 'name' and 'dest' arguments
+!otherwise 'name' remains unchanged.
+%string(255) str,nm,ds
+%record(filespec) swini
+%integer in
+
+%on %event 9,10 %start
+   %if event=10 %then %false
+   close input; select input(in)
+   %false
+%finish
+
+%routine readone(%string(1)%name str)
+!-----------------------------------
+!will read a string - including spaces, convert it to u/c
+!and take the following as break chars ('/' ',' '=' '@' nl)
+%integer s,bracket seen
+   %on %event 9 %start
+      %return
+   %finish
+
+   %predicate terminator
+      %true %if s='/' %or s=',' %or s='=' %or s='@' %or s=nl
+      %false
+   %end
+
+   str=""; bracket seen=false
+   %cycle
+      s=next symbol
+      %if s='[' %then bracket seen=true
+      %if s=']' %then bracket seen=false
+      %exit %if bracket seen=false %and terminator
+      %if s<=sp %start
+         skipsymbol %until sp#nextsymbol#tab
+         s=nextsymbol
+         %exit %if terminator;  !do not include terminal spaces
+         str=str." "
+         %continue
+      %finish
+      skipsymbol
+      str=str.tostring(s)
+   %repeat
+%end
+
+%routine FORMAT ERROR ;      !here when a formatting error in a POST/... line is found
+   printstring("%Incorrect format of POST/name=name@dest..... line in SWITCH.INI"); newline
+   printstring("%POST/"); printstring(str); printsymbol('=') %if nm#""; printstring(nm)
+   printsymbol('@') %if ds#""; printstring(ds); newline
+%end
+
+swini=0; swini_file="switch"; swini_ext="ini"; swini_ppn=ppn
+xdefine input(mail,swini)
+in=instream
+select input(mail)
+%cycle
+   readone(str)
+   %if casematch(str,"POST") %and nextsymbol='/' %start;  !got a POST line
+      skip symbol
+      %if nextsymbol#nl %start
+         %cycle
+            readone(str)
+            %unless nextsymbol='=' %then FORMAT ERROR %and ->cont
+            skipsymbol
+            readone(nm)
+            %unless nextsymbol='@' %then FORMAT ERROR %and ->cont
+            skipsymbol
+            readone(ds)
+            %if casematch(name,str) %start;  !got a match
+               name=nm; dest=ds
+               close input; select input(in)
+               %true
+            %finish
+            %exit %if nextsymbol=nl
+            %unless nextsymbol=',' %then FORMAT ERROR %and ->cont
+            skip symbol
+            nm=""; ds=""
+         %repeat
+      %finish
+   %finish
+cont:
+   skip rest of line
+   skipsymbol %while nextsymbol<=sp;   !move to next alphanum
+   nm=""; ds=""
+%repeat
+%end
+
+!main program
+%on %event 1,2,3,4,5,6,7,8,9,10 %start
+   SELECT OUTPUT(TTY)
+   newline; printsymbol('?')
+   printstring(errmsg); newline
+   ->end1
+%finish
+
+macini;  !set up contrl c trapping
+cntrlc=false
+N=-JOBNUM
+%IF PPN#OPRPPN %AND CALLI2(8_61,N) %START;   !GET JOB STATUS AND SEE IF JACCT BIT SET
+   %IF N&8_010000 000000=0 %START
+      ERRMSG="No privileges to modify the queue - must be RUN from SYS:"
+      %signal 10
+   %FINISH
+%FINISH
+
+today=day
+today=substring(today,1,3)
+init nodes
+read aliases
+get from field
+select input(tty); select output(tty)
+*8_051400 000000;  !get command line(rescan)
+*8_255000 000000;  !jfcl
+!GET A COMMAND LINE
+skip run command
+->end1 %unless do post
+end:
+;!*8_051440 000000;    !clrbfi
+*8_047000 000000;    !reset
+*8_047000 000012;    !exit 0,
+end1:
+select output(mail); abort output
+->end
+
+%endofprogram

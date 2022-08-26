@@ -1,0 +1,826 @@
+!FSTORE.IMP
+!   COPYRIGHT K.FARVIS ERCC.
+!This file includes the DEC-10 filestore interface for FTPSPL
+
+%INCLUDE "IMP:IOLIB.INC"
+%CONSTINTEGER TRUE=-1, FALSE=0
+
+!THE FOLLOWING ROUTINE IS FOR PUTTING STUFF IN THE GALAXY 
+%EXTERNALROUTINESPEC QUEUE(%STRING(70) FSPEC, %STRING(12) JOB,USER,DEVICE,%INTEGER PPN,SIZE,LIMIT,DISPOSE,LOG,%STRING(1)%NAME MESS)
+!ROUTINE TO SET UP SEARCH LIST
+%EXTERNALPREDICATESPEC SETSRC(%INTEGER PPN)
+%EXTERNALINTEGERFNSPEC GET TIME
+%EXTERNALINTEGERFNSPEC GETNOW
+%EXTERNALINTEGERSPEC OPRPRV
+
+%EXTERNALINTEGER CNTRLC ;  !TO DISABLE CNTRL C INTERRUPTS
+%EXTERNALROUTINESPEC DELETE(%STRING(255) FILE)
+%EXTERNALROUTINESPEC READFS(%RECORD(FILESPEC)%NAME FS)
+%EXTERNALINTEGERFNSPEC MATCH(%STRING(1)%NAME S,%STRING(255) T)
+%EXTERNALPREDICATESPEC SWITCH ARG(%STRING(1)%NAME S,%STRING(11) T,%NAME X)
+%EXTERNALINTEGERFNSPEC STRTOSIX(%STRING(6) STR)
+%EXTERNALRECORD(FILESPEC)%FNSPEC STRTOFS(%STRING(255) STR)
+%EXTERNALSTRING(255)%FNSPEC FSTOSTR(%RECORD(FILESPEC)%NAME FS)
+%EXTERNALSTRING(12)%FNSPEC OCTTOSTR(%INTEGER N)
+%EXTERNALINTEGERFNSPEC STRTOOCT(%STRING(1)%NAME  S)
+%EXTERNALROUTINESPEC UPPER CASE(%STRING(1)%NAME S)
+%EXTERNALROUTINESPEC RESET OUTPUT
+%EXTERNALSTRING(6)%FNSPEC SIXTOSTR(%INTEGER N)
+%EXTERNALPREDICATESPEC CALLI2(%INTEGER N,%INTEGERNAME AC)
+%EXTERNALSTRING(9)%FNSPEC HEXTOSTR(%INTEGER N)
+%EXTERNALSTRING(12)%FNSPEC INTTOSTR(%INTEGER N)
+%EXTERNALSTRING(18)%FNSPEC DATETIME
+%EXTERNALSTRING(9)%FNSPEC DATE
+%EXTERNALSTRING(8)%FNSPEC TIME
+%EXTERNALINTEGERFNSPEC GET DATE
+%EXTERNALPREDICATESPEC ISNODE(%STRING(1)%NAME NAME,TYPE %INTEGERNAME STATUS)
+%INTEGERFNSPEC ERSATZ(%STRING(1)%NAME S)
+
+%EXTERNALSTRING(255)%SPEC ERRMSG
+
+%EXTERNALINTEGERSPEC I AM P
+%EXTERNALINTEGERSPEC ARPA MAIL
+%EXTERNALSTRING(96)%SPEC LOGFILE
+%EXTERNALINTEGERSPEC LOGLEVEL
+%EXTERNALSTRING(96)%SPEC XMONMESS
+%EXTERNALSTRING(96)%SPEC XFILENAME
+%EXTERNALSTRING(20)%SPEC XOURACCOUNT
+%EXTERNALSTRING(20)%SPEC XACCOUNT
+%EXTERNALSTRING(20)%SPEC XUSERNAME
+%EXTERNALSTRING(20)%SPEC XOUTDEV
+%EXTERNALINTEGERNAMESPEC XFSIZE
+%EXTERNALINTEGERNAMESPEC XCODE
+%EXTERNALINTEGERNAMESPEC XMODE
+%EXTERNALINTEGERSPEC YMODE
+%EXTERNALINTEGERNAMESPEC XSTATE
+%EXTERNALINTEGERSPEC XOURPPN
+%EXTERNALSTRING(20)%SPEC XOUR NODE
+%EXTERNALSTRING(255)%SPEC XOTHER NODE
+%EXTERNALSTRING(255)%SPEC XREMOTE NAME
+%EXTERNALSTRING(6)%SPEC QDEV
+%EXTERNALINTEGERSPEC QUFD
+!STREAM NUMBERS
+%CONSTINTEGER TTY=1, LOG=3,TEMP=8
+%CONSTINTEGER MFD=8_1 000001, OPR PPN=8_1 000002
+%CONSTSTRING(8) DEC10="DEC10", IBM="IBM";   !NODE TYPE
+%ROUTINESPEC LOGIT(%STRING(255) STR)
+%OWNINTEGER LAST DATE=0
+
+
+
+%ROUTINE NEWLINE
+!===============
+!TO AVOID DOUBLE <CR> IN FILES
+   PRINTSYMBOL(NL)
+%END
+
+
+%EXTERNALROUTINE REPRT(%STRING(255) STRING)
+!====================================
+!A fancy printstring routine
+   *8_047040 000034;  !GETLIN 1,
+   %IF AC(1)>>18=0 %THEN PRINTSTRING("FTP - ");   !IF DETACHED
+   PRINTSTRING(STRING); NEWLINE
+%END
+
+%EXTERNALSTRING(15)%FN PPNTOSTR(%INTEGER PN)
+!===========================================
+!converts a ppn to a string
+   %RESULT="[".OCTTOSTR(PN>>18).",".OCTTOSTR(PN&8_777777)."]"
+%END
+
+%EXTERNALINTEGERFN PPNTOOCT(%STRING(20) PPN STR)
+!==============================================
+!converts a string with the form [p,pn] to an octal number
+%STRING(20) DUMMY,PROJ,PROG
+%INTEGER IN
+    %ON %EVENT 3 %START
+      SELECT INPUT(IN)
+       %RESULT=0
+    %FINISH
+   IN=INSTREAM
+    %IF PPN STR->DUMMY.("[").PPN STR %START; %FINISH;   !BE TOLERANT OF NO BRACKETS
+    %IF PPN STR->PPNSTR.("]").DUMMY %START; %FINISH
+    %IF PPN STR->PROJ.(",").PROG %START;  !A PROPER PAIR
+      %RESULT=STRTOOCT(PROJ)<<18!STRTOOCT(PROG)
+    %ELSE %RESULT=STRTOOCT(PPNSTR);       !ELSE ASSUME AN OCTAL NUMBER
+%END
+
+
+%EXTERNALROUTINE PARSE DEVICE(%STRING(1)%NAME DEVICE,DEV %INTEGERNAME NODE,NUM)
+!===============================================================================
+!TAKE A DEVICE SPEC 'DEVNNM' AND PARSE IT INTO PARAMETERS
+   %INTEGER N,L,S
+   DEV=""; NODE=0; NUM=0;  !DEFAULTS
+   L=LENGTH(DEVICE)
+   %RETURN %IF L=0
+   %FOR N=1,1,L %CYCLE
+      S=CHARNO(DEVICE,N)
+      ->NODE FOUND %UNLESS 'A'<=S<='Z'
+      DEV=DEV.TOSTRING(S)
+   %REPEAT
+   %RETURN
+NODE FOUND:
+   %IF L-N>0 %START
+      N=N+1
+      NODE=(S-'0')*8+CHARNO(DEVICE,N)-'0'
+      %RETURN %IF N=L
+      S=CHARNO(DEVICE,N+1)
+   %FINISH
+   NUM=S-'0'
+%END
+
+
+%EXTERNALINTEGERFN DEVTYPE(%STRING(6) DEV)
+!=================================
+!Returns the result of the DEVTYP UUO or -1 if unknown
+   %CONSTINTEGER DEVTYP=8_53
+   %INTEGER N
+   N=STRTOSIX(DEV)
+   %RESULT=-1 %UNLESS CALLI2(DEVTYP,N);!* %AND N&DEV AVAL#0
+   %RESULT=N&8_77
+%END
+
+
+%EXTERNALROUTINE READFILES(%STRING(1)%NAME FIL)
+!==============================================
+! Reads a DEC-10 filespec into a string - doing syntactic checking as it does so
+   %RECORD(FILESPEC) FS
+   READFS(FS)
+   FIL=FSTOSTR(FS)
+%END
+
+
+%EXTERNALROUTINE DOSETSRC(%RECORD(FILESPEC)%NAME FS)
+!===================================================
+   %IF XOURPPN=OPR PPN %AND (FS_PPN#0 %AND (FS_DEV="" %AND DEVTYPE(FS_DEV)=0)) %START
+      %UNLESS SETSRC(FS_PPN) %THEN LOGIT("SETSRC failure for ".PPNTOSTR(FS_PPN))
+   %FINISH
+%END
+
+
+%EXTERNALINTEGERFN UNIQUE(%INTEGER N)
+!============================
+!
+!returns a sort of random integer with at least N octal
+!digits guaranteed. Useful for creating random filenames.
+!
+%INTEGER I1,I3
+  I1=GET NOW
+  N=3*N   ;!Number of places to shift in each convolution
+  I3=I1>>N
+  %CYCLE
+    I1=I3+I1-I3<<N
+    I3=I1>>N
+  %REPEAT %UNTIL I3=0
+  %IF I1<(1<<(N-3)) %THEN I1=(-I1-1)&((1<<N)-1);  !Guarantee a leading digit
+  %RESULT=I1
+%END
+
+
+%EXTERNALROUTINE OPEN LOG
+!========================
+! Opens a log file in append mode and reports the fact
+   %RECORD(FILESPEC) FS
+   %INTEGER OUT
+   OUT=OUTSTREAM; SELECT OUTPUT(LOG); CLOSE OUTPUT
+   FS=STRTOFS(LOGFILE)
+   FS_SWITCHES="/FUN:6" %UNLESS LOGFILE="";   !APPEND
+   XDEFINE OUTPUT(LOG,FS)
+   PRINTSTRING(DATE); NEWLINE
+   SELECT OUTPUT(OUT)
+%END
+
+%EXTERNALROUTINE CLOSE LOG
+!=========================
+!CLOSES THE LOG FILE
+   %INTEGER OUT
+   OUT=OUTSTREAM; SELECT OUTPUT(LOG); CLOSE OUTPUT
+   SELECT OUTPUT(OUT)
+%END
+
+
+%EXTERNALROUTINE LOGIT(%STRING(255) STR)
+!=======================================
+!Outputs the given string to the log file with a time stamp or just a newline
+!which is indicated by a null string
+   %INTEGER N
+   %RETURN %IF LOGLEVEL<0
+   N=OUTSTREAM
+   SELECT OUTPUT(LOG)
+   %IF STR#"" %START;   !IF NO STRING JUST OUTPUT A NEWLINE
+      PRINTSTRING(TIME); SPACES(2)
+      PRINTSTRING(STR)
+   %FINISH
+   NEWLINE
+   SELECT OUTPUT(N)
+%END
+
+%EXTERNALROUTINE PSSLOG(%STRING(1)%NAME WHAT STRING,%INTEGER STIME,GSEGS,PSEGS)
+!======================================
+!appends entries to a special PSS.LOG file
+   %INTEGER OUT
+   %REAL TIM,KSEGS,CHARGE
+   %CONSTINTEGER KT=23, KEG=23, SETUP OVERHEAD=6
+   OUT=OUTSTREAM
+   DEFINE OUTPUT(TEMP,QDEV.":FTPPSS.LOG[3,3]/FUN:6");   !OPEN IN APPEND MODE
+   SELECT OUTPUT(TEMP)
+   TIM=(GETTIME-STIME)/3600000; KSEGS=(GSEGS+PSEGS+SETUP OVERHEAD)/1000
+   KSEGS=0.01 %IF KSEGS<0.01;  !MIN CHARGE
+   CHARGE=(KT * TIM) + (KEG * KSEGS)
+   PRINTSTRING("-------------"); NEWLINE
+   printstring(date); spaces(2); printstring(time); newline
+   PRINTSTRING(XOURACCOUNT); PRINTSYMBOL(TAB); PRINTSTRING("used ")
+   PRINT(KSEGS,10,3); PRINTSTRING(" Ksegs in "); PRINT(TIM,6,3)
+   PRINTSTRING(" hours =")
+   WRITE(INT(CHARGE + 0.5),12); PRINTSYMBOL('p'); NEWLINE;  !round up to next penny
+   PRINTSTRING(WHAT STRING); NEWLINE
+   CLOSE OUTPUT
+   SELECT OUTPUT(OUT)
+%END
+
+
+%EXTERNALROUTINE CHECKPOINT
+!============================
+! Simulates it because TOPS-10 cannot do it as of 6.03
+   RESET OUTPUT
+%END
+
+
+
+%EXTERNALROUTINE OPEN INPUT(%INTEGER STREAM,%STRING(1)%NAME FILENAME)
+!====================================================================
+! Opens the given file for input on the given stream setting byte size on the way
+! and using the appropriate search list
+   %RECORD(FILESPEC) FS
+   FS=STRTOFS(FILENAME)
+   FS_SWITCHES=FS_SWITCHES."/MODE:#10"
+   %IF XCODE&7=1 %THEN FS_SWITCHES=FS_SWITCHES."/BYTE:7";   !TEXT MODE
+   DOSETSRC(FS)
+   XDEFINE INPUT(STREAM,FS)
+%END
+
+
+%EXTERNALROUTINE OPEN OUTPUT(%INTEGER STREAM,%STRING(1)%NAME FILENAME)
+!=====================================================================
+! Opens the given file for output on the given stream, setting byte size
+! on the way and using the appropriate search list
+   %RECORD(FILESPEC) FS
+   %INTEGER MODE
+   FS=STRTOFS(FILENAME)
+   %IF I AM P %THEN MODE=YMODE %ELSE MODE=XMODE
+   %IF DEVTYPE(FS_DEV)=3 %START;  !FOR OUTPUT TO A TERMINAL
+      FS_SWITCHES="/TRMOP"
+   %ELSE
+      FS_SWITCHES=FS_SWITCHES."/MODE:#10"
+      %IF XCODE&7=1 %THEN FS_SWITCHES=FS_SWITCHES."/BYTE:7";   !TEXT MODE
+      %IF MODE=1 %THEN FS_SWITCHES=FS_SWITCHES."/FUN:2" %ELSE %C
+         %IF MODE&4 %THEN FS_SWITCHES=FS_SWITCHES."/FUN:6"
+      DOSETSRC(FS)
+   %FINISH
+   XDEFINE OUTPUT(STREAM,FS)
+%END
+
+
+%EXTERNALROUTINE ABORT OUTPUT
+!============================
+!This routine aborts the current output stream, i.e. does not update the disk
+!It works for disk only otherwise it simply does a close output
+   %EXTERNALRECORD(SCB)%SPEC OUNSCB
+   %EXTERNALRECORD(SCB)%NAMESPEC OUTSCB
+   %EXTERNALRECORD(SCBNAME)%ARRAYSPEC OUTVEC(-1:MAXCHANS)
+   %SYSTEMROUTINESPEC RELEASE(%INTEGER CHAN)
+   %SYSTEMROUTINESPEC FREEVEC(%INTEGER THIS)
+   %INTEGER CHAN,OUTST
+   %IF OUTSCB_DEVTYP#DSKDEV %THEN CLOSE OUTPUT %AND %RETURN
+   OUTST=OUTSTREAM
+   CHAN=OUTSCB_FILOPFN>>18&15
+   AC(2)=CHAN<<23
+   AC(1)=8_070000 000140;  !CLOSE N,140  - THROW AWAY FILE
+   *8_434040 000002;  !IOR 1,2
+   *8_256000 000001;  !XCT 1
+   RELEASE(CHAN)
+   FREEVEC(OUTSCB_BUFVEC&8_777777)
+   FREEVEC(ADDR(OUTSCB))
+   OUTVEC(OUTST)_NAME==OUNSCB
+   OUTSCB==OUTVEC(OUTST)_NAME
+%END
+
+%EXTERNALROUTINE DISPOSE(%STRING(1)%NAME FILE,MESSAGE)
+!=======================================================
+! Called after a file has been transferred to delete, print or submit it
+!THIS ROUTINE ACTS AS IF IT IS 'Q' I.E. THE FILESTORE
+   %STRING(8) TYPE
+   %STRING(6) DEVICE
+   %RECORD(FILESPEC) FS
+   %INTEGER MODE,SIZE,STATUS,PPN,DISP
+   %ON %EVENT 10,15 %START
+      %IF EVENT=15 %THEN MESSAGE=ERRMSG %ELSE MESSAGE=MESSAGE. "failed"
+      %RETURN
+   %FINISH
+
+   %ROUTINE EDIT MAIL FILE
+   !DOCTOR MAIL FILE FOR TELL SYSTEM TO LOOK LIKE AN ARPA MAIL FILE
+      %INTEGER S,in,out
+      %ON %EVENT 9,10 %START
+         CLOSE INPUT; CLOSE OUTPUT;  !UPDATE FILE
+         SELECT INPUT(IN); SELECT OUTPUT(OUT)
+         %RETURN %if event=9
+         %signal 10,0,0
+      %FINISH
+
+      IN=INSTREAM; OUT=OUTSTREAM
+      SELECT INPUT(TEMP); SELECT OUTPUT(TEMP)
+      DEFINE INPUT(TEMP,FILE)
+      DEFINE OUTPUT(TEMP,FILE)
+      PRINTSTRING(XREMOTE NAME); NEWLINE %UNLESS CHARNO(XREMOTE NAME,LENGTH(XREMOTE NAME))<SP;     !PUT IN SOURCE M/C
+      %IF ARPA MAIL=FALSE %START;   !FOR SRCNET USE ADD A USERNAME(BUT NO HOST)
+         PRINTSTRING(XUSERNAME); NEWLINE; NEWLINE
+      %FINISH
+      %CYCLE
+         READSYMBOL(S); PRINTSYMBOL(S);   !COPY REST OF FILE
+      %REPEAT
+   %END
+
+   %IF I AM P %THEN MODE=YMODE %ELSE MODE=XMODE
+   MESSAGE=""
+   %IF MODE&16_8000=0 %START;   !TAKE
+      %IF MODE&16_6000#0 %OR ARPA MAIL=TRUE %START;  !SUBMIT OR PRINT
+         FS=STRTOFS(FILE)
+         %IF MODE&16_2000#0 %START
+            %IF FS_DEV#"INP" %START
+               MESSAGE=" Cannot submit jobs to devices other than 'INP' - deleting file"
+               DELETE(FILE)
+               %RETURN
+            %FINISH
+            FS_PPN=QUFD; FS_DEV=QDEV
+            FILE=FSTOSTR(FS)
+            DEVICE="INP"; DISP=1
+         %ELSE
+!* RUN BATCH JOB LATER
+            %IF XOUTDEV="D60" %START; !SPOOL A BATCH JOB TO RUN A SPOOLER
+!*               %IF FS_EXT="TSO" %START; !FOR TSO
+!*                  QUEUE("TSO.CTL[5,27]","TSOSPL","TSO-SPOOLER","INP",0,55,5,0,3,MESSAGE)
+!*               %ELSE;  !ANY OTHER IBMS EG. RAL
+!*                  QUEUE("HASPL.CTL[5,27]","HASPL","HASP-SPOOLER","INP",0,55,10,0,3,MESSAGE)
+!*               %FINISH
+               %RETURN
+            %FINISH
+            %IF ARPA MAIL=TRUE %OR XOUTDEV="POST" %START;    !**POST SPECIAL** SPOOL A BATCH JOB
+               %IF DEVTYPE(FS_DEV)=0 %START; !FOR DISK DEVICES - ALTER FILE FOR TELL INTERFACE
+                  EDIT MAIL FILE;   !MASSAGE FILE
+!*                  QUEUE("MAIL.CTL[5,27]","MAIL","MAIL-SYSTEM","INP",0,55,60,0,3,MESSAGE);  !ONLY FOR DISK TYPE DEVICES
+               %FINISH
+               %RETURN
+            %FINISH
+            DEVICE=XOUTDEV
+            %IF FS_DEV=QDEV %AND FS_PPN=QUFD %THEN DISP=1 %ELSE DISP=0; !DELETE FILES SENT TO THE QUEUE AREA
+         %FINISH
+        %IF I AM P %OR (ISNODE(XOTHERNODE,TYPE,STATUS) %AND TYPE=DEC10) %THEN PPN=PPNTOOCT(XACCOUNT) %ELSE PPN=QUFD
+         SIZE=(XFSIZE*1024)//(5*128);   !NUMBER OF BLOCKS
+         QUEUE(FILE,"",XUSERNAME,DEVICE,PPN,SIZE,0,DISP,0,MESSAGE);  !CALL GALAXY
+      %FINISH
+   %ELSE
+      %IF MODE=16_8001 %OR MODE=16_8004 %START
+         MESSAGE=" deleting file"
+         DELETE(FILE)
+         MESSAGE=MESSAGE." succeeded"
+      %FINISH
+   %FINISH
+%END
+
+
+
+
+%EXTERNALROUTINE TELL USER(%STRING(1)%NAME USER,FIL %STRING(255) MESSAGE)
+!========================================================================
+!TO GIVE THE USER A MESSAGE IN HIS AREA AND ALSO IN THE AREA OF THE GIVEN FILE
+   %INTEGER OUT,USERPPN
+   %RECORD(FILESPEC) FS
+   %STRING(20) USERNAME
+
+   %ROUTINE DO USER OUTPUT(%INTEGER APPN)
+      %RECORD(FILESPEC) USERFS
+      %ON %EVENT 10 %START
+         %IF SUBEVENT=5  %START
+           USERNAME=PPNTOSTR(APPN)
+           LOGIT("Cannot open logfile FTP.LOG for user ".XOURNODE."_".USERNAME)
+         %RETURN
+         %FINISH
+         %SIGNAL 10,SUBEVENT,EVENTINFO
+      %FINISH
+   
+      USERFS=STRTOFS("FTP.LOG/FUN:6")
+      USERFS_PPN=APPN
+      DOSETSRC(USERFS)
+      XDEFINE OUTPUT(TEMP,USERFS)
+      SELECT OUTPUT(TEMP)
+      PRINTSTRING(DATETIME); NEWLINE
+      PRINTSTRING(MESSAGE); NEWLINE
+      CLOSE OUTPUT
+      %RETURN
+   %END
+
+   OUT=OUTSTREAM
+   %UNLESS USER="" %START
+      USERPPN=PPNTOOCT(USER)
+      DO USER OUTPUT(USERPPN)
+   %FINISH
+   FS=STRTOFS(FIL)
+   %IF FS_PPN=0 %THEN FS_PPN=ERSATZ(FS_DEV)
+   %IF FS_PPN#0 %AND FS_PPN#USERPPN %THEN DO USER OUTPUT(FS_PPN)
+   SELECT OUTPUT(OUT)
+%END
+
+%EXTERNALINTEGERFN ERSATZ(%STRING(1)%NAME DEV)
+!==============================================
+!Returns the PPN implied by an ersatz device
+   %INTEGER PN
+   %CONSTINTEGER DEVPPN=8_55, DSK=8_446353 000000;  !SIXBIT 'DSK'
+   %RESULT=0 %IF LENGTH(DEV)#3
+   PN=STRTOSIX(DEV)
+   %RESULT=0 %IF PN=DSK %OR %NOT CALLI2(DEVPPN,PN)
+   %RESULT=PN
+%END
+
+
+%PREDICATE CHECK ACCESS(%INTEGER PPN, MODE,%STRING(1)%NAME PASS,ACCOUNT, %INTEGERNAME CODE)
+!=========================================================================================
+!Looks up SWITCH.INI in the given PPN and checks the given password, mode of access
+! and user account string against those in the file and
+!returns %TRUE if the access is permitted and %FALSE if not.
+!In addition if access is not permitted the CODE parameter is
+!set as follows and a message is put in XMONMESS for codes 3 and 4
+! code=1    - No SWITCH.INI file was found
+! code=2    - No FTP entry found in SWITCH.INI file
+! code=3    - /USERS switch did not permit transfer
+! code=4    - /Passwords did not match
+   %RECORD(FILESPEC) PASS FS
+   %STRING(20) STR,PASS STR
+   %STRING(100) SWITCH
+   %INTEGER FTP FOUND,PASS OK,ENTRY FOUND,ACCESS OK,IN,CHAR,N,FLAG GATEWAY
+   %CONSTSTRING(8) PASSWORD="PASSWORD", ACCESS="USERS",OUTPUT SW="ACCESS", INPUT SW="DELETE"
+
+   %ON %EVENT 9,10 %START
+      %IF EVENT=10 %START
+         CODE=1;   !NO SWITCH.INI FILE FOUND
+      %ELSE
+         %IF FTP FOUND=FALSE %START
+            CODE=2
+         %ELSE%IF PASS OK %START
+            CODE=3
+            XMONMESS="/USERS switch not found" %IF XMONMESS=""
+         %ELSE
+            CODE=4
+            XMONMESS="/PASSWORD switch not found" %IF XMONMESS=""
+         %FINISH
+      %FINISH
+      CLOSE INPUT; SELECT INPUT(IN)
+      XMONMESS=XOUR NODE."_SWITCH.INI file - ".XMONMESS
+      %FALSE
+   %FINISH
+
+   %ROUTINE READ CHAR
+   !-----------------
+      READSYMBOL(CHAR) %UNTIL SP#CHAR#TAB; CHAR=CHAR-32 %IF 'a'<=CHAR<='z'
+   %END
+
+   %PREDICATE ALPHANUM
+   !------------------
+      READ CHAR
+      %TRUE %IF 'A'<=CHAR<='Z' %OR '0'<=CHAR<='9'
+      %FALSE
+   %END
+
+   %ROUTINE PROCESS ACCESS
+   !------------------------
+   !SETS ACCESS OK IF IT FINDS A CORRECT MATCH FOR XOTHER NODE, ACCOUNT AND
+   !MODE OF ACCESS IN SWITCH.INI. IT SETS ENTRY FOUND IF IT FINDS A MATCH FOR NODE AND ACCOUNT
+      %STRING(72) ACCESS ELEMENT
+      %STRING(35) NODE ACC
+      %STRING(255) ACCESS CODES
+      %STRING(255) NODE
+      %STRING(20) NOD
+      %STRING(15) ACC,TYPE
+      %INTEGER A OK, ACC OK, N OK
+      %INTEGER FLAG R, FLAG D, FLAG C, FLAG W, FLAG A,FLAG P,FLAG S
+      %INTEGER N,STATUS,I
+      %SWITCH CODE(1:5)
+      %SWITCH CODE 8000(1:4)
+   
+      %ON %EVENT 7 %START
+         XMONMESS="incorrect FTP argument - ".ACCESS ELEMENT
+         %SIGNAL 9
+      %FINISH
+   
+      %PREDICATE PPN MATCH(%STRING(1)%NAME ACCOUNT,ACC)
+      !-------------------------------------------------
+         %STRING(8) PROJECT, PROGRAMMER,DUMMY
+         %INTEGER PROJ,PROG
+         %ON %EVENT 10 %START; %SIGNAL 7 ; %FINISH
+   
+         N=PPNTOOCT(ACCOUNT)
+         PROJ=N>>18; PROG=N&8_777777
+         ACC->PROJECT.(",").PROGRAMMER
+         PROJECT->DUMMY.("[").PROJECT; PROGRAMMER->PROGRAMMER.("]").DUMMY
+         %TRUE %IF (PROJECT="*" %OR PROJ=STRTOOCT(PROJECT)) %AND %C
+            (PROGRAMMER="*" %OR PROG=STRTOOCT(PROGRAMMER))
+         %FALSE
+      %END;!OF PPN MATCH
+   
+      READ CHAR
+      ACCESS ELEMENT=""    ;!Initialize List Element to null string
+      %WHILE CHAR#',' %AND CHAR#')' %AND CHAR#'/' %CYCLE
+         ACCESS ELEMENT=ACCESS ELEMENT.TOSTRING(CHAR)  ;!Build up element char by char
+         READ CHAR
+         !Get everything in between Square Brackets in one go
+         %IF CHAR='[' %THEN %START
+                                %CYCLE
+                                 ACCESS ELEMENT=ACCESS ELEMENT.TOSTRING(CHAR)
+                                 READ CHAR
+                                 %REPEATUNTIL CHAR=']'
+                             %FINISH
+      %REPEAT
+      ACCESS OK=TRUE;  !ALWAYS ALLOW ACCESS
+      %RETURN
+      !Process Access Element
+      ACCESS ELEMENT->NODE ACC.("=").ACCESS CODES
+      NODE ACC->NODE.("_").ACC
+      !Check node
+      N OK=FALSE; ACC OK=FALSE
+      %IF NODE="*" %OR NODE="ALL" %OR NODE="GATEWAY" %START;  !MAKE GATEWAY COVER ALL  REMOTES
+         FLAG GATEWAY=TRUE; NODE=XOTHER NODE
+      %ELSE
+         FLAG GATEWAY=FALSE
+         %UNLESS ISNODE(NODE,TYPE,STATUS) %START
+            NOD=SUBSTRING(NODE,1,LENGTH(NODE)-1) %IF LENGTH(NODE)>1;   !STRIP OFF FINAL 'F' IF PRESENT
+            %UNLESS ISNODE(NOD,TYPE,STATUS) %START
+               XMONMESS="not a recognised node - ".NODE %AND %SIGNAL 9
+            %ELSE NODE=NOD
+         %FINISH
+      %FINISH
+      %IF XOTHER NODE=NODE %START;  !NODES MATCHES
+         N OK=TRUE
+         %IF TYPE=DEC10  %AND FLAG GATEWAY=FALSE %START;   !I.E. DEC-10S CANNOT BE COVERED BY GLOBAL NAME 'GATEWAY'
+            ACC OK=TRUE %IF ACC="*" %OR PPN MATCH(ACCOUNT,ACC)
+         %ELSE
+            ACC OK=TRUE %IF ACCOUNT=ACC %OR ACC="*"
+         %FINISH
+      %FINISH
+      !Check Access Codes
+      FLAG R=FALSE; FLAG D=FALSE; FLAG C=FALSE;  FLAG P=FALSE; FLAG S=FALSE;
+      FLAG W=FALSE; FLAG A=FALSE; A OK=FALSE;
+      !Initially no access permitted
+      %FOR I=1,1,LENGTH(ACCESS CODES) %CYCLE
+         N=CHARNO(ACCESS CODES,I)
+         %IF N='*' %START; A OK=TRUE
+         %ELSE %IF N='R' %START; FLAG R=TRUE 
+         %ELSE %IF N='D' %START; FLAG D=TRUE 
+         %ELSE %IF N='C' %START; FLAG C=TRUE 
+         %ELSE %IF N='W' %START; FLAG W=TRUE 
+         %ELSE %IF N='A' %START; FLAG A=TRUE 
+         %ELSE %IF N='P' %START; FLAG P=TRUE
+         %ELSE %IF N='S' %START; FLAG S=TRUE
+         %ELSE XMONMESS="not a recognised access code - ".TOSTRING(N) %AND %SIGNAL 9
+      %REPEAT
+      !Now look at flags
+      !If A OK is true then all access is permitted
+      %IF %NOT A OK %THEN %START
+      !Only check out sensible possibilities
+                          N=MODE&16_8FFF;  !IGNORE BATCH AND PRINT BITS
+                          ->CODE(N) %IF N<=5
+                          ->CODE 8000(N-16_8000) %IF 16_8001<=N<=16_8004
+                          CODE 8000(3):
+                          XMONMESS="Unrecognised mode of file access ".HEXTOSTR(MODE); %SIGNAL 9
+                          CODE(1): %IF FLAG C %THEN A OK=TRUE; ->FINAL CHECK
+                          CODE(2): %IF FLAG W %THEN A OK=TRUE; ->FINAL CHECK
+                          CODE(3): %IF FLAG C %AND FLAG W %THEN A OK=TRUE; ->FINAL CHECK
+                          CODE(4): %IF FLAG A %THEN A OK=TRUE; ->FINAL CHECK
+                          CODE(5): %IF FLAG C %AND FLAG A %THEN A OK=TRUE; ->FINAL CHECK
+                          CODE 8000(4):
+                          CODE 8000(1): %IF FLAG R %AND FLAG D %THEN A OK=TRUE; ->FINAL CHECK
+                          CODE 8000(2): %IF FLAG R %THEN A OK=TRUE;!* ->FINAL CHECK
+                          %FINISH
+   
+      !Set ACCESS OK to TRUE if node, ppn, and access all match
+      FINAL CHECK:
+      ENTRY FOUND=TRUE %IF N OK=TRUE=ACC OK
+      %IF (MODE&16_4000#0 %AND FLAG P=FALSE) %OR (MODE&16_2000#0 %AND FLAG S=FALSE) %THEN A OK=FALSE
+      %IF ENTRY FOUND=TRUE %START
+         %IF A OK=TRUE %START
+            ACCESS OK=TRUE
+         %ELSE;  !FOUND A USER UNIQUE ENTRY
+            %IF XMONMESS="" %THEN XMONMESS="specified mode of access not permitted for this user"
+         %FINISH
+      %ELSE
+         %IF XMONMESS="" %THEN XMONMESS="access not permitted by /USERS switch"
+      %FINISH
+   %END; !OF PROCESS ACCESS
+
+   XMONMESS=""
+   PASSFS=0; PASSFS_PPN=PPN
+   FTP FOUND=FALSE; PASS OK=FALSE; ENTRY FOUND=FALSE
+   ACCESS OK=TRUE;  !ALWAYS ALLOW ACCESS IF PASSWORD IS OK
+   PASSFS_FILE="SWITCH"; PASSFS_EXT="INI"
+   IN=INSTREAM
+   SELECT INPUT(TEMP)
+   XDEFINE INPUT(TEMP,PASSFS)
+   SELECT INPUT(TEMP)
+   %CYCLE
+      STR=""
+      %WHILE ALPHANUM %CYCLE
+        STR=STR.TOSTRING(CHAR)
+      %REPEAT
+      %IF STR="FTP" %START;  !PROGRAM NAME FOUND
+        FTP FOUND=TRUE
+         %CYCLE
+            READ CHAR %WHILE '/'#CHAR#NL
+            %EXIT %IF CHAR=NL
+            SWITCH=""
+            %WHILE ALPHANUM %CYCLE
+               SWITCH=SWITCH.TOSTRING(CHAR)
+            %REPEAT
+            %EXIT %IF CHAR=NL
+            %IF MATCH(PASSWORD,SWITCH)=1 %START
+               STR=""
+               %FOR N=1,1,12 %CYCLE
+                  %EXIT %IF %NOT ALPHANUM
+                  STR=STR.TOSTRING(CHAR)
+               %REPEAT
+               PASS STR=PASS; UPPER CASE(PASS STR)
+               %IF STR=PASS STR %START
+                  CLOSE INPUT; SELECT INPUT(IN)
+                  %TRUE
+               %ELSE XMONMESS="password does not match" %AND %SIGNAL 9
+               %CONTINUE
+            %FINISH
+            %IF MATCH(ACCESS,SWITCH)=1 %START
+               READ CHAR %IF CHAR=':'
+               %EXIT %IF CHAR=NL
+               %IF CHAR='(' %START
+                  %CYCLE
+                     PROCESS ACCESS
+                  %REPEATUNTIL CHAR#',' %OR ACCESS OK
+               %ELSE PROCESS ACCESS
+               %CONTINUE
+            %FINISH
+            %IF MATCH(OUTPUT SW,SWITCH)#1#MATCH(INPUT SW,SWITCH) %START
+               XMONMESS="unrecognised switch - ".SWITCH; %SIGNAL 9
+            %FINISH
+         %REPEAT
+         %IF ENTRY FOUND=TRUE %START
+            %IF PASS OK=TRUE=ACCESS OK %START
+               CLOSE INPUT; SELECT INPUT(IN)
+               %TRUE
+            %ELSE ENTRY FOUND=FALSE;   !GO ROUND AGAIN
+         %FINISH
+      %FINISH
+      %IF CHAR#NL %START
+         SKIPSYMBOL %WHILE NEXTSYMBOL#NL;   !SKIP TO END OF LINE
+      %FINISH
+      SKIPSYMBOL %WHILE NEXTSYMBOL<=SP;  !AND UNTIL BEGINNING OF NEXT SPEC
+   %REPEAT
+%END
+
+
+%EXTERNALPREDICATE LEGAL ACCESS(%STRING(1)%NAME FILENAME, %INTEGER MODE, %STRING(20) ACCOUNT,USERNAME,PASSWORD)
+!=====================================================================================================
+! Taking the role of being the filestore i.e. 'Q', this predicate returns
+! %TRUE if the given file can be read or written in the filestore in
+! the given mode for the given account and with the given password
+! If it is not permitted then %FALSE is returned and XSTATE is set
+! for the given failure code and a message is put in XMONMESS.
+! If it succeeds then the file size is obtained for a file to be read
+   %INTEGER IN,PN,UFD PROT,FILE PROT,FIRST,FILE EXISTS,CODE,TAKE,DTYPE,NODE,NUM
+   %STRING(6) DEV
+   %RECORD(FILESPEC) FS,UFD FS
+   %EXTERNALRECORD(SCB)%NAMESPEC INSCB
+   %ON %EVENT 10 %START
+      CLOSE INPUT;   !TEMP STREAM
+      %IF EVENTINFO#1 %AND FIRST %AND (TAKE %AND MODE&1) %START;  !ON FIRST DEFINE TO SEE IF FILE EXISTS
+         FILE EXISTS=FALSE; FIRST=FALSE; FILE PROT=0
+         ->ONE
+      %FINISH
+      SELECT INPUT(IN)
+      %IF SUBEVENT=4 %START
+         %IF FS_PPN=0 %START
+            XMONMESS=" no directory specified for file"
+         %ELSE XMONMESS=" does not exist"
+         %IF EVENTINFO=1 %START
+            XMONMESS=" UFD".XMONMESS
+         %ELSE%IF EVENTINFO=2 %START
+            XMONMESS="File protection error for ".FILENAME
+         %FINISH
+      %ELSE XMONMESS=ERRMSG
+      XSTATE=16_1001
+      ->FAIL
+   %FINISH
+
+   %PREDICATE SPECIAL CASES
+   !------------------------
+      !PREDICATE TO CHECK IF ACCESS FOR SPECIAL DEVICES
+      %STRING(20) PNSTR
+      PNSTR=PPNTOSTR(FS_PPN)
+      %TRUE %IF XOUTDEV="POST"%OR ARPA MAIL=TRUE %OR XOUTDEV="D60" %OR DTYPE=7  %C
+   %OR DTYPE=8_13 %OR  XMODE=16_4001 %OR   %C
+ (I AM P %AND (PNSTR=XOURACCOUNT %OR (OPRPRV=TRUE %AND XOURACCOUNT="[1,2]"))) %C
+ %OR (I AM P=FALSE %AND OPRPRV=TRUE %AND XACCOUNT="[1,2]" %AND (XOTHERNODE="ERCC" %OR XOTHERNODE="UMIST")) %OR FS_PPN=QUFD
+     %FALSE
+   %END
+
+   UFD FS=STRTOFS("DSK:.UFD[1,1]/EXT:6");  !FOR LOOKING UP USERS UFD
+   %IF MODE&16_8000=0 %THEN TAKE=TRUE %ELSE TAKE=FALSE
+   IN=INSTREAM; SELECT INPUT(TEMP)
+   FS=STRTOFS(FILENAME)
+   %IF I AM P=FALSE %AND MODE=16_4001 %START
+      %IF XOUTDEV="LP" %START
+         FS_DEV="LPT"
+      %ELSEIF XOUTDEV#"POST" %START
+         FS_DEV=XOUTDEV
+      %FINISH
+   %FINISH
+   PN=ERSATZ(FS_DEV)
+   FS_PPN=PN %IF FS_PPN=0;   !MAKE PPN INTO ERSATZ PPN
+   %IF FS_PPN=0 %THEN FS_PPN=PPNTOOCT(XUSERNAME);  !TRY GETTING PPN FROM THE USERNAME
+   PARSE DEVICE(FS_DEV,DEV,NODE,NUM)
+   %IF DEV="LPT" %OR DEV="PLT" %START
+      %IF TAKE=FALSE %START
+         XMONMESS=" cannot read from ".FS_DEV; ->FAIL
+      %FINISH
+      XOUTDEV=FS_DEV; FS_DEV=QDEV; FS_PPN=QUFD
+   %FINISH
+   DOSETSRC(FS)
+   %IF FS_DEV#"" %AND PN=0 %START
+      DTYPE=DEVTYPE(FS_DEV);  !GET THE TYPE OF DEVICE
+      %IF DTYPE=-1 %START
+         XMONMESS=" unknown device"; ->FAIL
+      %ELSEIF DTYPE#0 %AND DTYPE#7 %AND DTYPE#8_13 %AND DTYPE#3 %START
+         XMONMESS=" non-disk devices other than LPTs and PLTs not supported"; ->FAIL
+      %FINISH
+   %FINISH
+   %IF FS_DEV="" %AND FS_PPN=0 %START
+      XMONMESS=" filename must include a device or [ppn] specification"
+      XSTATE=16_1001
+      ->FAIL
+   %FINISH
+   FILENAME=FSTOSTR(FS);    !CHANGE FILENAME APPROPRIATELY
+   FS_SWITCHES=FS_SWITCHES."/EXT:#16"
+   FIRST=TRUE;   !TO SEE IF IT BOMBS ON THIS DEFINE INPUT
+   %IF DEV#"NUL" %START
+      XDEFINE INPUT(TEMP,FS)
+      FILE EXISTS=TRUE
+   %ELSE FILE EXISTS=FALSE
+   FIRST=FALSE
+   FILE PROT=(INSCB_LKENT_PRV>>27)&7
+   %IF %NOT TAKE %START
+      XFSIZE=INSCB_LKENT_SIZ
+      %IF XCODE=2 %THEN XFSIZE=(XFSIZE*9)//2 %ELSE XFSIZE=XFSIZE*5
+      XFSIZE=(XFSIZE+1023)//1024; !NEXT HIGHEST KBYTE
+   %FINISH
+   UFD FS_DEV=SIXTOSTR(INSCB_LKENT_DEV)
+   CLOSE INPUT
+   %IF MODE=1 %START
+      XMONMESS=" already exists"
+      XSTATE=16_1001
+      ->FAIL
+   %FINISH
+ONE:
+   XMONMESS=""
+   SELECT INPUT(IN)
+   %TRUE %IF SPECIAL CASES %OR CHECK ACCESS(FS_PPN,MODE,PASSWORD,ACCOUNT,CODE)  ;!IF SPECIAL OR PERMITTED TO
+!Otherwise check the 'all other users' field of the UFD and FILE protection codes
+   %IF CODE<=2 %START;  !IF NO FTP ENTRY IN SWITCH.INI FILE
+      XMONMESS=""
+      SELECT INPUT(TEMP)
+      UFD FS_FILE=SIXTOSTR(FS_PPN)
+      XDEFINE INPUT(TEMP,UFD FS)
+      UFD PROT=(INSCB_LKENT_PRV>>27)&7
+      CLOSE INPUT; SELECT INPUT(IN)
+      %IF TAKE=FALSE %START
+         %IF MODE=16_8002 %START
+            %TRUE %IF UFD PROT&4=4 %AND FILE PROT<=5
+         %ELSE;  !FOR READ AND REMOVES
+            %TRUE %IF UFD PROT&2=2 %AND FILE PROT<=1
+         %FINISH
+      %ELSE
+         %IF UFD PROT&2=2 %START
+            %IF FILE EXISTS=TRUE %START
+               %TRUE %IF MODE&2=2 %AND FILE PROT<=2; !REPLACE
+               %TRUE %IF MODE&4=4 %AND FILE PROT<=4;  !APPEND
+            %ELSE
+               %TRUE %IF MODE&1=1;    !A CREATE REQUIRED
+            %FINISH
+         %FINISH
+      %FINISH
+      XMONMESS="illegal access mode for directory "
+   %ELSE
+      XSTATE=16_1016
+      %FALSE
+   %FINISH
+   XSTATE=16_1016
+FAIL:
+   XMONMESS=XOUR NODE."_".FILENAME.XMONMESS
+   %FALSE
+%END
+
+%ENDOFFILE

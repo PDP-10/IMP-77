@@ -1,0 +1,1047 @@
+.vr h,{,}
+.vr v,{,}
+.vr d,{,}
+.vr i,{,}
+.vr o,{,}
+.in h
+.in i
+.if d
+.ps 60,64
+.lm0
+.t3A01C#####Communicating with Operators and Other Users
+3A01C#####################################################Page#1
+##########################################################Apr 81
+.st                                                           Apr 81
+.nap
+.s10
+.ei d
+.if o
+.ps 6000,72
+.nj
+.s3
+.ei o
+.c64
+COMMUNICATING WITH OPERATORS AND OTHER USERS
+.s3
+There are several commands and programs which can be used for communicating with
+the operators and other users: MOUNT, SEND, TELL and MESSAGE.
+The use of each is described in this document along with examples.
+Some general guidance is given on choosing the most appropriate means of
+communication.
+The commands, MOUNT and SEND, are fully described in the DECsystem-10 Operating
+System Commands Manual.
+In addition the network mail command POST is described.
+.s3
+.nf
+.if d
+                       CONTENTS                            page
+.ei d
+.if o
+CONTENTS
+.ei o
+.s2
+.if o
+1##GENERAL
+.ei o
+.if d
+1##GENERAL  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..  2
+.ei d
+.s
+.if o
+2##THE MOUNT COMMAND
+.ei o
+.if d
+2##THE MOUNT COMMAND .. .. .. .. .. .. .. .. .. .. .. .. ..  2
+.ei d
+.s
+.if o
+3##THE SEND COMMAND
+.ei o
+.if d
+3##THE SEND COMMAND  .. .. .. .. .. .. .. .. .. .. .. .. ..  3
+.ei d
+.s
+.if o
+4##THE TELL AND MESSAGE COMMANDS
+.ei o
+.if d
+4##THE TELL AND MESSAGE COMMANDS .. .. .. .. .. .. .. .. ..  4
+.ei d
+.s
+.if o
+5##THE POST COMMAND
+.ei o
+.if d
+5##THE POST COMMAND  .. .. .. .. .. .. .. .. .. .. .. .. .. 12
+.ei d
+.s
+.if o
+6##REFERENCES
+.ei o
+.if d
+6##REFERENCES  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. 18
+.ei d
+.f
+.s2
+.if d
+.footnote 10
+.ei d
+.if o
+.s2
+.ei o
+This issue of this document supersedes that of Mar 80 which should be discarded.
+.if d
+.end footnote
+.pg
+.lm+4
+.i-4
+.ei d
+1.  GENERAL
+.s2
+1.1 Introduction
+.s
+It is useful and often necessary to facilitate smooth working on the
+DECsystem-10 to be able to communicate with the operators and other users
+through the machine itself.
+There are several ways of doing this which are summarised briefly in Section
+1.2 below.
+.s2
+1.2 How to choose the appropriate command
+.s
+The primary factors in choosing a command are purpose of message, immediacy of
+reply required and length of message.
+Table 1.2 summarises the possibilities:
+.s2
+.nf
+.lm+5
+############Message##############Command
+.s
+Short one-line messages,         SEND
+.s
+Brief messages to operators      SEND CTY:
+not requiring a reply.
+.s
+Mail to other users;             TELL 
+lengthy messages,    
+.s
+Communicating with User          TELL SERVICE_#BOX
+Support, Systems Staff or
+Installation Secretary.
+.s
+Requests for operators           MOUNT
+to mount magnetic tapes
+or private disc packs.
+.s
+Mail to users on other network   POST
+machines.
+.s
+.c64
+ Table 1.2 Summary of the machine communications
+.c64
+methods
+.lm-5
+.f
+.s2
+.if d
+.tp10
+.i-4
+.ei d
+2.  THE MOUNT COMMAND
+.s2
+2.1 Function
+.s
+The MOUNT command is used to request the operator to assign a device for use
+with a magnetic tape or private disc pack for the execution of user-specified
+tasks for the duration of those tasks only.
+.s2
+2.2 General Format
+.s
+The MOUNT command has the following format:
+.s
+#####MOUNT dev:logical-name/switch1/switch2/..
+.s
+For use with magnetic tape:
+.if d
+.lm+5
+.ei d
+.s
+.nf
+- dev######MTA: for 9 track magnetic tapes
+.f
+.lm+11
+.s
+.i-11
+- logical-name (optional)
+.br
+may be any SIXBIT name.
+.s
+.i-11
+- switches#must include REELID:name giving the name by which the tape will be 
+dentified when the MOUNTrequest is actioned by the operator, and may include
+the switch WENABL which permits writing during the user's job (this will be
+necessary if a tape is to be written).
+.s
+.lm-11
+.if d
+.lm-5
+.ei d
+.s2
+2.3 Example
+.s
+#####_.MOUNT MTA:TAPE1/REELID:5088MR/WENABL
+.s
+would result in the tape with the label 5088MR being mounted on tape drive,
+write enabled and with the logical name TAPE1.
+.s2
+.if d
+.tp10
+.i-4
+.ei d
+3.  THE SEND COMMAND
+.s2
+3.1 Function
+.s
+The SEND command is used for brief one-way communications to the operators
+or to another logged-in user whose terminal number is known.
+.s2
+.tp10
+3.2 General format
+.s
+The SEND command has the following format:
+.s
+#####SEND dev:<text>
+.s
+where:
+.lm+12
+.s
+.i-7
+dev####is the number of the terminal with which the user wishes to communicate
+and has the general form TTYn: (or just n) where n is the number of the
+terminal.
+Default is to OPR:, the 'operator' of the node to which the user is connected.
+As some nodes are unmanned, SEND messages can go unheeded.
+To ensure that any message intended for the ERCC Operations Staff reaches its
+intended destination, the device CTY: should be specified.
+.s
+.i-7
+<text>#is the text which the user wishes to transmit.
+This text may occupy only the remainder of the command line.
+.lm-12
+.s
+If a message is to be sent to anyone other than the Operations Staff, that
+person's PPN must be known and the SYSTAT command should be used to ascertain
+that that person is logged-in and to determine their terminal number, before 
+they can be sent any messages.
+.s2
+.tp10
+3.3 Example
+.s
+#####_.SEND TTY62: YOU HAVE THE SYSTEM STAND-ALONE
+.S
+Would send the message to the user logged in at TTY62, and:
+.s
+#####_.SEND CTY: I NEED PRIVATE PACK DSKZ IN APPROX 30 MIN
+.s
+would send the message to the operator's console at ERCC.
+.s2
+.if d
+.tp10
+.i-4
+.ei d
+4.  THE TELL AND MESSAGE COMMANDS
+.s2
+4.1 Function
+.s
+.f
+The TELL command is used to send messages to other users;  the MESSAGE command
+is used to receive messages that have been sent to you and may also be used
+to forward messages to other users. 
+Most usage of TELL and MESSAGE can be demonstrated by the following examples:
+.s
+.nf
+To  send a message to another user any of the following forms will work:
+.s
+.nf
+.lm+5
+_.TELL <name>                 ;<name> is user's name
+_.TELL [p,pn]                 ;ppn in square brackets
+_.TELL p,pn                   ;ppn with no square brackets
+.lm-5
+or###_.TELL ppn               ;ppn as 12 digit octal number
+.f
+.s
+TELL will respond with the message:
+.s
+#####Enter message, end with _^Z
+.s
+.f
+and will prompt you to enter the message by throwing to the next line.
+After you have typed the message (as many lines as you want) and have typed the
+_^Z, TELL will respond with:
+.s
+#####OK, I told <name>.
+.s2
+.tp10
+.f
+If, when you log in, there are any messages for you, you will be so informed.
+To receive your messages, just type:
+.s
+#####_.MESSAGE
+.s
+After the message has been typed, you will be questioned as to the disposal of
+the message record.
+The options are discussed in detail in section 4.3.
+.s
+The following paragraphs describe more command options, multiple TELLs, group
+names, setting default values in initialisation files (or SWITCH.INI files, see
+4.5), specifying dates when sending messages, etc.
+.s2
+.tp10
+4.2 The TELL Command
+.s2
+The general format of a TELL command is:
+.s2
+.nf
+#####_.TELL/switches user-list (date/time spec) message
+.s
+where:
+.f
+.s2
+.lm+7
+.i-2
+.f
+-#User-list is a list of names separated by "+" and "-".
+ A "+" specifies that the name following is to be added to the list of users to
+whom this message is  sent;   a  "-" specifies  that  the name following is to
+be deleted from the list of users receiving the message.
+Names may be abbreviated, so long as they are unique.
+If they are not, TELL will enter a dialogue, typing out each possible name  and
+asking you if it is the correct one.
+Names are user names (actually the name given to the  account  when the account
+was set up) or one of the following:
+.s
+The string "ME" means yourself.
+.s
+A group name (see GROUP switch in 4.4 below).
+.s
+A project  programmer  number  (brackets  are  optional).
+Wild cards, ie:  "*" and "?" are legal, but not all users may be allowed to
+TELL with certain wild  card constructions.
+.s
+A system wide mail name as described for POST in section 5.7 below.
+.s
+Some examples:
+.s
+#####_.TELL [120,126]+NEWSLETTER+000120000127
+.s
+sends the message to to ppns [120,126] and [120,127] and to user NEWSLETTER.
+.s2
+#####_.TELL 1,*-DEWOLF
+.s
+sends the message to everyone who has a project 1 account except for DEWOLF.
+.s2
+#####_.TELL ME 
+.s
+sends the message to yourself (you get it the next time you ask for messages).
+.s2
+.f
+.i-2
+-#(Date-time spec) must be enclosed  within parentheses and is the date/time be
+ore which the message is not to be delivered. 
+The date specification may be a standard date (ie: 15 JUNE 1980) or a mnemonic
+day of the week (MONDAY) or a keyword (WEEK).
+The time specification may be in hours in minutes (12:30) or mnemonic (NOON).
+.s2
+The date specifications recognized are the following: 
+(1) MM DD YY (2) DD MON YY (3) MON DD YY, where DD is the day 
+number, MM is the month number, YY is the year number and MON is the month name
+(first three letters only are required although the full month name may be used
+if desired).
+Missing numbers are filled in from today's date, except in the case of a
+mnemonic month with no day following, when the first of the month is assumed.
+Mnemonic dates are a weekday (SUNDAY, MONDAY, etc), TODAY, TOMORROW, WEEK,
+MONTH and YEAR.
+Weekdays are always in the future; if today is Saturday and the mnemonic date
+SATURDAY is specified, then the message will be delivered in a week's time.
+"WEEK" specifies the next week (weeks start on a SUNDAY).
+"MONTH" specifies next month (which of course starts on the first).
+"YEAR" specifies next year (starting 1 January).
+.s2
+The following are considered redundant or 'noise' words: NEXT, AFTER, AT, SINCE.
+.s2
+Time specifications are in the form HH:MM, on a 24 hour clock. 
+Mnemonic times are available: BREAKFAST (8:00 AM), LUNCH (12:00), NOON (12:00),
+TEA (4:00 PM), DINNER (8:00 PM), and MIDNIGHT.
+.s2
+.lm-7
+.nf
+Examples:
+.s
+#####_.TELL ME (AFTER LUNCH TOMORROW)
+.s
+.f
+will deliver the message after 12:00 tomorrow.
+.nf
+.s2
+#####_.TELL FORTUNE (NEXT WEEK)
+.s
+.f
+will deliver the message the first time Fortune asks for messages after next
+Sunday.
+.s2
+#####_.TELL ME (13)
+.s
+will deliver on or after the 13th of the month, all mesages left for you up to
+the time you first log-in on (or after) the 13th of the month.
+.s2
+#####_.TELL ME (16 JUNE 80)
+.s
+will deliver the message the first time the user logs-in on or after June 16
+1980.
+.s2
+The message can be of any length and is terminated by _^Z.
+The message text may be in a pre-edited file.
+To use this feature, type:
+.s
+.i5
+_.TELL namelist (date)".
+.s
+When TELL prompts by throwing a line, respond by typing
+.s
+.i5
+_@file-spec
+.s
+where file-spec is a standard file specification.
+You can put the file-spec on the same line as the TELL command itself.
+However, if TELL is forced into a dialogue peculiar things will happen.
+.s2
+The switches applicable to the TELL command are:
+.s2
+.lm+11
+.i-6
+CC####if set, a message sent to more than one user will have line with:
+.s
+CC:<list of people receiving message> appended to the end.
+.s
+If more than ten people get the message, the line:
+.s
+[Distribution to more than ten users]
+.s
+will be shown at the end.
+This is the default setting.
+.s
+.i-6
+NOCC##turns off the action of CC, ie: no trailer line is appended.
+.s
+.i-6
+SMART#indicates that the user is  familiar  with  the intricacies of TELL
+commands and need not be prompted with lengthy messages.
+.s2
+.lm-11
+.tp10
+.s2
+4.3 TELL SERVICE_#BOX
+.s
+The PPN SERVICE_#BOX is used by all Installation staff as a message reception 
+area and:
+.s
+#####_.TELL SERVICE_#BOX
+.s
+is the desirable machine-based method of communicating with the Installation
+staff without the need to specify an individual.
+SERVICE_#BOX is  inspected at 1000 and 1500 hrs daily (Mon-Fri) by the
+Installation Secretary and the messages in it routed to an appropriate
+member of staff.
+.s
+SERVICE_#BOX is intended for all routine requests for service, supplies
+_& documentation; queries and complaints.
+It should not be used for lengthy discussions of programming problems.
+Suitable means of communicating with Installation staff in these circumstances
+are described in  2B01 - Installation Services (1).
+.s
+Note that the _# in the string SERVICE_#BOX is required, because a
+space will be treated as a delimiting character between names.
+.s
+The more helpful the information which can be given, the easier it will 
+be  for the Installation staff to give a helpful reply. 
+Such extremes as either saying "the machine is giving the wrong answers" or
+sending a 1000 line assembler language program which will not run are not likely
+to get speedy or helpful responses.
+.s
+Because the Operations Staff are not exclusively concerned with the
+DECsystem-10, their direct responsibilities to DECsystem-10 users are
+necessarily restricted (See reference (1) Section 2.2), and users should in
+this context find that MOUNT and TELL CTY: (see Sections 2 and 3 above) will
+cover most needs for communicating with the Operations Staff.
+Requests for services which require non-immediate operator action such
+as requests to restore accidentally deleted files should be made via
+TELL SERVICE_#BOX.
+.s2
+4.4 The MESSAGE Command
+.s
+The general format of a MESSAGE command is: 
+.s
+#####_.MESSAGE /Switches
+.s2
+The switches are described below.
+The MESSAGE command will type out all messages which have been sent to the
+user and have delivery dates and times less than or equal to the current date 
+and time.
+.s2
+The action of the MESSAGE command depends on the value of the QUERY switch
+(default value is AFTER).
+If QUERY:AFTER is set, MESSAGE will type each message, followed by "Dispose:"
+and wait for a command.
+If QUERY:BEFORE is set, MESSAGE will type the header of the message and the
+number of lines in the message followed by the header of the message and the
+number of lines in the message followed by the prompt "Action:".
+.s2
+The commands for responding to either the Action: query or the Dispose: query
+are:
+.s2
+.lm+13
+.i-8
+HELP####type a brief help message listing some of the options
+.s
+.i-8
+TYPE####type the message.
+If the message has already been typed, it will be typed again.
+.s
+.i-8
+SAVE####save the message (will be printed the next time MESSAGE is typed).
+.s
+.i-8
+HOLD####puts the message on 'hold'.
+It will not be printed again until the user explicitly requests that it be
+printed by specifying the HOLD switch, ie entering the monitor command:
+#####_.MESSAGE/HOLD
+.s
+The user will be told that he has messages in hold when he types MESSAGE without 
+the HOLD switch.
+the only way to delete a message in HOLD is to type DELETE in response to the
+Dispose: query.
+.s
+.i-8
+REPLY###This command is used to reply to the sender of the message.
+It enters TELL and asks for the text of the message. 
+If you want to send your reply to users other than the sender of the message,
+you can add the names following the REPLY command (using the  "+"  and  "-"
+constructions of the TELL command), eg:
+.s
+#####Dispose: REPLY FINKE+DEWOLF
+.s
+sends the message you type to the sender of the message you have just received
+and to FINKE and DEWOLF.
+You cannot reply to a message you have sent to yourself, and you cannot add
+your name to the list of people to whom the reply is directed.
+.s
+.i-8
+FORWARD#forwards the message to other users specified by you (as in a TELL
+command) after the FORWARD command.
+The line:
+.s
+.i5
+[Forwarded from <your name>]
+.s
+will be appended to the end of the message.
+You cannot forward mail to yourself.
+.s
+.i-8
+COPY####copies this message to a file.
+The file specificationcan be specified after the COPY command, eg:
+.s
+#####Dispose: COPY BUG.FIX
+.s
+copies the message into the file BUG.FIX.
+.s2
+.lm-13
+.s2
+Another useful switch which may be employed with MESSAGE is UNREAD, eg
+.s
+.i5
+_.MESSAGE/UNREAD
+.s
+this will display only unread messages.
+.tp10
+4.5 Use of TELL and MESSAGE with initialisation (SWITCH.INI) files
+.s2
+TELL switches that affect MESSAGE (all of these may appear in SWITCH.INI) are:
+.lm+13
+.s2
+.i-8
+QUERY###determines whether or not the user is queried when typing messages.
+The possible values are BEFORE, AFTER, NEVER, and BOTH.
+If QUERY:AFTER is set, the message will be typed and the user will be queried
+about what is to be done with the message.
+If QUERY:BEFORE is set, the header message and the number of lines in the
+message will be typed, and the user queried about what is to be done with the 
+message.
+If QUERY:BOTH is set, the user will be queried both before and after the
+message is typed.
+If QUERY:NEVER is set, the user will not be queried.
+
+In this case the disposition of the messages depends on the DISPOSE switch
+(defaults to SAVE).
+.s
+.i-8
+DISPOSE#sets the default value for response to a "Dispose:" request printed by
+MESSAGE.
+It is used if carriage return is typed or if QUERY:AFTER is not in effect.
+The acceptable values are the same as the responses to "Dispose:"; however the 
+only useful ones are DELETE, SAVE and HOLD.
+.s
+.i-8
+HOLD####if this is set, messages on hold instead of normal messages will be
+printed.
+The default value for this switch is off.
+.s
+.i-8
+SAVE####is the same as DISPOSE:SAVE.
+If specified, all messages typed will be saved.
+.s
+.i-8
+GROUP###This switch may appear only in SWITCH.INI.
+This switch allows you to define "group names".
+For example, if you find that you are sending messages to the same group of
+people frequently, you could define a group name for that list.
+Then rather than explicitly specifying the list of recipients in the TELL 
+command, you can just specify the group name.
+Group names are defined by enclosing the group name, an "=", and a list of the 
+people in the group, in parentheses following a GROUP switch. 
+For example:
+.s
+.i-4
+TELL#/GROUP:(PROJECT=345,*-ME)/GROUP:(STEVE=[1,752])
+.s
+defines two groups.
+The first is called PROJECT, which includes all users with project number 345
+except for yourself.
+The second group defines STEVE to be one user.
+Group names may be nested to any reasonable level (but may not be recursively
+defined).
+The TELL at the beginning of this line in SWITCH.INI specifies that this line
+is applicable to the TELL program and should not be looked at by any other
+program reading SWITCH.INI (such as DIRECT).
+.lm-13
+.s2
+The switch MAIL affects messages and may appear in SWITCH.INI files or with
+the LOGIN program to control the options pertaining to the user's mail.
+.s2
+The formats for the MAIL switch are:
+.s
+.lm+17
+.i-12
+MAIL:IGNORE#will tell LOGIN to ignore any mail that has been directed to you
+and thus not inform you that it exists.
+The advantage is that no lookup will be done and LOGIN will be slightly faster.
+.s
+.i-12
+MAIL:INFORM#(Default) directs LOGIN to inform you if you have any mail, but the
+mail itself is not printed (until you type MESSAGE).
+.s
+.i-12
+MAIL:PRINT##will start printing your messages at the terminal as soon as you
+have logged in.
+.s
+.i-12
+MAIL:BRIEF##is similar to MAIL:INFORM except that it will not inform you of
+messages on hold.
+.s
+.i-12
+MAIL:NAMES##is a recent development which includes the feature of MAIL:INFORM
+but also lists up to 3 senders of messages.
+For example, "You have a message from Smith, Dewolf, Edwards and others."
+.s2
+.lm-17
+.tp10
+4.6 Example
+.s2
+Since the greatest benefit of the various switches is realized by  including
+them in SWITCH.INI,some examples are given.
+.s2
+.nf
+#####LOGIN/MAIL:NAMES
+.s
+#####TELL/GROUP:(BILL=ROUSE)/GROUP:(OPRS=7,*-THRONEBURG)
+.s
+#####TELL/QUERY:BOTH/DISPOSE:SAVE/SMART
+.s
+#####TELL/GROUP:(STAFF=11,*-EDWARDS+DEW+PAUL)
+.f
+.s2
+.if d
+.tp10
+.i-4
+.ei d
+5.  THE POST COMMAND
+.s2
+5.1 Introduction
+.s
+The POST system is a network mail system which conforms to the Joint Network
+Team's Mail Protocol Standard for the academic community (3).
+This is in turn based on the ARPA mail standard RFC-733 transmitted over
+FTP (2).
+It interfaces to the  TELL system on the DECsystem-10.
+.s
+POST is run by entering the monitor command:
+.s
+#####_.POST <mailbox>
+.br
+or###_.POST
+.s
+(in the second case, the user will be prompted for the <mailbox>
+specification).
+.s
+where <mailbox> specifies the destination machine and user to whom the message
+is addressed, and may be either:
+.s
+#####<name>%<relay> @ <host>
+.s
+or a locally defined alias which translates to a specification as above (see
+section 5.5 below)
+.s
+The <name> is the name by which the intended recipient of the mail is known
+to the destination machine (see section 5.2 below), and <host> is the name of
+that machine.
+The <relay> is the name of an intermediate switching machine which
+may be required to transmit the message on to its ultimate destination, (see
+section 5.3 below).
+.s
+Some examples of POST commands are given in section 5.7 below,sections 5.2 to
+5.6 describe the working of the POST command in detail.
+.s2
+5.2 Usernames
+.s
+Most machines have two different forms of identification for users: 
+.s
+.lm+7
+.i-2
+-#A mailbox name which is either a person's name or a descriptive identifier 
+which has been registered with the mail system at the destination site, eg:
+.s
+A.Brown, Arthur.Brown, Liaison
+.s
+It is this identification which is meant by <name> in the description of the
+POST facility which follows.
+.s
+.i-2
+-#A user identifier or number, or process name which is in the identifier used
+by the machines' operating system, eg:
+.s
+[123,456], NSUM06, ERCC44
+.s
+It is this identification which corresponds with <ppn>, <userid> or <process>
+in the description of POST which follows.
+.s
+.lm-7
+Either one or both of these identifiers may be used by a mail system  (although
+the first is preferable) and both are often printed in the From: field of the message
+header.
+A typical message would look as follows:
+.nf
+.s
+.lm+5
+.if d
+.tp10
+.ei d
+From Mail-System[1,2] on July 7, 1982 at 12:33 PM
+Via: ykxa    ; Wednesday, 7-Jul-82  12:33:36-BST
+Date:       Wednesday, 7-Jul-82  12:32:46-BST
+From:       account name <a.user@ykxa>
+To:         a.n.other at edxa
+Subject:    mail example
+.s
+--------
+The message text
+.s
+--------
+.f
+.s
+.lm-5
+For DECsystem-10 destinations, the user identifier should be the unique mailbox
+name, if the user has registered one with that system.
+If not, then a ppn (with or without square brackets and comma) or the account
+name associated with each ppn will do, that is, as if one were doing a TELL on
+the destination machine (see section 4.2 above). 
+Note that account names must be unambiguous, as no questions can be relayed
+back from remote machines by TELL, and that hash characters (_#) should be used
+in place of spaces in the name.
+.s
+DECsystem-10 users can register the mailbox name by which they wish to be known
+for inclusion in a local database, by sending a message to the user support
+staff, specifying the mailbox name required and the ppn with which it is to be
+associated.
+The form of the name is recommended to be the user's initial(s) and surname
+separated by dots.
+The name may be up to 25 characters long but must be unique within the first 12,
+eg: A.Brown, A.D.Brown, Arthur.Brown are all valid names.
+.s2
+5.3 Hosts and Relays
+.s
+The host name should be the unique name by which that host is known to the
+DECsystem-10, for example SERCnet host names are of 4 characters, 2 for the
+site, 1 for the machine type and 1 for an identifier. eg: RLGB (GEC B at the
+Rutherford-Appleton Laboratory (RAL) ).
+.s
+Where the mail needs to be forwarded by a mail relay before it reaches its
+destination, these relays are delimited by percent characters (%) in the 
+username, for example, to POST to a user at CMU-10A on the ARPAnet, the
+command:
+.s
+.lm+5
+_.POST <name>%CMU-10A@UCL
+.lm-5
+.s
+would be entered.
+.s
+At each relay, addressing information relevant only to that relay is stripped
+off the address information, that is at UCL in the above example.
+In the case of messages to the USA, UCL itself relays the mail through a system
+called ISID in California and mail from the USA should also be relayed through
+that system.
+.s
+When sending mail via a relay, an attempt is made by the POST program to generate
+a return address to be used by the mail recipient and the sender is given the
+opportunity to inspect and alter it.
+In the example of mail To: name%CMU-10A@UCL, POST would prompt:
+.s
+.nf
+.lm+5
+Reply-To:##myname%EDXA%UCL-CS@ISID#####-#is that correct?
+Type new address or <cr>:
+.s
+.lm-5
+.f
+For incoming mail, each relay adds a header line to the message containing the
+name of the host from which the mail has been received which indicates
+to the recipient which relays the message has been transmitted through. 
+For example, a reply from a user on CMU-10A  would have its initial header lines
+looking like:
+.s
+.nf
+via:CMU-10A#####;Friday, February 12 1982 05:29:02-PST
+via:ISID########;13 Feb 82 = 12:17-GMT
+via:UCL#########; Saturday,  13-Feb-82  12:20:04-GMT
+.f
+.s2
+5.4 The Message Text
+.s
+The POST program will next prompt for a message subject, ie:
+.s
+#####SUBJECT:          ;user types the subject here
+.s
+It will then prompt for the message text which can be typed in directly,
+or may be copied from a file by typing:
+.s
+#####@<filename>
+.s
+Messages are terminated with a _^Z.
+Once the message has been inserted, it is passed to FTP for transmission
+to the destination machine.
+.s2
+5.5 Locally Defined Names or Aliases
+.s
+It is possible to use locally defined names  or aliases to define the
+<mailbox>.
+If only a username is given to POST, it will interrogate the SWITCH.INI file in
+the users area and search for lines of the form:
+.s
+.nf
+.lm+5
+POST/<alias1>=<mailbox1>,<alias2>=<mailbox2>,.....
+.f
+.s
+.lm-5
+where <alias> is some user defined name for the recipients address, eg:
+.nf
+.s
+#####POST/FRED=SGEN @ RLGB, JANE=[100,100]@EDXA
+.f
+.s
+would define FRED to be user SGEN on the RAL GEC machine B,
+and JANE to be user [100,100] on the DECsystem-10 at Edinburgh.
+.s
+Thus, commonly used destinations can be abbreviated.
+Spaces in the username field are significant and multiple spaces are reduced to
+a single space.
+Matching of names is done in a case independant manner.
+Some more examples are given in section 5.7 below.
+.s2
+5.6 Incoming Mail
+.s
+Users on other machines wishing to transmit mail to the DECsystem-10 should 
+use the mail system implemented on their home machine and should consult the
+appropriate local documentation for details of how to do this.
+.s
+Messages from users on other network machines will be entered into the ERCC
+TELL system via the FTP system and a special area on the DECsystem-10 filestore.
+Users will be notified that they have a message from MAIL-SYSTEM at login time
+if the MAIL/NAMES option is set on their SWITCH.INI file.
+.s
+Note that because of the way TELL and FTP interface with one another
+to provide the POST facility,
+it is not possible to provide an equivalent of the TELL "REPLY" and 
+"FORWARD" facilites to send messages to network users, and POST
+must be used explicitly for all network mail.
+.s2
+5.7 Examples
+.s
+5.7.1 POST to ANF-10 users.
+.s
+The only other host on the local ANF-10 network capable of supporting
+users is the DECsystem-10 at Dundee University.
+A POST command directing a message to a user there would look like:
+.s
+.i5
+_.POST <name> @ DUNDEE
+.br
+or###_.POST <ppn> @ DUNDEE
+.s
+where <name> is the name of the user to whom the message is directed and <ppn>
+is the ppn associated with a name and may be used instead of the name, eg:
+.s
+.i5
+_.POST A.USER @ DUNDEE
+.s
+Alternatively, if the user had in his or her SWITCH.INI file on the DECsystem-10,
+a line of the form:
+.s
+.i5
+POST/ALBERT=A.USER@DUNDEE
+.s
+the command:
+.s
+.i5
+_.POST ALBERT
+.s
+would have the same effect.
+.s2
+.tp10
+5.7.2 POST to RCONET users
+.s
+If the user concerned is registered as an RCONET mail recipient, the command may
+be entered in the form:
+.s
+.i5
+_.POST <name> @ RCO
+.s
+where <name> is the RCONET mail process name for the user concerned and will 
+enable POST to direct mail to the correct user and machine.
+.s
+If the user concerned is not a registered RCONET mail user, a command of the 
+form:
+.s
+.i5
+_.POST <process>%<host> @ RCO
+.s
+should be entered, where <process> is the user number and <host> is
+the name of the destination machine, eg:
+.s
+.i5
+_.POST ERCA02%2972 @ RCO
+.s
+would direct the message concerned to user ERCA02 on the RCONET ICL 2972.
+.s
+Thus, in the example above, if ERCA02 was a process on the RCONET ICL 2972 and
+the name associated with that process was A.User, the two commands are equivalent.
+.s
+Again aliases in SWITCH.INI files may be used, for the examples given above, a 
+SWITCH.INI entry might be:
+.s
+.nf
+#####POST/AL=A.USER@RCO
+.br
+or###POST/ALBERT=ERCA02%2972@RCO
+.f
+.s
+Remember though that in practice only one of these alternatives would be used.
+.s2
+.tp10
+5.7.3 POST to SERCnet users
+.s
+POST to registered mail users on SERCnet machines is sent with a command of the form:
+.s
+.i5
+_.POST <name> @ <host>
+.s
+where <name> is the user's name on the destination machine, and 
+<host> is the name of the destination machine, eg:
+.s
+.i5
+_.POST  A.USER @ HWGA
+.s
+If the user is not a registered mail user or the name is not known, a POST
+command of the form:
+.s
+.i5
+_.POST <userid> @ <host>
+.s
+may be used, where <userid> is the user number on the host machine concerned,
+eg:
+.s
+.i5
+_.POST PMAN @ HWGA
+.s
+Aliases of the form:
+.s
+.i5
+POST/ALARIC=A.USER@HWGA
+.br
+or###POST/AL=PMAN@HWGA
+.s
+may be included in SWITCH.INI files allowing commands of the form:
+.s
+.i5
+_.POST ALAN
+.s
+to be used.
+.s2
+5.7.4 POST to ARPANET users
+.s
+POST to ARPANET users is used as the vehicle for the  step-by-step description
+of the POST command in sections 5.1 to 5.6 above but is described again here for
+completeness.
+.s
+POST to registered mail users on an ARPA-net host is sent with a command of the form:
+.s
+.i5
+_.POST <name>%<relay> @ <host>
+.br
+or###_.POST <userid>%<relay> @ <host>
+.s
+where <name>, <relay>, <userid> and <host> have the meanings already defined, eg:
+.s
+.i5
+_.POST E.V.E.RYMAN%CMU-10 @ UCL
+.s
+Again, aliases may be defined locally in a SWITCH.INI file, eg:
+.s
+.i5
+POST/ERIC=E.V.E.RYMAN%CMU-10@UCL
+.s2
+.if d
+.tp10
+.i-4
+.ei d
+6.  REFERENCES
+.s2
+.lm+5
+.i-5
+(1)##2B01##-#Installation Services
+.s
+.i-5
+(2)##3A55B#-#FTP#-#Transferring Files Across the Network
+.s
+.i-5
+(3)##Bennet. C.J., JNT Mail Protocol, Jan 82.
+.lm-5
+.ei i
+.ei h
+.if i
+.nf
+.ts35
+<INSERT INDEX ITEMS HERE>
+.ei i
+.if h
+<INSERT HELP TEXT HERE>
+.ei h

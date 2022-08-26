@@ -1,0 +1,13 @@
+ALIST produces a listing file  containing  IMP  source  code  with  line
+numbers  and the relative addresses of the code produced for each source
+line.
+It is run as follows:-
+.R ALIST
+*listfile=source file,rel file
+The default extensions are .LST, .IMP  and  .REL  respectively  and  for
+missing  filenames,  the  source filename.  The four following lines are
+equivalent.
+*file.LST = file.IMP, file.REL
+*file = file, file
+*file, file
+*file

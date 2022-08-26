@@ -1,0 +1,6 @@
+RELDUM dumps out a .REL file in readable ascii format it can be used
+in conjuction with MAKREL to edit .REL files, using a normal text
+ editor.
+.R RELDUM
+Files:- output file=input file   (e.g. TEST.LST=TEST.REL)
+   There are no defaults.

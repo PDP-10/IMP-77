@@ -1,0 +1,2074 @@
+$A JUST=1
+$A INVERT=0; INVO=0
+$A sectno=0; pageno=0
+$A CAP=0; CAPO=0
+$A LEFT=6; LINE=66; PAGE=58; MARK=2
+$A TAB=5,10,15,20,25,35,42,46,50
+$B16 $L0M
+.the .imp-77 .language
+
+
+
+
+As implemented by
+
+.peter .s$. .robertson
+.department .of .computer .science
+.university .of .edinburgh
+
+
+
+
+A .reference .manual
+
+first edition: .december 1977
+$N $lm
+.introduction
+$P1 .imp-77 is an "ALGOL-like" high-level language. Relative to .algol
+60, the language adds program structuring, data structuring, event
+signalling, and string handling facilities, but removes (or retains
+in a modified form) intrinsically inefficient features such as the
+.algol 60 %name (substitution) parameter.
+$P1 The language, based on Atlas Autocode, was originally
+designed
+as the implementation language for the Edinburgh
+Multi-Access
+System - hence its name - but has since been used
+successfully for
+implementing systems, teaching programming and as
+a
+general-purpose programming language on many different machines.
+$B1 Two of the major design aims were:
+$B1 $T1 1. $T2 The language should compile to efficient machine code.
+$B1 $T1 2. $T2 The syntax of the language should be verbose rather than
+$B0 $T2 obscure.
+$P1 The main disadvantage of .imp is that it is not currently in
+widespread use.
+$P1 Most .imp systems provide comprehensive compile-time and
+run-time diagnostics, together with an option to suppress
+generation of run-time checks when compiling tested programs.
+$P1 Input/output facilities are provided through the external
+procedure mechanism and are therefore open-ended and can be
+defined as required, though a standard set of procedures is
+supported.
+$N
+$A SECTNO=1; PAGENO=1
+$L1M
+.program .layout .conventions
+$P1 An .imp program is a sequence of %statements constructed using
+the .ascii character set extended with an underlined alphabet.
+Underlined letters, which are used to form %keywords, are generated
+using the shift character percent ($%), which is defined as
+underlining all subsequent letters, the underlining being
+terminated by any non-alphabetic character.
+$B0 Hence the following statements are equivalent:
+$B $T4 $C+1 .$%string .(7)$%array .$%name P
+$B0 $T4 $C+1 .$%string .(7)$%arrayname P
+$B and both represent:
+$B0 $T4 $C+1 _s_t_r_i_n_g(7)%array %name P
+$P1 In this manual, keywords are in lower case and underlined.
+$b2 %Newline
+$p1 The .newline (or .line .break) character is .ascii
+character 10 .(lf).
+$B2 %Spaces
+$P1 Except when used to terminate keywords or when between quotes
+(see Quotes) spaces are ignored by the compiler and may be used to
+improve the legibility of the program.
+$B2 %Lower %Case %Letters
+$P1 Except when enclosed in quotes (see Quotes) lower case letters
+are equivalent to upper case letters.
+$B1 %Quotes
+$P1 Several language constructions call for one or more characters
+to
+be enclosed in quotes: between quotes %all characters are
+significant and stand for themselves.
+$B0 .n.b. Space, newline, and percent characters may appear between
+quotes and stand for space, newline, and percent.
+$P Two quote characters are used:
+$A INDENT=2
+$B1 ' $T3 - $T4 symbol quote e.g. .'a'
+$B0 " $T3 - $T4 string quote e.g. ."fred"
+$A INDENT=0
+$B1 If it is required to include the delimiting quote
+within the text
+it must be
+represented by two consecutive quotes; e.g.
+$A INDENT=2
+$B1 '''' $T5 $C+1 - $T6 the symbol quote
+$B0 "a ""big"" dog" $C+1 - $T6 a string of 11 characters
+$A INDENT=0
+$B1 However, note: '"' and "it's mine"
+$V9
+$B2 %Identifiers
+$P1 An identifier is a sequence of any number of letters and digits
+starting with a letter, e.g. .max, .x, .case 1, .case 2, .case .2b
+$B1 All letters and digits are significant.
+$B1 Except in the case of simple labels (see Control Transfer
+Instructions) all identifiers must be %declared before they may be
+used (see Declarations).
+$B2 %Statements
+$P1 A .statement is a sequence of atomic elements (keywords,
+constants, identifiers etc.) arranged according to the syntactic
+rules of .imp.
+$B2 %Termination
+$P1 Every statement must be terminated by a newline or a
+semicolon
+(however, see Comments).
+$B2 _N_u_l_l$_%Statements
+$P1 There are two types of null statement, both of which are
+ignored by the compiler. They may be used to improve the
+legibility
+of the program.
+$A INDENT=1
+$B1 1. $T2 Redundant terminators, E.g. blank lines
+$B1 2. $T2 Comments
+$A INDENT=3
+$B1 A comment is any sequence of characters (the
+"comment
+text") preceded by a comment mark and
+ending with a
+newline character (note: a semicolon
+does not
+terminate a comment; it is included as part
+of the
+comment text).
+$B0 The comment marks are either the keyword %comment or
+an exclamation mark (!); e.g.
+$B1 $I+1 %comment main loop starts here
+$B0 $I+1 ! return here on error
+$B1 As a semicolon does not terminate a comment it is a
+simple matter to 'comment out' sections of code.
+$A INDENT=4
+$P1 .compute .cases
+$B0 ! $C+2 %if .cases < 0 %start
+$B0 ! $T5 $C+1 .display .data; $C+2 .newline; $C+2 .tidy .up
+$B0 ! $T5 $C+1 %stop
+$B0 ! $C+2 %finish
+$P0 .handle .cases
+$B1 $T3 (Also see note on Continuation)
+$v5
+$B2 $T0 %Instructions
+$A INDENT=0
+$P0 An instruction is any imperative statement which may be made
+conditional and is either an assignment, a Routine call or a
+control transfer.
+$B2 %Continuation
+$P0 A statement may extend over several physical lines provided
+that each line break occurs after a comma, or is preceeded by the
+keyword %c. E.g.
+$B1 $T2 $C+4 %if X = Y %then P = 1 %c
+$B0 $T4 $C+3 %else P = 0
+$B1 which is exactly equivalent to:
+$B1 $T2 $C+4 %if X = Y %then P = 1 %else P = 0
+$B1 $T1 Notes
+$B0
+$T2 1. $T3 A statement may have an unlimited number of
+$B0 $T3 continuations.
+$B1 $T2 2. $T3 The line break following %c causes underlining to be
+$B0 $T3 terminated.
+$B1 $T2 3. $T3 %c is only permitted between complete atoms of the
+$A INDENT=3
+language; that is, it may not split keywords,
+constants, etc.
+$B1 $T2 4. $T3 .$%c between quotes stands for the two characters
+percent and .c.
+$B1 $T2 5. $T3 The effect of a comment mark is
+limited to one
+physical line (see Null
+statements).
+$A INDENT=0
+$B2 $T0 _L_i_s_t_i_n_g$_%Control
+$A INDENT=1
+$P1 During the compilation of a program a line-numbered listing
+is produced. The statements %list and %endoflist may be used
+respectively to enable or disable the listing for selected
+parts of a program. The default is for listing to be enabled.
+$B2 $T0 %Include
+$P A file of statements (terminated by
+"%end %of _f_i_l_e") may be compiled into a program by giving the
+statement
+$B0 $T4 "_i_n_c_l_u_d_e" {file specification}
+$B1 where {file specification} is a string constant representing a
+(system dependent) file name. E.g.
+$B1 $T4 %include ."ecsc17.listvars"
+$B1 Refer to the relevant appendix for details of system-dependent
+limitations on the use of %include.
+$n $L1M
+.constants
+$B1 $T0 _I_n_t_e_g_e_r$__C_o_n_s_t_a_n_t_s (_F_i_x_e_d$_%Point)
+$B1 a) $T2 .decimal constants
+$A INDENT=2
+A decimal constant is a sequence of decimal digits.
+For
+example:
+$B0 $C+1 7, 43, 2195, 0, 8, 100 000 000
+$B1 $T1 b) $T2 .non-decimal constants
+$B0 The prefix {decimal constant}"$_" may be used to specify
+the base of the following constant.
+ The letters .a, .b, ..., Z are
+used to represent
+the 'digits' 10, 11, ..., 35
+$B0 E.g.
+$B0 2$_1010 $T4 $C+5 - binary ten
+$B0 8$_12 $T4 $C+5 - octal ten
+$B0 16$_a $T4 $C+5 - hexadecimal ten
+$B1 $T1 c) $T2 .character constants
+$B0 The .ascii code value of any character may be
+obtained by
+enclosing the character in single
+quotes. When the
+required character is a single
+quote it must be
+represented by two consecutive
+single quotes.
+$B0 Examples: .'a', 'a', '+', '0', '"', '''', ' ', '
+$B0 '
+$B0 Note the last three examples, which represent
+respectively the
+code values for single quote, space, and
+newline.
+$B1 The predefined named constant .nl may be used in
+place of
+the rather cumbersome form of a newline
+character
+enclosed in quotes.
+$B1 $T1 d) $T2 .multi-character constants
+$B0 The previous form may be extended to pack together
+the
+codes for several characters to form a single
+integer
+constant.
+$B1 .'over', 'Max', '1+2', '*@@#'
+$B1 The exact nature of the packing and the maximum
+number of
+characters which may be packed are both
+machine
+dependent.
+$A INDENT=1
+$B1 An integer expression with operands which are constants may be
+used wherever an integer constant is required (see
+Expressions).
+$N
+$A INDENT=0
+$B2 $T0 _R_e_a_l$__C_o_n_s_t_a_n_t_s (_F_l_o_a_t_i_n_g$_%Point)
+$P1 A real constant is a sequence of decimal digits optionally
+including one decimal point.
+$B0 The constant may also be followed by a scaling factor of
+the form
+"@"{signed integer constant} meaning "times ten to the power
+{signed integer constant}". For example, the following real constants
+all have
+the same value:
+$B1 $T2 120.0, 120, 1.2@2, 12@1, 1200@-1
+$B1 Note that a decimal integer constant is a special case of a
+real
+constant.
+$v15
+$B2 $T0 _S_t_r_i_n_g$_%Constants
+$P1 A string constant is a sequence of not more than 255
+characters
+enclosed in double quote characters - a double
+quote being
+represented inside a string constant by two
+consecutive double
+quotes.
+$B1 E.g. ."starting .time", "x = y*4+x", "a ""red"" hood"
+$B1 $T2 a) $T3 ."a" is a %string constant of one character.
+$B0 $T3 .'a' is a character (_i_n_t_e_g_e_r) constant.
+$B1 $T2 b) $T3 The %null %string, a string of no characters, is
+$A INDENT=3
+permitted and is represented by two consecutive
+double quotes ("").
+$S
+$A INDENT=0
+$B3 $T5 $C+3 .expressions
+$B1 $T1 1 Arithmetic Expressions
+$A INDENT=2
+$P1 An arithmetic expression is a sequence of arithmetic
+operands and operators obeying the usual rules of
+algebra. An operand is either a constant, a variable, a
+function call, a map call, or a numerical expression
+enclosed in parentheses (see Declarations and
+Procedures).
+$B1 a) Integer Expressions
+$A INDENT=3
+$P0 All the operands and operators in an integer
+expression must yield an integer value.
+$B0 The operators available are:
+$B1 + $T4 addition
+$B0 - $T4 subtraction or unary minus
+$B0 * $T4 multiplication
+$B0 // $T4 integer division (the remainder of the
+$A INDENT=4
+division, which is of the same sign as the
+dividend, is ignored).
+$B0 $T3 \\ $T4 integer exponentiation.
+The second operand (the exponent) must be a non-negative integer.
+$B2 $T2 b) Real Expressions
+$A INDENT=3
+$P0 All the operands and operators in a real
+expression must yield real (or integer) results.
+Where an operator will take either real or integer
+operands (E.g. *) and the types of the given
+operands differ the integer operand will be
+converted to a real value, otherwise the result of
+the operation will be of the same type as the
+original operands. The pre-defined real function
+.float may be used to force the conversion of an
+integer expression into a real expression.
+$B0 The operators available are:
+$B1 + $T4 addition
+$B0 - $T4 subtraction or unary minus
+$B0 * $T4 multiplication
+$B0 / $T4 division
+$B0 \ $T4 real exponentiation
+$A indent=2
+$P1 The modulus (absolute value) of an expression (integer or real)
+may be obtained by enclosing that expression between vertical bars.
+$b0
+E.g. $t4 |X-Y|
+$A indent=4
+$v14
+$B1 $T2 Notes $T4 1. $T5 Unary minus is treated as "0-..."
+$A INDENT=4
+$B1 2. $T5 Unary plus (+) is not accepted.
+$B1 3. $T5 An expression may not contain two adjacent
+$A INDENT=5
+operators - they must be separated by
+parentheses E.g. $C+2 23*(-14)
+$B1 $T4 4. $T5 Integer values will be converted to real
+where necessary, but real values will
+never be converted to integer unless this
+is
+explicitly specified using the
+pre-defined
+functions .int or .intpt.
+$A INDENT=0
+$B1 $T1 2 Bit-Vector Expressions
+$A INDENT=2
+$P0 All operands must yield bit-vector (integer) values.
+The operations are performed on a bit-by-bit basis using
+the operators:
+$A INDENT=3
+$B1 & $T4 .and
+$B0 ! $T4 .inclusive .or
+$B0 !! $T4 .exclusive .or
+$B0 << $T4 .left .shift (logical)
+$B0 >> $T4 .right .shift (logical)
+$B0 \ $T4 .complement (unary not)
+$A INDENT=2
+$B1 It is possible to mix integer and bit-vector expressions
+but the full implications of this may be machine
+dependent.
+$B2 $T1 3 String Expressions
+$P0 All operands of a string expression must yield values
+of type %string. The only operator available is "." for
+concatenation (joining together). No sub-expressions in
+parentheses are permitted.
+$P1 E.g$. $C+2 ."mr .".surname
+$B2 $T0 _P_r_e_c_e_d_e_n_c_e$__o_f$_%Operators
+$B2 Highest: $T4 1. $T5 \ $ (unary not)
+$A INDENT=4
+2. $T5 \, \\, <<, >>
+$B0 3. $T5 *, /, //, &
+$A INDENT=2
+Lowest: $T4 4. $T5 +, - (unary and binary), !, !!
+$p In general, sub-expressions with operators of
+equal precedence are evaluated from left to right.
+$B0 The precedence rules may be over-ridden by means of
+parentheses.
+$B1 Note: $T4 -1\\2 = -1
+$A INDENT=4
+$B1 (-1)\\2 = 1
+$B1 2\\2\\3 = 4\\3 = 64
+$S
+$A INDENT=0
+$B1 $L1M
+.declarations
+$A INDENT=1
+$P1 All identifiers (except simple labels) must be declared at
+the start of a block before they are used. The %scope of an
+identifier is the rest of the block in which it is declared,
+including any blocks subsequently defined therein (see Block
+Structure and note 3 on Labels and Jumps).
+$B0 In the following discussion the phrase {type} has four
+variants:
+$A INDENT=3
+1. $T4 "_i_n_t_e_g_e_r"
+$B0 2. $T4 "_r_e_a_l"
+$B0 3. $T4 "_s_t_r_i_n_g" "(" {max} ")"
+$B0 4. $T4 "_r_e_c_o_r_d" "(" {format} ")"
+$B1 $T2 and $T3 {max} is an %integer constant in the range
+$A INDENT=4
+1<=max<=255 defining the maximum number of
+characters which may be held in the string.
+$B0 $T3 {format} defines the structure of the record (see
+Records).
+$B1 $T1 1. Variables
+$B $T2 a) $T3 Simple Variables
+$B $T3 {type}{idlist}
+$B1 %integer .j,k,count
+$B0 %real .pressure
+$B0 %string (30) .country, .town
+$B0 %record .(carfm) .mini, .rover
+$B1 Each variable is allocated an appropriate
+(machine dependent) amount of storage to hold a
+value of the appropriate type.
+$B $T2 b) $T3 Pointer Variables
+$B $T3 {type} "_n_a_m_e" {idlist}
+$B1 %integer %name P
+$B0 %real %name .datum
+$B0 %string (15) %name .who,where
+$B0 %record .(carfm) %name .car
+$B1 Each variable is allocated enough storage to
+hold a pointer to (i.e. the address of) a
+simple variable of the specified type.
+$n $T2 c) $t3 Array Pointer Variables
+$B $T3 {type} "_a_r_r_a_y" "_n_a_m_e" {idlist}
+$B0 $T2 $C+1 or $t3 {type} "_n_a_m_e" "_a_r_r_a_y" "_n_a_m_e" {idlist}
+$B1 %integer %array %name .an
+$B0 %real %array %name .values
+$B0 %string (20) %array %name .names, .addresses
+$B0 %record .(carfm) %array %name .make
+$b0 %real %name %array %name .answers
+$B1 Each variable is allocated enough storage to
+hold a pointer to (i.e. the address of) an one
+dimensional %array of the specified type.
+$B $t3 ............ "_a_r_r_a_y" "(" {dim} ")" "_n_a_m_e" {idlist}
+$b is provided for declaring pointers to multi-dimensional
+arrays. E.g.
+$B %real %array (4) %name .space .time
+$b0 %integer %name %array (2) %name .lists
+$B $T1 2$. $C+2 Arrays
+$A INDENT=3
+$B1 {type} %array {adefn}("," {adefn})*
+$b0 $t2 $c+1 or $t3 {type} "_n_a_m_e" "_a_r_r_a_y" {adefn}(","{adefn})*
+$B1 {adefn} $T5 $C+2 ::= {idlist} "(" {pair}(","{pair})* ")"
+$B0 {pair} $T5 $C+2 ::= {integer exprn} ":" {integer exprn}
+$B1 %integer %array .a(1:10),b,c(-4:limit)
+$B0 %real %array .q(1:j+k, .1:j-k)
+$B0 %string (12) %array .class(-7:16)
+$B0 %record .(carfm) %array .table(lower:upper)
+$b0 %integer %name %array pointers(1:12)
+$B1 The bound pairs, {pair}, are evaluated and the
+required amount of storage is allocated to each
+identifier.
+$A INDENT=4
+$B1 $T2 note 1. $T4 In each bound pair the value of the
+first
+expression (lower bound) must be less than or
+equal to the value of the second expression (upper bound).
+$B1 $T3 2. $T4 The number of bound pairs (the dimension of the
+array) usually may not exceed six, but this is
+implementation dependent.
+$B2 $T1 3. $T2 Records
+$A INDENT=2
+$P1 A %record is a named collection of variables, arrays
+and records. The components (elements) of a record may
+be any of the forms discussed in (1) and (2) above, with
+the following limitations:
+$B1 a. $T3 Arrays must be one dimensional and have constant
+$B0 $T3 bounds.
+$B0 b. $T3 A record may not contain a simple record (or a
+$A INDENT=3
+record array) of its own format. However it may
+contain record pointer variables of its own format.
+$A INDENT=2
+$V10
+$B1 There are three ways to specify formats:
+$B1 1. $T3 Explicit Definition
+$B1 %record "(" {declaration list} ")" ....
+$A INDENT=4
+$B1 %record (%integer .x,y,z) R
+$B0 %record (%real .p, %real %name .q) %name .s,t
+$B0 %record (%real %array .a(1:5), %real .v) %array .x(1:4)
+$A INDENT=2
+$B1 2. $T3 Using a %format identifier
+$B1 %record %format {id} "(" {declaration list} ")"
+$B0 %record "(" {id} ")" .....
+$A INDENT=4
+$B1 %record %format F(%integer .x, _r_e_c_o_r_d(F)%name .link)
+$B1 %record .(f) .head
+$B0 %record .(f) %array .cell(1:15)
+$A INDENT=2
+$B1 3. $T3 Using a previously declared record as a format
+$b0 $t3 definition.
+$A INDENT=4
+$B1 %record (%integer .one, .two, .three) R
+$B0 %record (%like .r) .s,t
+$A INDENT=3
+$b1 $t2 Note 1. $t4 Within a format each identifier must be unique
+but will not clash with any identifiers outwith that format
+(see Block Structure for a discussion of local and
+global identifiers).
+$B1 2. $T4 When space is allocated to a record variable
+the elements are laid out in the order in which they
+were declared. However see the relevant appendix
+for machine dependent alignment considerations.
+$N $L1M
+.record .element .selection
+$A INDENT=2
+$P1 Selection of a specific element from a record is
+achieved by following the record identifier by:
+$B0$T4 "$_"{element id}
+$B1 E.g. given the declarations:
+$A INDENT=4
+$B1 %record %format F(%integer .x, _r_e_c_o_r_d(F) %name .link)
+%record .(f) R
+$A INDENT=2
+$B2 some valid references to variables are:
+$A just=0
+$B1 R $T5 - a record of format F
+$B0 .r$_x $T5 - an integer
+$B0 .r$_link $T5 - a pointer to a record of format F
+$B0 .r$_link$_x $T5 - an integer
+$B0 .r$_link$_link $T5 -  a pointer to a record of format F
+.r$_link$_link$_x $T5 - an integer
+$A just=1
+$A INDENT=1
+$A TAB=2
+$P5 ----------------------------------
+$B0 R | $T2 $C+1 .r$_x $T4 | $T5 $C+2 .r$_link $T6 $C+4 |
+$P0 ----------------------------------
+$A INDENT=6
+$A TAB=5,10,15,20,25,26
+|
+$B0 |
+$B0 $T3 $C+3 ----------------------------------
+$B0 $T3 $C+2 | $T4 $C+1 .r$_link$_x $C+4 | $C+3 .r$_link$_link $T9 $C+2 |
+$B0 $T3 $C+3 ----------------------------------
+$A INDENT=7
+$A TAB=5,10,15,20,25,35,41
+|
+$B0 |
+$B0 $T5 $C+7 ----------------------------------
+$B0 $T5 $C+6 | .r$_link$_link$_x | .r$_link$_link$_link |
+$B0 $T5 $C+7 ----------------------------------
+$S
+$A indent=0
+$B3 $L1M
+.own .variables
+$A INDENT=2
+$A TAB=5,10,15,20,25,35,42
+$P1 Each variable declared in a block is allocated storage
+when that block is entered, the storage being returned
+(released) when the block is left. This means that
+variables (and the values in them) are lost between
+traverses of the block.
+$P1 If, however, the prefix %own is applied to a
+declaration the variables are allocated statically and so
+retain their values when
+the block is not being executed
+(see Procedures). The scope of the identifier
+is
+unchanged.
+$P %Own arrays must be one-dimensional and have
+constant
+bounds.
+$B3 $L1M
+.initialisation
+$P1 %Own variables may be given initial values (effectively
+before the program starts execution); if no initial value
+is specified the content of an %own variable is undefined.
+$A INDENT=4
+$B1 %own %integer .a,b=4, .c=-1
+$B0 ! the initial value in A is undefined
+$B0 %own %real .r=1.234@-5
+$B0 %own %string (7) .who="anon"
+$A INDENT=2
+$B1 In the case of %own %name and %own %array %name variables the
+initial value (if present) represents the absolute
+address of respectively the initial variable to be
+pointed at or the
+(possibly hypothetical) 'zeroth
+element' of an array.
+$A INDENT=4
+%own %integer %name .clock==72
+$B0 %own %integer %array %name .save .area == 16
+$B1 $T2 This is %highly %machine %dependent.
+$A INDENT=2
+$P1 If an own array is to be initialised, every element in
+the array must be given a value. In order to simplify
+this $T3 $C+1 each initial value may be followed by a repetition
+count in parentheses, and a star (*) may be used to
+represent the number of remaining elements in the array.
+For convenience a repetition count of zero is permitted
+and means that the initialising constant is to be
+ignored. For example the following declarations are all
+equivalent:
+$A INDENT=4
+$B1 %own %integer %array .a(2:5) = 7,7,7,7
+$B %own %integer %array .a(2:5) = 7(4)
+$B $B0 %own %integer %array .a(2:5) = 7(*)
+$B $A INDENT=2
+$B $P1 The list of constants may extend over several physical
+$B lines without the need for a continuation mark if each
+$B line ends with a comma; a line break is also allowed
+$B after the equals sign.
+$B $A INDENT=4
+$B $B1 %own %string (3) %array .month(1:12) =
+$B0 ."jan", ."feb", ."mar",
+$B0 ."apr", ."may", ."jun",
+$B0 ."jul", ."aug", ."sep",
+$B0 ."oct", ."nov", ."dec"
+$A INDENT=2
+$B1 Any number of null statements may be placed between the
+lines of constants.
+$B1 $T3 $C+1 %own %integer %array .value(1:50) =; $T9 $C+3 ! .tag .values
+$B0 $T4 1, $T5 2, $C+2 3, $C+2 0(7),
+$b0 $t3!$t4 ------type 1------
+$B0 $T3 $C+4 11, $C+2 22, 33, $C+2 4(3), 55(4),
+$b0 $t3!$t4----------type 2----------
+$A INDENT=4
+$A TAB=5,10,15,18
+111, 222, $C+2 3, -1(5),
+$b0 $t3!$t4------types 3&4------
+$B0 -2(*); $T9 $C+3 ! .all .the .rest
+$B3 $L1M
+.constant .identifiers
+$A INDENT=2
+$A TAB=5,10,15,20
+$P1 The prefix %constant may replace %own to indicate that
+the
+initial value can never change. A %constant %integer
+may be
+used wherever an integer constant is required.
+$A INDENT=4; just=0
+$B1 %constant %integer .max = 17
+$B0 %constant %real .pi = 3.14159
+$B0 %constant %string (7) .version = "vsn:1.6"
+%constant %integer %array .val(1:max) = 1,6,9,-1(*)
+$A INDENT=2;  just=1
+$B1 %Constant pointer variables may be declared but are highly
+machine and system dependent.
+$A INDENT=4
+$B1 %constant %integer %name .status .reg == 160
+$b1 %constant %integer %array %name .word == 0
+$A INDENT=2
+$B1 Note: %constant pointers are effectively simple variables
+of
+the appropriate type located at the specified
+(absolute)
+address.
+$B3 The keyword %constant may be abbreviated to %const.
+$B3 $L1M
+.assignment
+$P1 There are three forms of assignment:
+$B1 $T1 1. $T2 {variable} "=" {expression}
+$A INDENT=3
+$B1 X = Y
+$B0 .a(p) = .a(p)+1
+$B0 Y = .bit<<12
+$B0 .person = .initials.surname
+$A INDENT=2
+$B1 The expression is evaluated and the resulting value is
+stored in the given variable. The expression may be of
+type %integer, %real, or %string, and the variable must be
+of the corresponding type; in the case of a real variable
+an integer expression will have its result converted to
+%real before being assigned.
+$B1 Valid types of assignment are:
+$B0 {integer variable} "=" {integer expression}
+$B0 {real variable} $C+4"=" {real expression}
+$B0 {real variable} $C+4"=" {integer expression}
+$B0 {string variable} $C+2"=" {string expression}
+$B1 $T1 2. $T2 {pointer variable} "==" {variable}
+$B1 The pointer variable is dynamically made equivalent to
+the given variable; the types of both sides of the
+assignment must be identical - this includes the formats
+of records.
+$B0 The assignment may be thought of as the assignment of the
+%address of the variable to the pointer.
+$B0 Once equivalenced the pointer variable may be used as an
+alternative to the variable.
+$A INDENT=3
+$B1 %integer %name N
+$B0 %integer J
+$B0 %integer %array .a(1:6)
+$b0 %integer %name %array .pt(2:12)
+$B0 J = 1
+$B0 N == .a(j); $T6 $C+2 ! N .is .now .equivalent .to .a(1)
+$B0 J = 2; $T6 $C+2 ! N .has .not .changed
+$B0 N = 0; $T6 $C+2 ! .same .as .a(1) = 0
+$b0 .pt(J) == .a(4)
+$B1 $T2 .n.b$. Extreme care should be taken if variables declared
+in different blocks are to be equivalenced as it is
+possible to leave a pointer referencing a variable
+which no longer exists (see Block Structure).
+$N
+$t1 3. $t2 {variable} "<-" {expression}
+$b1 This is similar to 1. above except that the value of the
+expression will be truncated if necessary (see Data Prescision Specification).
+$A indent=3
+$b
+$T2E.g.$t3_s_t_r_i_n_g(4) S
+$b1 S = "12345";$c+1  ! fails CAPACITY EXCEEDED at run-time.
+$b1 S <- "12345"; ! will assign "1234" to S.
+$b2 $L1M
+.record .assignment
+$A INDENT=2
+$P1 Two extra assignments exist for records.
+$B1 1. $T3 {record variable} "=" {record variable}
+$A INDENT=3
+$B1 The right-hand record is copied bit by bit into the
+left-hand record. The formats of the two records
+must be the same.
+$B1 $T2 2. $T3 {record variable} "=0"
+$B1 Each bit of the record is set to zero.
+$B3 $L1M
+.string .resolution
+$A INDENT=1
+$P1 The contents of a string variable may be searched for a
+sub-string and decomposed accordingly.
+$B0 The format of a resolution is:
+$B1 {string var}"->"{string var}".("{string exp}")."{string var}
+$B1 where either the second string variable, the third, or both
+may be omitted (any dangling full stops also being omitted).
+$A INDENT=2
+$B1 S $T3 $C+4 -> .t.(",").u
+$B0 .title(j) -> .("sir").rest
+$B0 .who $T3 $C+4 -> .who.(letters."b.sc.")
+$B0 S $T3 $C+4 -> .("hello".t)
+$A INDENT=1
+$P1 The string expression is evaluated and the first variable
+is searched from left to right to find that string of
+characters. The string to the left of the sub-string so found
+is assigned to the second variable and the string to the right
+is assigned to the third.
+$B0 The resolution is deemed to have failed if the required
+sub-string is not found or either of the second or third
+string variables has been omitted and would have been assigned
+a non-null string.
+$V15
+$B1 For example, the following resolutions all fail if the string
+variable S contains the string ."abcdefg"
+$B1 $C+10 S -> .t.("h").u
+$B0 $C+10 S -> .("cd").u
+$B0 $C+10 S -> .t.("ef")
+$B0 $C+10 S -> .("abcdef")
+$B1 and the following all succeed:
+$B1 $C+10 S -> .t.("cde").u
+$B0 $C+10 S -> .("abc").u
+$B0 $C+10 S -> .t.("g")
+$B0 $C+10 S -> .("abcdefg")
+$V15
+$P1 A resolution may occur in two contexts:
+$B1 $T2 1. $T3 as an instruction, in which case failure of the
+$A INDENT=3
+resolution causes an event to be signalled (see
+Events)
+$B1 S -> .a.(wanted).b; $T6 S = .a.b
+$B1 $T2 2. $T3 as a simple condition (see Conditions), in which
+case failure of the resolution deems the simple
+condition false and success deems it true; in the
+latter case the
+resolution is performed and the
+necessary
+assignments are made.
+$B1 %if .who -> .("sir .").who %then .knight = 1
+$S
+$B0 $T5 $C+4 .conditions
+$A INDENT=1
+$B1 Conditional statements are specified using the phrase
+{condition}, which is defined as:
+$B1 {condition} ::= {simple cond} ("_a_n_d" {simple cond})*,
+$B0 $T4 $C+1 {simple cond} ("_o_r" {simple cond})*
+$B1 where {simple cond} has seven forms:-
+$B1 1. $T2 {expression}{comp}{expression}
+$B1 $T2 {comp} ::= "=" $T5 $C+8 - .is .equal .to
+$A INDENT=5
+$A TAB=5,10,15,20,21
+"#", "\=" $C+3 - .is .not .equal .to
+$B0 "<" $C+9 - .is .less .than
+$B0 "<=" $C+8 - .is .less .than .or .equal .to
+$B0 ">" $C+9 - .is .greater .than
+$B0 ">=" $C+8 - .is .greater .than .or .equal .to
+$A INDENT=2
+$A TAB=5,10,15,20,25
+The given expressions are evaluated and compared. The
+simple condition is true or false depending on the
+validity of the relation specified by the comparator.
+Both expressions must yield values of the same type.
+$B1 $T1 2. $T2 {expression} {comp} {expression} {comp} {expression}
+$B1 This form of simple condition may be thought of as a
+contraction of the form:
+$B0 $T3 ({x1}{comp1}{x2} "_a_n_d" {x2}{comp2}{x3})
+$B0 except that the middle expression (x2) is only evaluated
+once. Note that the third expression is not evaluated
+unless the condition specified by the first two
+expressions is true.
+$B0 Such a simple condition is frequently used to check for a
+range of values, E.g.
+$B1 $T5 0 <= .value <= 100
+$B1 $T1 3. $T2 {reference to variable} "==" {reference to variable}
+$B1 The two variables,
+which must be of the same type,
+are
+compared for equivalence, that is
+their %addresses are
+compared.
+$B0 Note that the address of a pointer variable is the
+address of the variable to which it is equivalent.
+$B1 $T1 4. $T2 {predicate call} $T6 - see Procedures
+$B1 The given predicate is called and the simple condition is
+true or false depending on whether the exit from the
+predicate was performed using %true or %false respectively.
+$B1 $T1 5. $T2 {resolution} $T6 - see String Resolution
+$B1 The resolution is attempted. If it fails the simple
+condition is deemed false, otherwise the resolution is
+performed and the condition is deemed true.
+$B0 Note that this form of simple condition has a
+side-effect if the simple condition is true!
+$B1 $T1 6. $T2 "(" {condition} ")"
+$B1 This form of simple condition is provided to enable the
+use of both %and and %or in a condition. The connectives
+%and and %or may not appear in the same condition unless
+separated by levels of parentheses. E.g.
+$B1 $T4 .a=0 %or .(b=1 %and .c=2) %or .d=3
+$B1 $T1 7. $T2 "_n_o_t" {simple condition}
+$B1 The given simple condition is evaluated and its truth is
+negated. E.g. the following simple conditions are
+exactly
+equivalent:
+$B1 $T5 $C+6 A # 0
+$B0 $T5 $C+4 %not A = 0
+$B3 $L1MU
+Evaluation of conditions
+$A INDENT=1
+$P2 The evaluation of a condition proceeds from left to right,
+simple condition by simple condition, terminating as soon as
+the inevitable result of the condition is known.
+$B1 For example, considering the condition:
+$B1 $T5 A # 0 %and .b//a # C
+$B1 If the variable A has the value zero the condition will be
+deemed false without attempting the evaluation of ."b//a # .c".
+$n $L1M
+.conditional .statements
+$P1 The general form of conditional statements is:
+$A indent=2
+$B1 %if {condition} %start
+$P0 ! .statements .to .be .executed .if
+$P0 ! {condition} .is .true
+$B0 %finish %else %start
+$P0 ! .statements .to .be .executed .if
+$P0 ! {condition} .is .false
+$B0 %finish
+$A indent=1
+$P1 If _s_t_a_r_t-%finish brackets enclose one instruction only, that
+part may be reduced to:
+$B1    $T2 %if {condition} %then {instruction} %else %start
+$B1 or $T2 %finish %else {instruction}
+$B1 $t1 e.g. $T2 %if {condition} %then {instruction} %else %start
+$A INDENT=3
+$A TAB=5,10,13
+! .statements .to .be .executed .if
+$B0 ! {condition} .is .false
+$A INDENT=2
+$A TAB=5,10,15
+%finish
+$B1 $t1 or $t2 %if {condition} %start$C+16 (*)
+$P0 ! .statements .to .be .executed .if
+$P0 ! {condition} .is .true
+$B0 %finish %else {instruction}
+$B1 $T1 or in the simplest case:
+$B1 %if {condition} %then {instruction} %else {instruction}
+$A INDENT=1
+$P1 If nothing is to be done specifically when the condition is
+false the %else part may be omitted.
+$B1 $T2 %if {condition} %start
+$A INDENT=3
+$A TAB=5,10,13
+! .statements .to .be .executed .if
+$B0 ! {condition} .is .true
+$B0 $T2 %finish
+$B1 $T1 or
+$B1 $T2 %if {condition} %then {instruction}
+$B3 $T1 _s_t_a_r_t-%finish groups may be nested to any depth.
+$n $T5 .alternative .forms
+$B1 $T1 1. $T2 A conditional statement of the form:
+$B1 $C+2 %if {condition} %then {instruction}
+$A INDENT=2
+$A TAB=5,10,15
+$B1 has the same effect if rewritten in the more natural
+form:
+$A INDENT=3
+$B1 {instruction} %if {condition}
+$B1 X = .error %if X > .limit
+$B1 $T1 2. $T2 The keyword %if may always be replaced by %unless with the
+$A INDENT=2
+effect of negating the whole of the condition. For
+example, the following two statements are equivalent:
+$B1 $T3 $C+4 %if X = 0 %then Y = $C+2 1 %else Y = -1
+$B0 $T3 %unless X = 0 %then Y = -1 %else Y = $T9 1
+$B2 $T1 3. $T2 The statement "%finish %else _s_t_a_r_t" may be abbreviated to
+"_e_l_s_e".
+$B1 $T3 %if X = 0 %start
+$A INDENT=3
+$P0 .flag = 1; $C+2 .count = 0
+$B0 %else
+$P0 .flag = 2; $C+2 .count = -1
+$B0 %finish
+$B2 $T1 4. $T2 The %else part of any conditional group may be replaced by
+$A INDENT=2
+another complete conditional group, treated as though it were
+a single instruction (see * above).
+$B0 For example:-
+$B1 $T3 %if A = 0 %start
+$A INDENT=3
+$P0 P = 1; $T5 $C+1 Q = 2
+$B0 %finish %else %start
+$P0 %if A < 0 %start
+$A INDENT=4
+$A TAB=5,10,15,18
+$P0 P = -1; $C+2 Q = 2
+$B0 %finish %else %start
+$P0 P = 1; $C+2 Q = -2
+$B0 %finish
+$B0 $T3 %finish
+$B1 $T2 may be rewritten:-
+$B1 $T3 %if A = 0 %start
+$B0 P = 1; $C+2 Q = 2
+$B0 $T3 %finish %else %if A < 0 %start
+$B0 P = -1; $C+1 Q = 2
+$B0 $T3 %finish %else %start
+$B0 P = 1; $C+2 Q = -2
+$B0 $T3 %finish
+$S
+$B3 $L1M
+.repetition .(loops .or .cycles)
+$B2 $T1 a. $T2 Indefinite Repetition
+$A INDENT=2
+$A TAB=5,10,15,20
+$P1 A group of statements may be repeated indefinitely by
+enclosing them between the statements "_c_y_c_l_e" and
+"_r_e_p_e_a_t".
+$B1 $T3 %cycle
+$A INDENT=4
+$A TAB=5,10,15,18
+.get .data
+$B0 .process .data
+$B0 $T3 %repeat
+$A INDENT=2
+$A TAB=5,10,15,20
+$B1 Subsequently the group of statements between %cycle and
+%repeat will be referred to as the %cycle %body.
+$B2 $T1 b. $T2 Conditional Repetition
+$B1 1. $T3 %while {condition} %cycle
+$A INDENT=3
+$B1 Before each execution of the cycle body the
+specified condition is tested. If the condition is
+true the cycle body is executed; otherwise control
+is passed to the statement following the matching
+%repeat.
+$B1 $T2 2. $T3 %for {control} "=" {init} "," {inc} "," {final} %cycle
+$B1 where
+$A just=0
+$B0 {control}::= {integer variable} $c+2- .control .variable
+$B0 {init} $C+3 ::= {integer expression} - .initial .value
+$B0 {inc} $C+4 ::= {integer expression} - .increment
+{final} $C+2 ::= {integer expression} - .final .value
+$A just=1
+$P1 On each entry to the cycle the address of the
+control variable and the values of the three
+expressions are evaluated and saved; thus the
+cycle
+body cannot change them. The control variable
+is
+assigned the value "{init}-{inc}".
+$B0 The value in the control variable is compared with
+the value of {final}. If they are equal control is
+passed to the statement following the matching
+%repeat, otherwise the value {inc} is added to the
+control variable and the cycle body is executed.
+$B1 On normal exit from the cycle the control variable will
+contain the value {final}, however see %exit.
+$B1 Note: The  effects of altering the control variable
+within the cycle body are undefined.
+$N
+$A INDENT=2
+$B2 3. $T3 The final form of conditional cycle is:
+$B1 $C+5 %cycle
+$P0 $C+5 ! .cycle .body
+$B0 $C+5 %repeat %until {condition}
+$B1 $C+5 In this construction the cycle body is always executed
+at
+least once. The loop may also be qualified by
+a %while or %for as defined above.
+$b1 $t2 E.g. $t3 %while {condition} %cycle
+$b0 $t3 $c+3 ! .cycle .body
+$b0 $t3 %repeat %until {condition}
+$B2 $T1 _c_y_c_l_e-%repeat groups may be nested to any depth.
+$B3 $L1M
+.simple .forms .of .loop
+$A INDENT=1
+$P1 If the cycle body comprises only one instruction the loop
+may be rewritten in the form:-
+$A INDENT=2
+$B1 {instruction} {loop clause}
+$B1 $t1 i.e.$t2 {instruction} "_w_h_i_l_e" {condition}
+$B0 {instruction} "_f_o_r" {control}"="{init}","{inc}","{final}
+{instruction} "_u_n_t_i_l" {condition}
+$B2 $T1 For example
+$B1 .a(j) = 0 %for J = 1, 1, 20
+$B0 .readsymbol(s) %until S = .nl
+$B0 .skipsymbol %while .nextsymbol = ' '
+$N
+$L1M
+.cycle .control .instructions
+$A INDENT=1
+$P1 Two instructions are provided to control the execution of a
+cycle from within the cycle body.
+$B1 $T2 1. $T3 %exit $T5 - causes the cycle to be terminated and
+$A INDENT=5
+control to be passed to the statement
+following the matching repeat.
+In the case of a %for loop the control variable will retain the
+value it contained immediately prior to the %exit.
+$B1 $T2 2. $T3 %continue $T5 - causes control to be passed to the %repeat
+(and any associated %until condition)
+of the current loop.
+$b4 $L1M
+.joining .instructions .using .'and'
+$A INDENT=1
+$P1 Several simple instructions may be joined together using
+%and to form a more complex instruction. The execution of such
+an instruction is achieved by executing each of the component
+simple instructions in the order given. This construction is
+used to simplify small _s_t_a_r_t-%finish or
+_c_y_c_l_e-%repeat groups.
+$A indent=3
+$B1 E.g.$t4 %if X = 0 %start
+$b0     $t4 $c+3 P = 1; $C+1 Q = 1
+$B0     $t4 %finish
+$B1 $T1 may be rewritten:
+$B1 $C+3 P = 1 %and Q = 1 %if X = 0
+$B1 or %if X = 0 %then P = 1 %and Q = 1
+$S
+$B $L1M
+.block .structure
+$A INDENT=1
+$P1 An .imp program is constructed using one or more %blocks.
+Blocks may be nested one within another. The depth to which
+this nesting may be performed is implementation dependent.
+$B $L1M
+.begin .blocks
+$P0 The simplest type of block is enclosed between the
+statements "_b_e_g_i_n" and "_e_n_d" and is referred to as a %begin
+%block. If the block is the outermost block of a complete
+program it must be terminated by the statement
+$B0 "%end %of _p_r_o_g_r_a_m".
+$B1 For example, a complete program might take the form:
+$B1 %begin
+$P0 %integer .count, .limit
+$P0 ..
+$P0 %begin
+$A INDENT=3
+$A TAB=5,10,11
+%real .sum
+$B0 ..
+$A INDENT=2
+$A TAB=5,8,15
+%end
+$B0 ..
+$A INDENT=1
+$A TAB=5,10
+%end %of %program
+$B A %begin block is entered by executing the %begin and is left by
+passing through the %end to the following statement. The main uses
+of begin blocks are to declare arrays with bounds calculated
+at run-time, and to enable the re-use of space taken up by
+large arrays which are only needed for part of the program.
+$B1 $T2 %begin
+$A INDENT=3
+$A TAB=5,10,13
+%integer .upper
+$B0 .upper = ....; $C+3 ! $C+2 .calculate .value .for .upper .bound
+$B0 %begin
+$p0 %integer %array .cases(1:upper)
+$p0 ..
+$B0 %end
+$A INDENT=2
+$A TAB=5,10,15
+%end %of %program
+$B1 %begin
+$P0 ..
+$P0 %begin
+$A INDENT=4
+$A TAB=5,10,15,16
+%integer %array .temp(1:10000)
+$B0 ..
+$A INDENT=3
+$A TAB=5,10,13,20
+%end
+$B0 %begin
+$P0 %real %array .work .area(1:11000)
+$P0 ..
+$B0 %end
+$B0 $T2 %end %of %program
+$N $L1M
+.local .and .global .variables
+$A INDENT=1
+$A TAB=5,10,15
+$P1 An identifier is described as being %local to a block if it
+was declared at the head of that block. Any identifiers which
+are in scope but which were not declared in the block in
+question are referred to as being %global to the block.
+$B0 Clearly identifiers may be local to only one block but may be
+global to many.
+$B1 $T2 %begin; $T5 $C+4 ! .start .of .outer .block
+$A INDENT=3
+$A TAB=5,10,13
+%integer .x; $T5 $C+4 ! X .is .%local .to .this .block
+$B0 %begin; $T5 $C+4 ! .start .of .inner .block
+$P0 %integer .y; $C+3 ! Y .is .local .to .this .block
+$P0 X = 0; $T5 $C+4 ! X .is .%global .to .this .block
+$B0 %end; $T5 $C+4 ! .end .of .inner .block
+$B0 $T2 %end; $T5 $C+4 ! .end .of .outer .block
+$A INDENT=1
+$A TAB=5,10,15
+$B1 Identifiers may always be redeclared in any block to which
+they are %global - the local incarnation taking precedence over
+the global one.
+$B1 $T2 %begin
+$A INDENT=3
+$A TAB=5,10,13
+%integer X
+$B0 %begin
+$P0 %integer X
+$P0 X = 0; $T5 $C+4 ! .uses .the X .of .the .previous .line
+$B0 %end
+$B0 $T2 %end
+$A INDENT=1
+$A TAB=5,10,15
+$B1 An attempt to redeclare a local variable will be faulted by
+the compiler.
+$P1 On entry to a block, space from the stack is allocated to
+any local variables, and when the block is left the space is
+returned to the stack (but see Own Variables).
+$N
+$B3 $L1M
+.procedures
+$P1 A procedure is a block which has an associated identifier;
+a complete procedure block may be considered as the
+declaration of the procedure identifier.
+$B0 Unlike begin blocks, procedures are not entered simply by
+reaching their first statement (this results in control being
+transferred to the statement following the matching _e_n_d).
+Instead procedures are activated when they are %called by
+giving the procedure identifier in a context determined by the
+type of
+procedure.
+$B0 The effect of a call is to suspend the current flow of control
+and to pass control to the procedure. When the procedure
+terminates, the previous flow of control is resumed.
+$B1 There are four forms of procedure, the exact form required
+being specified by the first statement of the block.
+$B1 The phrase {param def}? stands for the optional parameter
+definition and will be described later (see Parameters).
+$B1 1. $T2 %routine {id}{param def}?
+$A INDENT=2
+$B1 When a routine is called its statements are executed
+until either the %end is reached or the instruction %return
+is executed. This causes the routine to terminate and
+the previous flow of control to be resumed.
+$B
+$b0 $c+6 %integer X, Y
+$b0 $c+6 %routine CONVERT
+$b0 $c+9 %if X < Y %start
+$b0 $c+12 X = X+Y
+$b0 $c+9 %finish %else %start
+$b0 $c+12 X = X-Y
+$b0 $c+9 %finish
+$b0 $c+6 %end
+$b0 $c+6 ...
+$b0 $c+6 ...
+$b0 $c+6 CONVERT
+$b0 $c+6 ...
+$b0 $c+6 CONVERT %unless X = 0
+$N $T1 2. $T2 {type} %function {id}{param def}?
+$A INDENT=2
+$B1 A %function is a procedure which calculates a %value of the
+specified type (%integer, %real, %string, or %record) and may
+be used wherever an %operand of the specified type is
+required.
+$B0 When a function is called its statements are executed
+until an instruction of the form:
+$B1 $C+5 %result "=" {expression}
+$B1 is executed. This causes the function to terminate,
+returning the value of the expression.
+$A INDENT=3
+$B1 %integer .x,y,z
+$B0 %integer %function .sum
+$P0 %result = .x+y
+$B0 %end
+$B0 Z = .sum; $T5 $C+7 ! $T6 .same .effect .as ."z=x+y"
+$B2 The keyword %function may be abbreviated to %fn.
+$B2 $T1 3. $T2 {type} %map {id}{param def}?
+$A INDENT=2
+$B1 A %map is a procedure which calculates a %reference to a
+variable of the specified type (%integer, %real, %string, or
+_r_e_c_o_r_d), and may be used wherever a %variable of the
+specified type is required.
+$B0 When a map is called its statements are executed until
+an
+instruction of the form:
+$B1 $C+5 %result "==" {variable reference}
+$B1 is executed. This causes the map to terminate, returning
+a reference to (i.e. the address of) the given variable.
+$B1 E.g. %integer .x,y
+$B0 $T3 %integer %map .min
+$A INDENT=3
+$P0 %if X < Y %then %result == X %else %result == Y
+$B0 %end
+$B1 .min = 0
+$B0 ! .the .above .statement .is .exactly .equivalent .to:
+$B0 ! %if X < Y %then X = 0 %else Y = 0
+$V21
+$B1 $T1 4. $T2 %predicate {id}{param def}?
+$A INDENT=2
+$B1 A %predicate is a procedure which tests the validity of an
+hypothesis and then returns, being either %true or %false.
+Predicates may be used wherever a simple condition is
+required.
+$B0 When a predicate is called its statements are executed
+until either of the instructions "_t_r_u_e" or "_f_a_l_s_e" is
+executed. This causes the predicate to terminate
+accordingly.
+$B1 Note that a predicate does not return any value.
+$B1 E.g. %integer N
+$B0 $T3 %predicate .single .digit
+$A INDENT=4
+$A TAB=5,10,15,18
+%true %if 0 <= N <= 9
+$B0 %false
+$A INDENT=3
+$A TAB=5,10,15,20
+%end
+$B1 N = .n//10 %unless .single .digit
+$A INDENT=1
+$V10
+$B1 %Notes
+$B1 a. $T2 A %routine may terminate by reaching %end; all
+$A INDENT=2
+other types of procedure must not be able to reach their
+%end, otherwise the compiler will report a fault.
+$A INDENT=1
+$B1 b. $T2 Procedures may be nested within any form of block.
+$B1 c. $T2 Procedures may be %recursive, that is, they may call
+$B0 $T2 themselves.
+$N
+$B3 $L1M
+.parameters
+$P1 In the previous discussion about procedures the phrase
+{param def}? was used. This stands for an optional parameter list
+definition.
+$B1 {param def} ::= "(" {dec list} ")"
+$B1 where {dec list} is a list of declarations defining the .formal
+.parameters. The declarations
+may be of any data type except %array - arrays may only be
+passed to a procedure as %array %name parameters.
+$B1 E.g. %routine SWOP(%integer %name .p, .q)
+$A INDENT=2
+%integer %function MAX(%integer %array %name .a, %integer .f, .t)
+$b0%predicate EQUIV(_r_e_c_o_r_d(FM)%name .left, .right)
+$A INDENT=1
+$P1 Parameters are identical to any local variables declared
+inside the procedure, except that the parameters are
+initialised each time the procedure is called.
+$B0 When a procedure is called a list of .actual .parameters must be
+supplied which must match the formal parameters exactly in
+number, order, and type. Parameters are effectively assigned
+using "==" for those passed by %name (E.g. %integer %name,
+%real
+%array %name) and using "=" for those passed by value (E.g.
+_s_t_r_i_n_g(10), _i_n_t_e_g_e_r).
+$B1 For example assuming the declarations:
+$P1 %integer .l, .m, N
+$P0 %real R
+$P0 %integer %array .v(-7:7)
+$P0 %record .(fm) .one, .two
+$B1 valid calls on the procedures mentioned in the previous
+example are:
+$P1 .swop(l, .m)
+$P0 .swop(v(l), .v(m))
+$P0 N = .max(v, -1, 0)
+$P0 M = .max(v, .l, 7)
+$P0 N = M %if .equiv(one, .two)
+$B1 .n.b. .imp %name type parameters are called by %reference and not
+by %substitution (c.f. .algol 60).
+$N $L1M
+.procedure .parameters
+$P1 In addition to being able to pass variables to procedures
+it is possible to pass procedures as parameters. This is
+achieved by using the procedure heading as the 'declaration'
+of the formal parameter.
+$B1 E.g. %routine TRY(%routine R(%integer .x))
+$A INDENT=3
+$A TAB=5,10,13
+%integer J
+$B0 .r(j) %for J = 1, 1, 10
+$B0 $T2 %end
+$A INDENT=1
+$A TAB=5,10,15
+$B
+The routine .try may now be called with a single parameter
+which must be the name of a routine which has one integer
+parameter. In this context the formal parameter names used to
+specify the parameters of a procedure parameter are otherwise
+ignored.
+$B1 Note: If the routine .try is itself to be passed as a parameter
+the heading of the receiving routine would be something like:
+$B1 $C+5 %routine CHECK(%routine P(%routine Q(%integer .r)))
+$B1 and the call would be:
+$B1 $C+5 .check(try)
+$B3 $L1M
+.general .type .parameter
+$P1 In several situations it is useful to be able to pass to a
+procedure
+a
+reference to %any type of variable. This is
+done
+by specifying an untyped %name parameter.
+$B1 E.g. %routine WORK(%name .ref)
+$B1 Such a parameter is intended for system-dependent interface
+procedures and has severely limited uses. In particular it
+may only be passed on to another procedure requiring an
+untyped %name parameter.
+$P1 An example of the use of such a parameter is in the
+pre-declared .read routine which will accept an %integer, %real,
+or %string parameter.
+$B1 E.g. %integer X
+$A INDENT=2
+%real Y
+$B0 %string (15) Z
+$B0 .read(x); $T4 .read(y); $C+2 .read(z)
+$S
+$A INDENT=1
+$B3
+The following is a complete list of formal parameter
+declarators:
+$B3 %integer $T5 %real $T7 _s_t_r_i_n_g({max})
+$B1 %integer %name $T5 %real %name $T7 _s_t_r_i_n_g({max})%name
+$B  %integer %array %name
+$T5 %real %array %name $T7 _s_t_r_i_n_g({max})%array %name
+$B1 %integer %fn $T5 %real %fn $T7 _s_t_r_i_n_g({max})%fn
+$B1 %integer %function $t5 %real %function
+$t7 _s_t_r_i_n_g({max})%function
+$B1 %integer %map $T5 %real %map $T7 _s_t_r_i_n_g({max})%map
+$b1 %integer %name %array %name
+$b1 %real %name %array %name
+$b1 _s_t_r_i_n_g({max}) %name %array %name
+$B3 _r_e_c_o_r_d({fm})
+$B1 _r_e_c_o_r_d({fm})%name
+$B1 _r_e_c_o_r_d({fm})%array %name
+$b1 _r_e_c_o_r_d({fm}) %name %array %name
+$B1 _r_e_c_o_r_d({fm})%fn
+$b1 _r_e_c_o_r_d({fm})%function
+$B1 _r_e_c_o_r_d({fm})%map
+$B3 %routine
+$B1 %predicate
+$B1 %name
+$N
+$B3 $L1M
+.procedure .specification
+$P1 In several situations it is necessary to use a procedure
+before it is possible (or desirable) to define it. For
+example,
+where two or more procedures call each other (mutual
+recursion) or where a procedure is to be defined externally
+(see External Linkage).
+$B0 As all procedure identifiers must be declared before being
+used a procedure specification statement is introduced.
+$B0 This takes the form of the normal procedure heading with the
+keyword %spec inserted before the procedure identifier.
+$B1 E.g. %routine %spec MAX(%real .size)
+$P1 This has no effect other than declaring the identifier to
+be a procedure of the specified type which takes the given
+parameters. Except in the case of %external procedure
+specifications the procedure must be defined later on in the
+same block (but not any blocks defined therein).
+$B1 For example:
+$A indent=3
+$B1 %routine %spec B(%integer .x)
+$B1 %routine A(%integer .y)
+$P0 ..
+$P0 .b(y-1)
+$P0 ..
+$B0 %end
+$B1 %routine B(%integer .x)
+$P0 ..
+$P0 .a(x+3)
+$P0 ..
+$B0 %end
+$A indent=1
+$B Note that the %spec statement and the procedure heading
+$B0 must correspond, that is,
+the type and form of the statements must match, as must
+the type, form, order and number of any parameters.
+$s
+$B3 $L1M
+.control .transfer .instructions
+$B2
+$Lm
+_L_A_B_E_L_S$__a_n_d$_%JUMPS
+$B1 1. $T2 %Simple %Labels
+$A INDENT=2
+$P1 Any statement, excluding declarations, may be given
+one
+or more simple labels, where a simple label is of the
+form: {id} ":"
+$B1 Each label is written to the left of the statement.
+$B1 .next: $T4 $C+4 P = .p+1 %if P < 0
+$B0 .error1:error2:faults = .faults+1
+$B1 Control may be passed to a labelled statement by
+executing a jump instruction: "->" {id}
+$A INDENT=3
+$B2 -> .next
+$B -> .error1 %if .divisor = 0
+$B1 $T1 2. $T2 %Switch %Vectors
+$A INDENT=2
+$P1 A vector of labels may be declared in a similar manner
+to an array, using the declarator %switch.
+$B1 %switch .sw(4:9)
+$B0 %switch .s1, .s2(1:10), .s3(11:20)
+$B1 $T1 Note a. $T3 The vector must be one dimensional.
+$B1 b. $T3 The bounds must be constants.
+$B1 Once declared, switch labels may be used in the same way
+as simple labels.
+$B1 .sw(4): $T4 $C+3 .check .value(1)
+$B0 .sw(6):sw(6): .error .flag = 1
+$B0 .last: .sw(9): ! .all .finished
+$B1 A star (*) may be used in the definition of a switch
+label to locate any elements of the vector which would
+otherwise
+be undefined.
+$N
+$B1 %switch .let('a':'z')
+$B0 ..
+$B0 ..
+$B0 .let('a'):let('e'):let('i'):let('o'):let('u'):
+$B1 ! .deal .with .vowels
+$B0 ..
+$B0 ..
+$B1 .let(*):! .all .the .rest .i.e$. .consonants
+$B1 The specific label to which a jump will be made is
+dependent on the value of an integer expression.
+$A INDENT=3
+$B1 .->sw(n) %if N > 0
+$B0 .->sw(100+n)
+$B0 .->sw(6)
+$V15
+$B1 $T1 Note 1. $T3 Not all of the declared switch labels need be
+defined (in the previous examples .sw(5): and .sw(8):
+are undefined) but an error will occur at run time
+if an attempt is made to jump to a non-existent
+switch label.
+$B1 $T2 2. $T3 Simple labels are the only identifiers which may be
+used before they are declared/defined.
+$A INDENT=4
+$B1 -> .missing %if .here = 0
+$B0 ..
+$B0 ..
+$B0 $T3 .missing:
+$B0
+$B1 $T2 3. $T3 The scope of both types of label is limited to the
+$A INDENT=3
+block in which they are defined,
+not including any blocks defined therein.
+ That is labels
+cannot be global to a block and therefore it is not
+possible to jump into or out of a block.
+$B1 $T2 4. $T3 The identifiers used for labels must not conflict
+with other local identifiers.
+$b1 $t2 5. $t3 The results of entering a %for loop with a jump
+and not through the %for statement are undefined.
+$n
+$lcm
+other control transfer instructions
+$b2 $T1 %stop
+$A INDENT=2
+$P1 Execution of the instruction %stop causes control to be
+returned to the program which initiated the execution of
+the current program. This is also the effect of reaching
+the statement %end %of %program.
+$B0 Control is transferred by signalling event zero (see
+Events).
+$b2 $t1 %monitor
+$p1
+This instruction causes the run-time diagnostic package to be
+invoked to produce diagnostic information.
+$b0 If no diagnostic package is available this instruction
+will be ignored (in some limited implementations the
+production of diagnostics causes 
+execution of the program to be terminated).
+$A indent=1
+$B1 For convenience all other control transfer instructions
+are gathered here.
+$B1 %return $T5 return from a routine.
+$B1 _r_e_s_u_l_t={exp} $T5 return the result of a function
+$B1 _r_e_s_u_l_t=={reference} $T5 return the result of a map.
+$B1 %true $T5 return from a predicate.
+$B1 %false $T5 return from a predicate.
+$B1 %exit $T5 jump out of the current %cycle to the
+$B0 $T5 statement following the matching %repeat.
+$B1 %continue $T5 jump to the top of the current %cycle.
+$B1 %signal %event $T5 see Events.
+$S
+$B1 $T5 $C+1 .external .linkage
+$P1 A complete program may be divided into several separately
+compiled modules which are linked together before
+(or possibly while)
+the program
+is executed. This linkage is achieved by giving the %external
+attribute to relevant indentifiers.
+$B1 1. $T2 %external DATA OBJECTS
+$A INDENT=2
+$P1 An external variable is declared in the same way as an
+%own variable with the keyword %own replaced by %external.
+$A INDENT=3
+$B1 %external %integer .choice=4, .wait = -5
+$b %external %real %array .mean(-6:6)
+$A INDENT=2
+$B1 The identifiers are then available for use
+by any program that references them. A
+separately compiled module that requires to use any of
+these variables must first declare them using an external
+specification.
+$A INDENT=3
+$B1 %external %integer %spec .wait, .choice
+$B %external %real %array %spec .mean(-6:6)
+$B1 $T2 note 1. $T4 No initialization may be specified in an
+$B0 $T4 external specification.
+$b1 2. $t4 External arrays must be one-dimensional and
+$b0 $t4 have constant bounds.
+$B1 3. $T4 Even though all of the characters in the
+$A INDENT=4
+identifier of an external entity are
+significant to the compiler, the system loader
+software might impose constraints on the number
+of significant characters. Refer to the
+relevant appendix for system dependent
+restrictions.
+$B1 $T1 2. $T2 %external .%procedures
+$A INDENT=2
+$P1 A procedure may be made available to other modules by
+prefixing the procedure heading with the keyword
+%external.
+$P1 %external %routine TRIAL(_s_t_r_i_n_g(63) .s)
+$B1 Such procedures must be compiled in a file comprising
+only external procedures (and possibly some non-external
+procedures and %own or %external declarations). The whole
+module is terminated by the statement %end %of %file.
+$N
+$B1 For example the following is a complete file of external
+procedures:
+$A indent=3
+$B1 %integer %function SHIFT(%integer .sym)
+$P0 %result = .s-32; $T7 ! $C+2 .lower - .upper .case
+$B0 %end
+$B %external %predicate LETTER(%integer .sym)
+$P0 %true %if .'a' <= .sym <= .'z'
+$P0 %true %if .'a' <= .shift(sym) <= .'z'
+$P0 %false
+$B0 %end
+$B %external %predicate DIGIT(%integer .sym)
+$P0 %true %if '0' <= .sym <= '9'
+$P0 %false
+$B0 %end
+$B %external %predicate .alphanum(%integer .sym)
+$P0 %true %if .letter(sym) %or .digit(sym)
+$P0 %false
+$B0 %end
+$B1 %end %of %file
+$A indent=2
+$B1 Note a. $T4 The function .shift is local to the file - it
+$B0 $T4 cannot be called from a different module.
+$B1 $T3 b. $T4 The normal scope rules apply within the file,
+$B0 $T4 so that .alphanum may call both .letter and
+$b0 $t4 .digit.
+$B1 $T3 c. $T4 External procedures may %not be nested within
+$B0 $T4 any blocks.
+$P2 If a module requires to use an externally defined
+procedure it must first supply an %external .%procedure
+%specification. For example:
+$B1 $T3 %external %predicate %spec LETTER(%integer .s)
+$B1 This is similar to a procedure specification but only
+requires the specified procedure to have been defined by
+the time the module is executed.
+$b The prefix %external may be replaced by %system or
+%dynamic, the exact significance of which may vary from
+machine to machine.
+$N
+$B3 $L1M
+.predefined .procedures
+$A INDENT=1
+$P1 Every separately compiled module, whether a
+_b_e_g_i_n-%end %of
+%program block or a file of external procedures is
+compiled
+within a conceptual "outermost block" in which are
+declared a
+number of standard procedures such as .read and .write.
+This
+means that these procedures are global to all parts
+of a
+program and so may be used without having to be declared.
+Note that as these procedures are global they may be redefined
+within the program.
+$B0 Further, %own, %constant or %external identifiers may be declared in
+this outermost block and will be global to the whole of the
+file.
+$A INDENT=2
+$B1 %own %integer .calls = 0
+$B1 %external %routine .do .something
+$P0 .calls = .calls+1; $T6 $C+2 ! .record .times .entered
+$P0 ..
+$P0 ..
+$B0 %end
+$B %external %integer %function .entries
+$P0 %result = .calls
+$B0 %end
+$B %end %of %file
+$A INDENT=1
+$B2 Note that the function .entries is used to make the value in
+.calls available to other modules without their being able to
+change that value, even by mistake.
+$N
+$P2 While the actual procedures which are predeclared may vary
+from machine to machine, the following are standard and may be
+assumed present:
+$B1 .%input/output
+$A INDENT=2
+$B2 %routine READSYMBOL(%integer %name .s)
+$B0 %routine .skipsymbol
+$B0 %integer %function .nextsymbol
+$B0 %routine READ(%name .n)
+$B1 %routine PRINTSYMBOL(%integer .n)
+$B0 %routine PRINTSTRING(_s_t_r_i_n_g(255) .s)
+$B0 %routine WRITE(%integer .n, .places)
+$B0 %routine .newline
+$B0 %routine NEWLINES(%integer .n)
+$B0 %routine .space
+$B0 %routine SPACES(%integer .n)
+$B1 %routine SELECTINPUT(%integer .stream)
+$B0 %routine SELECTOUTPUT(%integer .stream)
+$B2 $T1 .%string .%handling
+$B2 _s_t_r_i_n_g(1) %function TOSTRING(%integer .symbol)
+$B0 _s_t_r_i_n_g(255) %fn SUBSTRING(_s_t_r_i_n_g(255)%name .s, %integer .f,t)
+%integer %function CHARNO(_s_t_r_i_n_g(255) .s, %integer .n)
+$B0 %integer %function LENGTH(_s_t_r_i_n_g(255) .s)
+$B2 $T1 .%event .%handling (see Events)
+$B2 %integer %function .event
+$B0 %integer %function .sub .event
+$B0 %integer %function .event .info
+$b2 $t1 .%store .%mapping
+$b2 %integer %function ADDR(%name V)
+$b0 %integer %map INTEGER(%integer ADDRESS)
+$b0 %real %map REAL(%integer ADDRESS)
+$b0 _s_t_r_i_n_g(255)%map STRING(%integer ADDRESS)
+$A INDENT=1
+$P1 Refer to the relevant system library manual for detailed
+specifications of these and other standard procedures.
+$S
+$B0 $T5 $C+6 .events
+$P1 During the execution of a program several (synchronous)
+events may occur, such as resolution fails, array bound fault
+etc. (see Faults). Normally such events will cause the
+program to be terminated with an error report and possibly
+diagnostic information. However events may be trapped and
+used to control the further execution of the program.
+$P1 The first non-declarative statements of any block may be of
+the form:
+$B1 $T3 %on %event {event list} %start
+$B0 $T4 ! .on-body .statements
+$B0 $T3 %finish
+$B1 where {event list} is a list of integer constants representing
+the events to be trapped.
+$B1 On entry to the block the on body is skipped and execution
+continues from the statements following the %finish. If an
+event specified in the {event list} is signalled during the
+execution of the statements between the %finish of the %on %event
+group and the %end of the block, control will be passed to the
+on-body ( and may well
+pass through the %finish to the following statements).
+ If the event is not trapped in the current block a
+'return' is forced and the event is signalled in the new block
+at the point from which the old block was entered. The
+process is repeated until either the event is trapped or the
+outermost block of the program is reached, in which case the
+event is reported as a fault and the program terminates.
+$B1 Three functions are available which give information about the
+last event to have been signalled.
+$B1 1. $T2 %integer %function .event
+$B0 $T4 returns the class of the last event.
+$B1 2. $T2 %integer %function .sub .event
+$B0 $T4 returns the sub-class of the last event.
+$B1 3. $T2 %integer %function .event .info
+$A INDENT=4
+returns any extra information passed with the
+event.
+$A INDENT=1
+$B1 If no event has occurred each of these functions will return
+the value zero.
+$N
+$B The classes of event and their sub-classes of them are:
+$B1 .%event $C+3 .%sub-class $T5 .%meaning .%(+extra .%information)
+$P1 0 $T5 $C+2 .%termination
+$B0 $T3 $C+2 -1 $T5 $C+2 .abandon .program .without .diagnostics
+$B0 $T3 $C+3 0 $T5 $C+2 .normal .termination (%stop)
+$B0 $T3 $C+2 >0 $T5 $C+2 .user .generated .error
+$P1 1 $T5 $C+2 .%arithmetic .%overflow
+$A INDENT=4
+$A TAB=5,10,15,18
+1 $T5 $C+2 .integer .overflow
+$B0 2 $T5 $C+2 .real .overflow
+$B1 $T1 $C+3 2 $T5 $C+2 .%excess .%resource
+$B0 1 $T5 $C+2 .not .enough .store
+$B1 $T1 $C+3 3 $T5 $C+2 .%data .%error
+$B0 1 $T5 $C+2 .symbol .in .data .(+symbol)
+$B1 $T1 $C+3 4 $T5 $C+2 .%corrupt .%data
+$B0 1 $T5 $C+2 .data .transmission .error
+$B1 $T1 $C+3 5 $T5 $C+2 .%invalid .%arguments
+$B0 1 $T5 $C+2 .illegal .cycle
+$B0 2 $T5 $C+2 .illegal .exponent .(+exponent)
+$B0 3 $T5 $C+2 .array .inside-out
+$B1 $T1 $C+3 6 $T5 $C+2 .%out .%of .%range
+$B0 1 $T5 $C+2 .capacity .exceeded
+$B0 2 $T5 $C+2 .array .bound .fault .(+index)
+$B0 3 $T5 $C+2 .no .switch .label .(+index)
+$A INDENT=2
+$A TAB=5,8,15,20
+$B1 7 $T5 $C+2 .%resolution .%fails
+$B0 8 $T5 $C+2 .%unassigned .%variable
+$B0 9 $T5 $C+2 .%input .%ended
+$A TAB=5,7
+10 $T5 $C+2 .%library .%procedure .%error
+$B0 11 - 15 $T5 $C+2 .%general .%purpose
+$N
+$A INDENT=1
+$A TAB=5,10
+$P1 At any time during the execution of a program an event may
+be signalled by executing an instruction of the form:
+$B1 %signal %event {n}{qual}?
+$B1 where:
+$P1 {n} $T3 $C+1 ::= an integer constant in the range 0 <= N <= 15
+$P0 {qual} $c+2 ::= "," {sub event}{extra}?
+$P0 {extra} $c+1 ::= "," {extra info}
+$B1 and {sub event} and {extra info} are integer expressions.
+$B1 The instruction causes event {n} to be signalled with
+sub-event (default zero) and extra information (default zero).
+$A INDENT=2
+$B1 %signal %event 15; $T6 $C+3 ! $C+2 event 15,0,0
+$B0 %signal %event 14,7 %if X < 0; ! $C+2 event 14,7,0
+$B0 %signal %event .13,1,y %if .y#0; ! $C+2 event .13,1,y
+$B1 $T1 Note 1. $T3 In both the %on and %signal statements the keyword
+$B0 $T3 %event is optional and may be omitted.
+$A indent=3
+$B1 $T1 $C+5 2. $T3 An event signalled inside an incarnation 
+of an on-body will never be
+trapped into that incarnation. Instead the search for a
+trap will start from the previous block.
+$N
+$A sectno=0; pageno=0
+$L3M
+.appendix 1
+
+.compiler .error .messages
+$A INDENT=1
+$P1 Any errors detected by the compiler will generate messages
+of the form:
+$B1 $t3 * {message}
+$B1 In most cases a marker (|) will be output to indicate the
+position in the statement at which the error was detected.
+$B1 .access $T4 - $T5 the statement cannot be reached. This is
+$A INDENT=5
+not treated as an error but may indicate
+another fault.
+$A INDENT=1
+.atom $T4 - $T5 unknown atomic element.
+$B0 .bounds $T4 - $T5 invalid bounds for an array or
+$A INDENT=5
+%switch declaration, or wrong number of
+constants for an array initialization.
+$B0 $T1 .context $T4 - $T5 formally correct statement given in the
+wrong context.
+$A INDENT=1
+.copy $T4 - $T5 attempt to redefine a local identifier.
+$B0 .form $T4 - $T5 incorrectly formed statement.
+$B0 .index $T4 - $T5 switch label index out of bounds.
+$B0 .match $T4 - $T5 procedure definition does not match a
+$B0 $T5 previous %spec.
+$B0 .name $T4 - $T5 undeclared identifier
+$B0 .order $T4 - $T5 formally correct statement in wrong
+$B0 $T5 sequence.
+$b0 .size $t4 - $t5 constant out of range.
+$B0 .too .complex $T4 - $T5 statement too long or complex to analyse.
+$B0 .type $T4 - $T5 variable of wrong type.
+$B0 .type .for {op} $T4 - $T5 operator {op} out of context.
+$B0 .$%begin .missing - $T5 too many %end statements
+$B0 .$%cycle .missing - $T5 a %repeat has been given with no matching
+$B0 $T5 %cycle.
+$B0 .$%end .missing $T4 - $T5 unterminated blocks remain at 
+$b0 $t5 %end %of %program or %end %of %file.
+$B0 .$%finish .missing- $T5 outstanding %start at %end or %repeat.
+$B0 .$%repeat .missing- $T5 outstanding %cycle at %end or %finish.
+$B0 .result .missing - $T5 a function, map, or predicate can reach
+$B0 $T5 its %end.
+$B0 .$%start .missing - $T5 a %finish has been given with no matching
+$B0 $T5 %start.
+$B1 "{id}" .missing - $T5 undefined procedure or label.
+$N
+$LM
+.appendix 2
+$B2 $T3 $C+4 .%sample .%program .%listing
+$P1 1 $%begin
+$P0 2 $T2 $C+3 $%begin
+$P0 3 $T2 $C+3 $%realname Q
+$P0 4 $T2 $C+3 $%integer .value, .x, X
+$B0 * $T5 $C+7 ! .copy
+$P0 5 $T2 $C+3 $%string(256) S
+$B0 * $T4 $C+6 ! .size
+$P0 6 $T2 $C+3 $%switch .sa(1:4), .sb(5:4)
+$B0 *BOUNDS
+$P0 7 $T2 $C+3 $%routinespec .check
+$P0 8 $T2 $C+3 $%integerfunctionspec KEY($%integer .x)
+$P0 9 $T2 $C+3 $%if X = 4 .$%stary
+$B0 * $T5 $C+3 ! .atom
+$B0 $C+2 10 $T3 $C+1 .value = .key
+$B0 * $T5 $C-1 ! .form
+$B0 $c+2 11 $T3 $C+1 .valur = 0
+$B0 * $T3 $C+1 ! .name
+$B0 $C+2 12 .sa(5):
+$B0 * $T3 ! .index
+$B0 $C+2 13 $T3 $C+1 $%exit
+$B0 *$%CYCLE MISSING
+$A INDENT=2
+$A TAB=5,7
+14 $T3 $C+1 $%stop
+$B0 15 $T3 $C+1 X = 0
+$B0 $T1 *ACCESS
+$B0 16 $C+4 $%finish
+$B0 $T1 *$%START MISSING
+$B0 17 $C+4 $%on $%event 4 $%start
+$B0 $T1 *ORDER
+$B0 18 $T3 $C+1 $%integerfunction KEY($%real .x)
+$B0 $T1 *MATCH
+$B0 19 $T3 $C+1 $%end
+$B0 $T1 *RESULT MISSING
+$B0 20 $C+4 Q == .value
+$B0 $T1 * $T3 $C+3 ! .type
+$B0 21 $C+4 X = .q&7
+$B0 $T1 *TYPE for "&"
+$B0 22 $%endofprogram
+$A INDENT=1
+$A TAB=5,10
+*$%END MISSING
+$B0 *$%FINISH MISSING
+$B0 *"CHECK" MISSING
+$N
+$l3m
+.appendix 3
+
+.data .precision .specification
+
+$P
+On some machines it is possible to offer a range of precisions
+for variables of type %integer or %real.
+The precision is specified by the use of one of the following
+prefixes:$b
+$t3 %short $t4 - smaller range than by default
+$b $t3 %long $t4 - larger range than by default
+$b $t3 %byte $t4 - large enough to hold a character (unsigned)
+$b E.g. $t4 %byte %integer
+$b $t4 %short %integer
+$b $t4 %long %integer
+$b $t4 %long %real
+$b2
+If the machine on which the program is to be run cannot
+support the required precision the prefix will be ignored.
+$a indent=4
+$b2
+$t2 E.g. On the IBM 360 (or ICL 4/75)
+$b
+$A indent=5
+$b3 %byte %integer $t7 8-bits unsigned
+$b0 %short %integer $t7 16-bits signed
+$b0 %integer $t7 32-bits signed
+$b1 %real $t7 32-bits
+$b0 %long %real $t7 64-bits
+$a indent=1
+$p1 Note that checks may be applied to ensure that any quantity
+assigned to a variable is within the correct range of values.
+$b E.g. $t3 %byteinteger B
+$b0 $t3 %integer X
+$b0 $t3 X=16$_FFFF
+$b0 $t3 B = X
+$b will fail at run-time, as "16$_FFFF" is a POSITIVE %integer value
+but a NEGATIVE %short %integer value.
+$bThe assignment operator "<-" may be used to force truncation
+if required (see Assignment).
+$N
+$B3 $L3M
+.appendix 4
+
+.imp .keywords
+$A INDENT=0
+$A TAB=11,22,33,44,55,62
+$B1 %and $T1 %array
+$B0 %begin $t1 %byte
+$B0 %c $T1 %comment $T2 %const $t3 %constant $T4 %continue $T5 %cycle
+$b0 %dynamic
+$B0 %else $T1 %end $T2 %event $T3 %exit $T4 %external
+$B0 %false $T1 %file $T2 %finish $T3 %fn $t4 %for $T5 %format $t6 %fn
+$B0 %if $T1 %include $T2 %integer
+$B0 %like $T1 %list $t2 %long
+$B0 %map $t1 %monitor
+$B0 %name $T1 %not
+$B0 %on $T1 %of $T2 %or $T3 %own
+$B0 %predicate $T1 %program
+$B0 %real $T1 %record $T2 %repeat $T3 %result $T4 %return $T5 %routine
+$B0 %short $t1 %signal $T2 %spec $T3 %start $T4 %stop $T5 %string
+$b0 %switch $t1 %system
+$B0 %then $T1 %true
+$B0 %unless $T1 %until
+$B0 %while
+$N
+$l0cm
+appendix 5
+
+comparison with .emas .imp
+$B
+$A indent=2
+$t1 1. $t2 New Features
+$b %for
+$B %repeat %until
+$B %continue
+$b %predicate
+$b %include
+$b "==" in conditions
+$b %integer %array (4) %name
+$b %finish %else %if ....
+$b %else
+$b lower case input
+$b %like
+$b (*) in owns and switches
+$b %constant
+$b %function
+$b %not
+$b %record %function
+$b %record %map
+$b constant expressions
+$N
+$t1 2.$t2 Features not implemented
+$b1 %print %text
+$b %until ..... %cycle
+$b %array %format
+$b %reals %long
+$b %reals %normal
+$b implied multiplication
+$b3
+$t1 3. $t2 Changed  Features
+$B 'AA' instead of M'AA'
+$b 16$_1A2 instream of X'1A2'
+$B procedure parameter specification
+$b _r_e_c_o_r_d(F) R instead of %record R(F)
+$b SUBSTRING instead of FROMSTRING
+$b termination of comments
+$B "\" or "\\" instead of "**"
+$B %own initialisation
+$b type checking for record operations
+$B %external ... %spec instead of %extrinsic ...
+$b events instead of fault trapping
+$b / gives a %real result
+$b string resolution
+$E
+
+$A capsh=0; undsh=0; und=0; cap=0
+$A INVERT=0; MARK=2
+$L0
+
+                            INDEX
+
+     1.  PROGRAM LAYOUT                  5. ASSIGNMENT
+           keywords                            record assignment
+           newline                             string resolution
+           spaces                        6. CONDITIONS
+           lower case letters                  evaluation of conditions
+           quotes                              conditional statements
+           identifiers                   7. REPETITION
+           statements                          indefinite repetition
+           termination                         conditional repetition
+           null statements                     simple loops
+               & comments                      cycle control instructions
+           instructions                        joining instructions
+           continuation                  8. BLOCK STRUCTURE
+           listing control                     begin blocks
+           include                             local and global variables
+           constants                           procedures
+                                               parameters
+     2. EXPRESSIONS                            procedures as parameters
+           arithmetic expressions              general type parameter
+           bit-vector expressions        9. PROCEDURE SPECIFICATION
+           string expressions           10. CONTROL TRANSFER
+           precedence of operators             labels and jumps
+     3. DECLARATIONS                           switch vectors
+           simple variables                    stop
+           pointer variables            11. EXTERNAL LINKAGE
+           array pointer variables             external data
+           arrays                              external procedures
+           records                             predefined procedures
+           record element selection
+     4. OWN VARIABLES                   12. EVENTS
+           declaration                         event numbers
+           initialisation                      signal
+           constant identifiers
+
+$n
+$l0
+
+                         INDEX OF LANGUAGE ATOMS
+
+   <nl>    1.2                                     predicate  8.5
+   <space> 1.1              and       6.1, 7.3     program    8.1
+   !       1.2, 2.2         array     3.2          real       3.1
+   !!      2.2              begin     8.1          record     3.1, 3.2
+   "       1.1, 1.5         byte      App 3        repeat     7.1
+   #       6.1              c         1.3          result=    8.4
+   %       1.1              comment   1.2          result==   8.4
+   &       2.2              const     4.2          return     8.3
+   '       1.1, 1.4, 1.5    constant  4.2          routine    8.3
+   (                        continue  7.3          short      App 3
+   )                        cycle     7.1          signal     12.3
+   *       2.1, 4.1, 10.1   dynamic   11.2         spec       9.2, 11.2
+   +       2.1              else      6.3, 6.4     start      6.3, 12.1
+   ,                        end       8.1, 8.5     stop       10.3
+   -       2.1              event     12.1, 12.3   string     3.1
+   ->      5.2, 10.1, 10.2  exit      7.3          switch     10.1
+   .       1.2, 2.2, 5.2    external  11.1         system     11.2
+   /       2.1              false     8.5          then       6.3
+   //      2.1              file      1.2, 11.1    true       8.5
+   <0-9>   1.4              finish    6.3, 12.1    unless     6.4
+   :       10.1, 3.2        fn        8.4          until      7.1
+   ;       1.2              for       7.1, 10.2    while      7.1
+   <       6.1              format    3.3
+   <-      5.2              function  8.4
+   <=      6.1              if        6.3
+   <<      2.2              include   1.3
+   =       4.1, 5.1, 6.1,
+           7.1, 8.6         integer   3.1
+   ==      4.1, 5.1, 6.1,
+           8.6              like      3.3
+   >       6.1              list      1.3
+   >=      6.1              long      App 3
+   >>      2.2              map       8.4
+   @       1.5              monitor   10.3
+   <A-Z>   1.1              name      3.1, 3.2, 8.7
+   \       2.1, 2.2         not       3.1, 3.2, 8.7
+   \=      6.1              on        12.1
+   \\      2.1              of        1.2, 8.1, 11.1
+   _       1.4, 3.4         or        6.1
+   |       2.1              own       4.1, 11.1
+$e
+
+
+

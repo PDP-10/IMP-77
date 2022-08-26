@@ -1,0 +1,368 @@
+!PSTLIB.IMP  library file for POST/MAIL system
+%include "imp:iolib.inc"
+
+%externalintegerfnspec ppn
+%externalroutinespec readppn(%integername pn)
+%externalintegerfnspec get now
+%systempredicatespec gettab(%integer table,index %integername result)
+%externalintegerfnspec toudt(%integer date,time)
+%externalintegerfnspec todate(%integer day,month,year)
+%externalstring(8)%fnspec day
+%externalstring(8)%fnspec time
+%externalstring(9)%fnspec date
+%externalstring(12)%fnspec octtostr(%integer n)
+%externalstring(6)%fnspec sixtostr(%integer n)
+%externalpredicatespec calli2(%integer n,%integername result)
+%externalpredicatespec xisfile(%record(filespec)%name fs)
+%externalrecord(filespec)%fnspec strtofs(%string(255) str)
+%externalstring(255)%fnspec fstostr(%record(filespec)%name fs)
+%EXTERNALSTRING(6)%SPEC QDEV
+%externalstring(255)%spec errmsg
+%externalroutinespec run(%string(6) dev,file,%string(3) ext,%integer ppn,inc)
+%externalroutinespec writeppn(%integer n)
+%externalroutinespec writefs(%record(filespec)%name fs)
+%externalpredicatespec isfile(%string(255) spec)
+%externalstring(12)%spec our src node
+%externalpredicatespec is version 4
+%externalroutinespec mail(%record(filespec)%name fs,%string(1)%name jobnm,dest, %integer gate,%string(1)%name mess)
+%externalpredicatespec isnode(%string(1)%name node,type, %integername status)
+%externalpredicatespec address(%string(1)%name title,address,%integername node)
+%conststring(16) image mode="/mode:#10/byte:7"
+%constinteger max aliases=100
+%ownstring(17)%array aliases(0:max aliases)
+%constinteger true=1
+%constinteger comma=','
+%constinteger ini=10, als=11;  !stream numbers
+
+%externalroutine queueit
+!======================
+!just a dummy routine to satify undefined global symbols
+%end
+
+
+%externalpredicate casematch(%string(255) str1,str2)
+!===================================================
+!does a case independent match of two strings
+   %integer n,len
+   len=length(str1)
+   %false %if len#length(str2)
+   %true %if len=0
+   %for n=1,1,len %cycle
+      %false %if charno(str1,n)&8_737 # charno(str2,n) &8_737
+   %repeat
+   %true
+%end
+
+%EXTERNALROUTINE UPPER CASE(%STRING(1)%NAME STR)
+!================================================
+!Convert the given string to to upper case
+   %STRING(255) STR1
+   %INTEGER N,L,S
+   L=LENGTH(STR)
+   %RETURN %IF L=0
+   STR1=STR; STR=""
+   %FOR N=1,1,L %CYCLE
+      S=CHARNO(STR1,N)
+      S=S-32 %IF 'a'<=S<='z'
+      STR=STR.TOSTRING(S)
+   %REPEAT
+%END
+
+
+%EXTERNALROUTINE lower CASE(%STRING(1)%NAME STR)
+!================================================
+!Convert the given string to to lower case
+   %STRING(255) STR1
+   %INTEGER N,L,S
+   L=LENGTH(STR)
+   %RETURN %IF L=0
+   STR1=STR; STR=""
+   %FOR N=1,1,L %CYCLE
+      S=CHARNO(STR1,N)
+      S=S+32 %IF 'A'<=S<='Z'
+      STR=STR.TOSTRING(S)
+   %REPEAT
+%END
+
+%integerfn unique(%integer n)
+!============================
+!
+!returns a sort of random integer with at least N octal
+!digits guaranteed. Useful for creating random filenames.
+!
+%INTEGER I1,I3
+  I1=GET NOW
+  N=3*N   ;!Number of places to shift in each convolution
+  I3=I1>>N
+  %CYCLE
+    I1=I3+I1-I3<<N
+    I3=I1>>N
+  %REPEAT %UNTIL I3=0
+  %IF I1<(1<<(N-3)) %THEN I1=(-I1-1)&((1<<N)-1);  !Guarantee a leading digit
+  %RESULT=I1
+%END
+
+%EXTERNALSTRING(50)%FN DEFUNI(%INTEGER STREAM,%STRING(20)F1,F2)
+!==============================================================
+
+!This function creates a file with a generated unique filename of the
+!form F1.nnnnnn.F2, where F1 and F2 are strings passed to the function, 
+!and nnnnnn are 6 octal digits. It opens the file for output on stream
+!STREAM, and returns the filename used.
+!
+!The file is opened using the FILOP .FOCRE function, which will
+!give an error  if the file already exists.
+
+%STRING(50) FSPEC
+%EXTERNALRECORD(SCBNAME)%ARRAYSPEC OUTVEC(-1:MAXCHANS)
+%RECORD(FILESPEC) FS
+%INTEGER I,I1,ARG,DEVNAME
+%RECORDFORMAT DSKCHR(%INTEGER NAM,UFT,FCT,UNT,SNM)
+%RECORD(DSKCHR) D
+
+%FOR I1=1,1,10 %CYCLE
+I=UNIQUE(6);    !get 6 digit number
+FSPEC=F1.OCTTOSTR(I).F2
+%IF ISFILE(FSPEC) %START
+   %CONTINUE
+%ELSE
+   ->OK
+%FINISH
+%REPEAT
+ ERRMSG="Cannot create unique file within 10 attempts ".F1."??????".F2
+ %SIGNAL 10
+OK:
+FS=STRTOFS(FSPEC)
+FS_SWITCHES=IMAGE MODE."/ext:#16"
+XDEFINE OUTPUT(STREAM,FS)
+DEVNAME=OUTVEC(STREAM)_NAME_LKENT_DEV
+D=0
+D_NAM=DEVNAME
+ARG=5<<18!ADDR(D)
+%IF CALLI2(8_45,ARG) %START; %FINISH
+FS_DEV=SIXTOSTR(D_SNM); FS_SWITCHES=""
+FSPEC=FSTOSTR(FS)
+%RESULT=FSPEC
+%END
+
+
+%externalroutine get unique(%record(filespec)%name fs)
+!=====================================================
+!same as DEFUNI but for filespecs - only the filename is changed
+   %integer n
+   %for n=1,1,10 %cycle
+      fs_file=octtostr(unique(6))
+      %return %unless xisfile(fs)
+   %repeat
+   errmsg="Cannot create unique file within 10 attempts ".fstostr(fs)
+   %signal 10
+%end
+
+
+%externalroutine do ftp(%string(1)%name jobnm,dest,name,%record(filespec)%name file, %integer stream, %string(1)%name mess)
+!=======================================================================
+!
+!Routine to submit ARPA post file to FTP handler for onward transmission
+!
+!See FTPREQ.IMP for details of FTP request format
+!
+   %string(255) s
+   %string(12) type,jobname
+   %integer out,status,gate
+   out=outstream
+   upper case(dest)
+   %if length(jobnm)>6 %then jobname=substring(jobnm,1,6) %else jobname=jobnm
+   %if isnode(dest,type,status) %start; %finish
+   %if is version4 %and (type#"EMAS" %and type#"ARPA") %start;  !use galaxy v4
+      %unless address(dest,s,gate) %start
+          mess="Cannot find a definition of the destination ".dest." - mail not sent"
+          %return
+      %finish
+      mail(file,jobname,dest,gate,mess)
+   %else;  !use ftp77
+      s=defuni(stream,qdev.":",".ftp[3,3]")
+      select output(stream)
+      printstring(dest); newline
+      printstring(dest); printsymbol('_'); printsymbol('=')
+      printstring(our src node); printsymbol('_'); writefs(file); newline
+      writeppn(ppn); newline;         !ppn of submitter
+      printsymbol(','); printstring(name); printstring(",,,"); newline
+      printsymbol(','); writeppn(ppn); printstring(",,MAIL,"); newline
+      printstring("CWRITE,AFTER,TEXT"); newline;             !print, delete:after and a text file
+      printstring(",,,MAIL"); newline
+      close output
+      mess="OK, I have told FTP to send it"
+   %finish
+   select output(out)
+%end
+
+
+%externalstring(50)%fn datestamp
+!===================================
+!gets the stamp used for all mail
+   %integer year,weekday,start of bst,start of gmt,now
+   %ownstring(50) stamp=""
+   %result=stamp %if stamp#"";   !memo function
+   stamp=day.", ".date."  ".time
+   !now work out GMT or BST (3rd Sunday in March and Oct are change dates)
+   now=getnow
+   %if gettab(8_11,8_56,year) %start; %finish;  !get this year
+   start of bst=toudt(todate(1,3,year),0);      !calculate 1-Mar-?? in udt
+   weekday=rem(((start of bst>>18)+3),7);       !get day of week of 1-Mar-??
+   %if weekday=0 %then weekday=7 ;              !if it is a sunday
+   start of bst=((start of bst>>18) + (21-weekday))<<18; !calculate start of bst
+   start of gmt=toudt(todate(1,10,year),0);     !same again for start of gmt
+   weekday=rem(((start of gmt>>18)+3),7)
+   %if weekday=0 %then weekday=7 ; !if it is a sunday
+   start of gmt=((start of gmt>>18) + (21-weekday))<<18
+   %if start of bst <= now < start of gmt %start
+      stamp=stamp."-BST"
+   %else stamp=stamp."-GMT"
+   %result=stamp
+%end
+
+
+%externalroutine read aliases
+!============================
+!reads the file SYS:ALIAS.ADD into core
+!the format of the file is lines of text one list of aliaes per line e.g.
+!ERCC=EDXA,EDXAF,ERCC:DEC10
+!YORK=YKXA,YKXAF,YORK80,YORK:KL
+!it is stored in the aliases array with blank entries between each entry line
+!and a blank at the end
+   %integer n,last char
+   %on %event 9,10 %start
+      %if event=9 %start;  !end of file
+         aliases(n)=""
+         aliases(n+1)=""
+         close input
+         %return
+      %finish
+      aliases(0)=""
+      %return
+   %finish
+
+   %routine incr(%integername count)
+   !----------------------------
+      count=count+1
+      %if count>max aliases %start
+         select output(0)
+         printstring("Too many entries in SYS:ALIAS.ADD for internal tables")
+         %stop
+      %finish
+   %end
+
+   %routine readtext(%string(1)%name str,%integer sep1,sep2)
+   !------------------------------------------------------------------
+   str=""
+      %cycle
+         readsymbol(last char)
+         %continue %if last char=sp %or last char=tab
+         %exit %if last char=sep1 %or last char=sep2
+         str=str.tostring(last char)
+      %repeat
+   %end
+
+   define input(als,"sys:alias.add")
+   select input(als)
+   n=0
+   %cycle
+      read text(aliases(n),'=','=')
+      %cycle
+         incr(n)
+         readtext(aliases(n),comma,nl)
+      %repeat %until last char=nl
+      incr(n)
+      aliases(n)="";  !leave a blank inbetween lines
+      incr(n)
+   %repeat
+%end
+
+
+%externalroutine alias(%string(1)%name dest)
+!===================================
+!will return a single host identifier fronm a list of aliases
+   %ownstring(39) hold="",last dest=""
+   %integer n
+   %return %if aliases(0)="";  !no alias file
+   %if case match(dest,last dest) %start;   !same as last time
+      dest=hold   
+      %return
+   %finish
+   n=0
+   last dest=dest
+   %cycle
+      hold=aliases(n)
+      %cycle
+         n=n+1
+         %exit%if aliases(n)="";  !end of current list
+         %if casematch(dest,aliases(n)) %start
+            dest=hold
+            %return
+         %finish
+      %repeat
+      n=n+1
+   %repeatuntil aliases(n)="";  !end of all lists
+   hold=dest
+%end
+
+%externalroutine print via(%string(1)%name host)
+!=======================================
+!puts in a via field for the specified host
+   printstring("Via: "); printstring(host)
+   printstring("    ; "); printstring(datestamp); newline
+%end
+
+%externalpredicate delist(%string(1)%name user,user1,dest1)
+!================================================
+!take a list of the form FRED%JIM%JOHN and give FRED%JIM and JOHN
+   %integer n,len
+   user1=""; dest1=""
+   len=length(user)
+   %false%if len=0
+   %for n=len,-1,1 %cycle
+      %if charno(user,n)='%' %start
+         user1=substring(user,1,n-1) %unless n=1
+         dest1=substring(user,n+1,len) %unless n=len
+         alias(dest1)
+         %true
+      %finish
+   %repeat
+   %false
+%end
+
+%externalstring(25)%fn tell name(%integer ppn)
+!=============================================
+!returns a name from TELL.INI given a PPN and "" if none found
+   %integer s,pn,in
+   %string(25) name
+   %on %event 9,10 %start
+      close input; select input(in)
+      %if event=9 %or eventinfo=0 %then %result="";  !no file or not in file
+      printstring("%POST "); printstring(errmsg); write(eventinfo,3)
+      %result=""
+   %finish
+
+   in=instream
+   define input(ini,"sys:tell.ini")
+   select input(ini)
+   %cycle
+      readsymbol(s) %until s='(';   !after /group:(
+      readtext(name,'=')
+      skipsymbol %while nextsymbol=sp %or nextsymbol=tab
+      skipsymbol %if nextsymbol='['
+      %continue %unless '0'<=nextsymbol<='7';  !no names allowed
+      %cycle
+         readppn(pn)
+         readsymbol(s)
+         %exit %if s='?' %or s='*';   !cannot handle wildcards
+         %if pn=ppn %start
+            close input; select input(in)
+            %result=name
+         %finish
+         readsymbol(s) %if s=']'
+      %repeat%until s#'+'
+   %repeat
+%end
+
+%endoffile

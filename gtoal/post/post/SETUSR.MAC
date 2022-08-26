@@ -1,0 +1,76 @@
+TITLE SETUSR	A PROGRAM FOR CHANGING THE USERNAME
+
+repeat	0,<
+	This program requires peek and poke privs and prompts for a 12 char 'name'
+	and sets the current user name to be 'name'
+	where name is up to 12 characters long
+>;end repeat 0
+
+	SEARCH	UUOSYM
+	AC==1
+	T1==2
+	T2==3
+	T4==5
+	J==6
+	PNT==7
+
+	twoseg	400000
+
+start:	outstr	[asciz/New user name: /]
+lp:	movei	t4,^d12		;get loop counter
+	move	pnt,[point 6,t1] ;set up byte prointer
+	setzb	t1,t2		;and clear initial status
+lp1:	inchwl	ac
+	caige	ac,40		;end of name
+	  jrst st2		;yes
+	cail	ac,140		;if lower case
+	subi	ac,40		;make upper case
+	subi	ac,40		;and make sixbit
+	idpb	ac,pnt		;and deposit it
+	sojg	t4,lp1		;loop for 12
+st2:	clrbfi			;clear input buffer
+	movem	t1,newnm1	;store for poke
+	movem	t2,newnm2	;ditto
+	pjob	j,		;get job number
+	movei	ac,.gtpdb
+	hrl	ac,j
+	gettab	ac,		;get base address for the PDB table for this job
+	 jrst err
+	hrrz	ac,ac		;just use address
+	move	t1,[xwd .gtnm1,.gtslf]
+	gettab	t1,		;get base address for the username in the PDB
+	 jrst err
+	hrrz	t1,t1		;just the address
+	add	ac,t1		;get the full address of the username(1) in jobs PDB
+	movem	ac,arg1		;save it
+	peek	ac,		;get current name
+	movem	ac,oldnm1	;save it
+	move	ac,arg1		;get address again
+	addi	ac,1		;for part2
+	movem	ac,arg2		;save it
+	peek	ac,		;get it
+	movem	ac,oldnm2	;and save it
+	move	ac,[xwd 3,arg1]
+	poke.	ac,		;change part1
+	  jrst err
+	move	ac,[xwd 3,arg2]
+	poke.	ac,		;change part2
+	  jrst err
+	exit
+
+err:	exit
+
+	reloc	0
+
+;first poke block
+arg1:	z
+oldnm1:	z
+newnm1:	z
+;second poke block
+arg2:	z
+oldnm2:	z
+newnm2:	z
+
+	end	start
+
+	

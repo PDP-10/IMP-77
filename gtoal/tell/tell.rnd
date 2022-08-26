@@ -1,0 +1,378 @@
+.BLANK 2
+.UC
+.CENTER
+"TELL"
+.BR
+.CENTER
+The CSL Mail System
+.BR
+.CENTER
+Coordinated Science Laboratory
+.BR                     
+.CENTER
+University of Illinois
+.BR
+.CENTER
+Urbana, Illinois 61801
+.center
+Presented by: Tom Burtnett
+.skip 2
+.RM 70
+.title Inter-user mail
+I. Inter-user Mail Design Goals
+.skip
+.paragraph
+A system should exist which runs under the TOPS-10 monitor on the DECsystem-10  which provides for
+inter-user mail.  
+The first component of the system should be a program which accepts a user name
+and a message; this program should add the date and the sender of the message and
+write the message as a file on disk.  When the receiver of the mail logs
+in, he should receive a message indicating that he has mail.  He then runs a second
+program which types out the mail, and he decides what is to be done with it.
+Such a facility has been developed at the Coordinated Science Laboratory at
+the University of Illinois.  The remainder of this paper refers to that system.
+.paragraph
+Specific design goals which have been met (features):
+.s 2
+.lm 5
+.i -5
+(1)##The mail system, called TELL, is  independent of user quotas and user file structures.  This implies that all messages reside on a system disk in [3,3]
+or a similiar area. In particular, TELL uses [3,4].
+.s 2;.i -5
+(2)##Names as well as PPN's can be used to denote the receiver of a message.
+This implies that SYS:ACCT.SYS be readable by the mail system.  To minimize
+disk I/O, the name-to-PPN conversion table exists in the sharable 
+segment of the message sending cusp.  The storage requirements are
+three words per defined user in ACCT.SYS.  Wild card PPN's are allowed: [1,*],[*,765], and [*,*], although their use is restricted.
+.s 2;.i -5
+(3)##The standard parameter file SWITCH.INI is used to define the senders
+characteristics, i.e. the initial setting for switches.
+
+.s 2;.i -5
+(4)##Group names can also be used to denote the receiver of a message.
+In the file SWITCH.INI,
+the sender can specify that, for example, "STAFF" is equivalent to FORTUNE,
+BURTNETT, DEWOLF, and FINKE.
+Then sending mail to STAFF is equivalent to sending mail to FORTUNE, BURTNETT,
+DEWOLF, and FINKE. 
+.s 2;.i -5
+(5)##The date the mail is to be delivered can be specified when it is sent.
+This is useful in reminding someone, even yourself, of an event about to occur.
+.s 2;.i -5
+(6)##There are several capabilities for handling received mail.  First,
+if the user no longer wants the mail, it may be deleted.  If he wishes to
+keep it, he will be reminded that he has it when he logs in again.  He could
+also put it on "hold", in which case it is not deleted but is not printed
+unless he specifically requests it.  He will be told that he has mail on
+hold, however.
+The mail can be forwarded to another user (or users), if the
+receiver decides it might be of interest to them.  Of course, mail
+can be written to a device besides the terminal, e.g. DSK:, LPT:, etc.
+.s 2;.i -5
+(7)##Mail can be sent from a pre-edited disk file, as well as being typed
+in from the senders terminal.
+.s 2;.i -5
+(8)##If the intended recipient of a message is logged into the system, he SHOULD BE
+ alerted at his terminal that he has a message waiting.  This feature can
+be turned off by typing "SET TTY GAG".
+.B
+.LM 0
+II.  User Instructions
+.LM 5
+.B
+.paragraph
+The TELL command is used to send messages to other users; the  MESSAG
+command is used to receive messages that have been sent to you.  Most usage
+of TELL and MESSAG can be demonstrated by the following examples:
+To send a message to another user, say Burtnett, type
+.s 1;.i 5
+TELL BURTNETT
+.s 1
+TELL will respond with the message
+.s 1;.i 5
+Enter message, end with _^Z
+.s 1
+After you have typed the message (as many lines as you want) and have typed
+the _^Z (altmode works just as well), TELL will respond with OK, I told Burtnett.
+
+.paragraph
+If you have any messages, when you login you will be given a message to that
+effect.  To type your messages, just type the monitor command MESSAG.
+After a message has been typed, you will be questioned as to how to dispose
+of the message.
+The most useful options are SAVE, in which case the message is kept and the
+next time you ask for your messages it will be printed, and DELETE, in
+which case the message disappears.
+Other options are to FORWARD the message (type a list of names after
+FORWARD), REPLY (which gets you into TELL, but talking to the sender of
+the message) and HOLD, which keeps the message until you explicitly
+request that it be printed by a MESSAGE/HOLD.
+You can also copy the message to a file by saying COPY <filename>.
+.page
+.LM 0
+III.  Detailed User Instructions
+.LM 5
+.b
+.LIST 1
+.LE
+ TELL
+.b
+The general format of a TELL command is:
+.s 1
+TELL/switches user-list (date/time specification) message
+.s 1
+.LIST 1
+.LE
+  "User-list" is a list of names separated by "+" and "-".
+A "+" specifies that the name following is to be added to the list of
+users to whom this message is sent; a "-" specifies that the name following
+is to be deleted from the list of users receiving the message.
+Names may be abbreviated, so long as they are unique.  If they are not,
+TELL will enter a dialog, typing out each possible name and asking you
+if it is the correct one. 
+Names are user names (actually the name given to the account when the
+account was defined) or one of the following:
+.s 1
+The string "ME" means yourself.
+.s 1
+A group name (see group names below)
+.s 1
+A project programmer number (brackets are optional).  Wild cards, i.e.
+"*" and "?" are legal, but not all users may be allowed to do TELL's with
+certain wild card constructions.
+
+.paragraph
+Some examples:
+.s 1
+TELL DEWOLF+BURTNETT+FINKE
+.b
+sends the message to Dewolf, Burtnett, and FINKE.
+.s 1
+TELL 1,*-DEWOLF
+.b
+sends the message to everyone who has a project 1 account except for DEWOLF.
+.s 1
+TELL ME
+.b
+sends the message to yourself (so you get it the next time you ask for
+messages).
+.PAGE
+.LE
+  "Date-time specification" must be enclosed within parentheses and is the
+date/time the mail is to be delivered.  This is useful for reminding oneself
+of appointments, etc.  The message will not be printed if the current
+date/time is before the delivery date/time.  
+The date specification may be a standard date (i.e. JUNE 15, 1975) or
+a mnemonic day of the week (MONDAY) or a keyword (WEEK).  The time
+specification may be in hours in minutes (12:30) or mnemonic (NOON).
+.paragraph
+The date specifications recognized are the following:
+(1) NN NN NN (2) NN MMM NN (3) MMM NN NN, where NN is a number and MMM
+is a month name.  Missing numbers are filled in from todays date,
+except in the case of a mnemonic month with no day following, when 
+the first of the month is assumed.
+Mnemonic dates are a weekday (SUNDAY, MONDAY, etc), TODAY, TOMORROW,
+WEEK, MONTH and YEAR.  Weekdays are always in the future; if today
+is Saturday and the mnemonic date SATURDAY is specified, then the message
+will be delivered in a week.  "WEEK" specifies the next week (weeks
+start on a SUNDAY).  "MONTH" specifies next month (which of course starts
+on the first).  "YEAR" specifies next year (starting January 1).
+.paragraph
+The following are considered noise words:
+NEXT, AFTER, AT, SINCE.
+.paragraph
+Time specifications are in the form HH:MM, on a 24 hour clock.  Mnemonic
+times are available:
+BREAKFAST (8:00 AM), LUNCH (12:00), NOON (12:00), TEA (4:00 PM), DINNER (8:00 PM),
+and MIDNIGHT.
+.s 1
+Examples:
+.s 1
+TELL ME (AFTER LUNCH TOMORROW)
+.b
+will deliver the message after 12:00 on the day following today.
+.s 1
+TELL FORTUNE (NEXT WEEK)
+.b
+will deliver the message the first time Fortune asks for messages after next
+Sunday.
+.s 1
+TELL ME (13)
+.b
+will deliver the messages starting the 13th of this month.
+.s 1
+TELL ME (JUNE 16 76)
+.b
+will deliver the message starting June 16, 1976.
+.PAGE
+.le
+The message is typed on one or more lines (no limit) and terminated
+by altmode or _^Z.
+The message text may be in a pre-edited file.  To use this feature,
+type "TELL namelist (date)".
+When TELL prompts with a _#, respond by typing "@file-spec",
+where file-spec is a standard file specification.  you can put the file-spec
+on the same line as the TELL command itself, howver, if TELL 
+is forced into a dialog peculiar things will happen.
+.LE
+Switches applicable to TELL.
+.B
+.I -3
+CC	(Default)  If on, a message sent to more than 1 user will get a line
+with CC:<list of people receiving message> appended to the end.  If more 
+than ten people get the message, the line [Distribution to more than ten
+users] will be appended to the end.
+.I -3
+NOCC	Turns off the action of /CC, i.e. no trailer line is appended.
+.I -3
+SMART	Indicates that the user is familiar with the intricacies of TELL
+ commands and need not be prompted with lengthy messages.
+.I -3
+.END LIST
+.page
+.LE
+MESSAGE
+.B
+The general format of a message command is 
+.s 1
+MESSAGE /SWITCH/SWITCH...
+.s 1
+The switches are described below.  The MESSAGE command will type out all
+messages which have been sent to the user and have delivery dates less
+than or equal to the current date.
+.paragraph
+The actual action of MESSAGE depends on the value of the /QUERY switch
+(default value is AFTER).  If /QUERY:AFTER is set, MESSAGE will type each message,
+type "Dispose:" and wait for a command.
+If /QUERY:BEFORE is set,
+MESSAGE will type the header of the message and the number of lines
+in the message followed by the prompt "Action:".
+.paragraph
+The following are the command options available in response to either the
+Action: query or the Dispose: query.
+
+.I -3
+HELP	type a brief help message listing some of the options
+.I -3
+TYPE	type the message.  (It will type the message even if it has
+already been typed).
+.I -3
+SAVE	save the message (will be printed the next time MESSAGE is typed).
+.I -3
+HOLD	puts the message on 'hold'.  It will not be printed again until
+the user explicitly requests that it be   printed by specifying the /HOLD
+switch, i.e. MESSAG/HOLD.  The user will be told that he has messages on
+hold when he types MESSAGE without the /HOLD switch.
+The only way to delete a message on hold is to explicitly type DELETE
+in response to the Dispose: query.
+.I -3
+REPLY	This command is used to reply to the sender of the message.  It
+enters TELL and asks for the text of the message.  If you want to send
+your reply to other users beside the sender of the message, you can
+add the names following the REPLY command (using the "+" and "-"
+constructions of the TELL command).  Example:
+.b
+.i 5
+Dispose: REPLY FINKE+DEWOLF
+.b
+sends the message you type to the sender of the message you just received
+and to FINKE and DEWOLF.
+You cannot reply to a message you sent to yourself, nor can you add
+your name to the list of people to whom the reply is directed.
+.I -3
+FORWARD	Forwards the message to other users (i.e. if you think they might
+be interested).  The list of users is specified as in a TELL command
+following the FORWARD command.  The line "[Forwarded from <your name>]"
+will be appended to the end of the message.
+You cannot forward mail to yourself.
+.I -3
+COPY	copies this message to a file.  The file specification can be 
+specified after the COPY command, e.g.
+.i 5
+Dispose: COPY BUG.FIX
+.b
+Copies the message into the file BUG.FIX.
+.page
+.le
+SWITCH.INI
+.b
+Tell switches that affect MESSAGE (all of these may appear in SWITCH.INI).
+.b
+.ts 10
+.I -3
+QUERY	Affects whether or not the user is queried when typing messages.
+The possible values are BEFORE, AFTER, NEVER, and BOTH.  If /QUERY:AFTER
+is set, the message will be typed and the user will be queried about
+to do with the message.  If /QUERY:BEFORE is set, the header message
+and the number of lines in the message will be typed, and the user queried
+about what to do with the message.  If /QUERY:BOTH is set, the user
+will be queried both before and after the message is typed.  If /QUERY:NEVER
+is set, the user will never be queried.  In this case  the disposition of the messages
+depends on the /DISPOSE switch (defaults to DELETE).
+.I -3
+DISPOSE	sets the default value for response to a "Dispose:" request
+printed by MESSAGE.  It is used if carriage return is typed or if /QUERY:AFTER
+is not in effect.  The acceptable values are the same as the responses to
+"Dispose:"; however the only useful ones are DELETE, SAVE and HOLD.
+.I -3
+HOLD	If this is set, messages on hold instead of regular messages will
+be printed.  The default value for this switch is off.
+.I -3
+SAVE	is the same as /DISPOSE:SAVE.  If specified, all messages typed
+will be saved.
+.i -3
+GROUP	(This switch may appear only in SWITCH.INI).  This switch allows you
+to define "group names".  For example, if you find that you are doing TELL's
+to the same list of people frequently, you could define a group name for that
+list.  Then rather than explicitly specifying the list of receivers in the
+TELL command, you can just specify the group name.  
+Group names are defined by enclosing the group name, an "=", and a list
+of the people in the group, in parentheses following a /GROUP switch.
+For example
+.i 5
+TELL /GROUP:(PROJECT=345,*-ME)/GROUP:(STEVE=[1,752])
+.b
+defines two groups.  The first is called PROJECT, which is all users with
+project number 345 except for the account that is doing the TELL.
+The second group defines STEVE to be one user.   Group names may be nested
+to any reasonable level (but may not be recursively defined).
+The TELL at the beginning of this line in SWITCH.INI specifies that
+this line is applicable to the TELL program and should not be looked at by
+any other program reading SWITCH.INI (such as DIRECT).
+.page
+.i -3
+LOGIN switches that affect messages (may appear in SWITCH.INI)
+.b
+.i -3
+MAIL	/MAIL may be used with LOGIN or added to
+SWITCH.INI to control the options pertaining to your mail.
+.b
+a) /MAIL:IGNORE will tell LOGIN  to ignore any mail
+that has been directed to you and thus not inform you that it exists.
+The advantage is that no lookup will be done and LOGIN 
+will be slightly faster.
+.b
+b) /MAIL:INFORM (Default) directs LOGIN to inform you if you
+have any mail, but the mail itself is not printed (until you type MESSAGE).
+.b
+c) /MAIL:PRINT will start printing your messages at the terminal as
+soon as you have logged in.
+.b
+d) /MAIL:BRIEF is similar to /MAIL:INFORM except that 
+it will not inform you of messages on hold.
+.b
+e) /MAIL:NAMES is a recent development which includes the feature of
+/MAIL:INFORM but also lists up to 3 senders of messages.  For
+example, "You have a message from Smith, Dewolf, Edwards and others."
+.b
+Since the greatest benefit of the various switches is realized by including
+them in SWITCH.INI, it seems appropriate to give an example:
+.b
+LOGIN/MAIL:NAMES
+.B
+TELL/GROUP:(BILL=ROUSE)/GROUP:(OPRS=7,*-THRONEBURG)
+.B
+TELL/QUERY:BOTH/DISPOSE:SAVE/SMART
+.b
+TELL/GROUP:(STAFF=11,*-EDWARDS+DEW+PAUL)
+.els

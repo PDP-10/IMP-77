@@ -1,0 +1,105 @@
+	TITLE TELL -- MACRO INTERFACE FOR TELL
+	TWOSEG
+;
+;THIS MODULE CONSISTS OF THOSE THINGS WHICH ARE MORE CONVENIENT TO DO
+;IN MACRO THEN IN BLISS
+
+	OPDEF	PORTAL[JRST	1,]
+	SREG=:0			;STACK POINTER
+	FREG=:2			;BASE OF STACK AT ROUTINE CALL
+	VREG=:3			;VALUE RETURNED HERE
+	P1=:4
+	P2=:5
+	P3=:6
+
+	RELOC	400000
+NAMETA::0			;ADDRESS OF NAME TABLE IN HIGHSEG
+NAMEND::0			;END OF NAME TABLE
+NAMEBU::0			;NON-ZERO IF NAME TABLE HAS BEEN BUILT (UNIVERSAL DATE-TIME OF ACCT.SYS CREATION)
+NAMESI::0			;SIZE OF ACCT.SYS WHEN NAME TABLE WAS BUILT
+NAMEPO::0			;DISK POSITION OF ACCT.SYS WHEN NAME TABLE WAS BUILT
+LOCK::	-1			;INTERLOCK TO PREVENT TWO OR MORE JOBS FROM BUILDING TABLE
+				;AT SAME TIME.  AOSX'ED BY BLISS
+
+
+TELLHELP::			;HELP MESSAGE.  HOW THE %&%&'$$(''% DO YOU
+				;INITIALIZE A LONG STRING IN BLISS WITHOUT
+				;THE COMPILER PLAYING TRICKS LIKE TURNING 
+				;LINEFEEDS INTO SPACES???
+ASCIZ \
+Commands are:
+TELL	To send a message to another user or yourself
+MESSAGE	To read messages other users have sent to you.
+	When it asks Dispose: type one of DELETE or SAVE or HELP
+WHO	type the ppn('s) of a name or vice versa
+HELP	Types this message
+\
+
+
+HLPBFQ::				;HELP FOR /QUERY:BEFORE
+ASCIZ \
+Type one of the following (or see DOC:TELL.DOC)
+TYPE	to type the message
+SAVE	to save message without typing it
+HOLD	to hold message (till MESSAGE/HOLD typed)
+COPY	to copy message to disk file or elsewhere.  Append to existing file.
+EXIT	to SAVE (or HOLD) this message without furthur questions
+REPLY	to respond to the sender (enters TELL)
+FORWARD <list of users> forwards the mail to these users
+DELETE	to delete the message
+TYPE is the default if <CR> is hit.
+\
+HLPAFQ::				;HELP FOR /QUERY:AFTER
+ASCIZ \
+Type one of the following (or see DOC:TELL.DOC)
+SAVE	to save the message
+HOLD	to hold message (till MESSAGE/HOLD typed)
+REPLY	to respond to the sender (enters TELL)
+FORWARD <list of users> forwards the mail to these users
+COPY	to copy message to disk file or elsewhere.  Append to existing file.
+EXIT	to SAVE (or HOLD) this message without furthur questions
+DELETE	to delete the message
+TYPE	to type the message again
+Default is SAVE if message is not on hold, HOLD if it is.
+\
+;TELL START PROCEDURE
+
+TELLST:	PORTAL	.+2			;ALLOW CONCEALED MODE
+	PORTAL	.+2
+	TDZA	VREG,VREG		;SIMULATE 'CCL' SWITCH OF BLISS
+	MOVEI	VREG,1
+	JRST	TELL.F##		;ENTER REAL TELL START ADDRESS
+
+;CONTROL C INTERCEPT CODE
+;
+;LOC 134 HAS EXP INTBLOCK
+
+
+INTLOC:	PORTAL	.+1			;ALLOW EXECUTE ONLY ENTRY
+	SKIPE	BUILDING##		;ARE WE BUILDING NAME TABLE?
+	SETOM	CNTRLC##		;YES--FLAG ^C OCCURRED
+	SKIPN	BUILDING##
+	EXIT	1,			;NO--OK TO EXIT
+	PUSH	0,INTBLK+2		;PUSH THE INTERRUPT PC
+	SETZM	INTBLK+2		;REENABLE INTERRUPTS
+	POPJ	0,			;GO BACK TO BLISS
+
+
+;
+;ROUTINE TO DO INITIALIZATION OF MACRO SUBROUTINES
+;
+MACINI::MOVE	3,[4,,INTLOC]		;POINTER TO INTERRUPT ROUTINE
+	MOVEM	3,INTBLK		;STORE IN BLOCK
+	MOVEI	3,2			;TRAP ^C'S
+	MOVEM	3,INTBLK+1		;STORE
+	SETZM	INTBLK+2
+	SETZM	INTBLK+3
+	MOVEI	3,INTBLK		;^C INTERCEPT BLOCK
+	MOVEM	3,.JBINT##		;STORE IN JOBDAT
+	POPJ	0,			;RETURN TO BLISS
+
+	RELOC
+
+INTBLK:	BLOCK	4
+
+	END	TELLST

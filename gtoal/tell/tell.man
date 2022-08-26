@@ -1,0 +1,274 @@
+
+
+
+III.  Detailed User Instructions
+
+
+     1.   TELL
+
+         The general format of a TELL command is:
+
+         TELL/switches user-list (date/time specification) message
+
+
+         1.   "User-list" is a list of names separated by "+" and "-".
+             A "+" specifies that the name following is to be added to
+             the list of users to whom this message is  sent;   a  "-"
+             specifies  that  the name following is to be deleted from
+             the list of users receiving the message.   Names  may  be
+             abbreviated,  so  long  as  they are unique.  If they are
+             not, TELL will enter a dialog, typing out  each  possible
+             name  and asking you if it is the correct one.  Names are
+             user names (actually the name given to the  account  when
+             the account was defined) or one of the following:
+
+             The string "ME" means yourself.
+
+             A group name (see group names below)
+
+             A project  programmer  number  (brackets  are  optional).
+             Wild  cards,  i.e.   "*"  and  "?" are legal, but not all
+             users may be allowed to do TELL's with certain wild  card
+             constructions.
+
+                  Some examples:
+
+             TELL DEWOLF+BURTNETT+FINKE
+
+             sends the message to Dewolf, Burtnett, and FINKE.
+
+             TELL 1,*-DEWOLF
+
+             sends the message to everyone who has a project 1 account
+             except for DEWOLF.
+
+             TELL ME
+
+             sends the message to yourself (so you  get  it  the  next
+             time you ask for messages).
+                                                                Page 2
+
+
+         2.    "Date-time  specification"  must  be  enclosed   within
+             parentheses  and  is  the  date/time  the  mail  is to be
+             delivered.  This  is  useful  for  reminding  oneself  of
+             appointments,  etc.   The  message will not be printed if
+             the current date/time is before the  delivery  date/time.
+             The date specification may be a standard date (i.e.  JUNE
+             15, 1975) or a mnemonic day of the  week  (MONDAY)  or  a
+             keyword  (WEEK).   The time specification may be in hours
+             in minutes (12:30) or mnemonic (NOON).
+
+                  The   date   specifications   recognized   are   the
+             following:   (1)  NN  NN  NN (2) NN MMM NN (3) MMM NN NN,
+             where NN is a number and MMM is a  month  name.   Missing
+             numbers  are  filled  in  from todays date, except in the
+             case of a mnemonic month with no day following, when  the
+             first  of  the  month  is  assumed.  Mnemonic dates are a
+             weekday (SUNDAY, MONDAY,  etc),  TODAY,  TOMORROW,  WEEK,
+             MONTH  and  YEAR.  Weekdays are always in the future;  if
+             today is Saturday  and  the  mnemonic  date  SATURDAY  is
+             specified,  then the message will be delivered in a week.
+             "WEEK" specifies the next week (weeks start on a SUNDAY).
+             "MONTH"  specifies  next month (which of course starts on
+             the first).  "YEAR" specifies next year (starting January
+             1).
+
+                  The following are  considered  noise  words:   NEXT,
+             AFTER, AT, SINCE.
+
+                  Time specifications are in the form HH:MM, on  a  24
+             hour  clock.   Mnemonic  times  are available:  BREAKFAST
+             (8:00 AM), LUNCH (12:00), NOON (12:00),  TEA  (4:00  PM),
+             DINNER (8:00 PM), and MIDNIGHT.
+
+             Examples:
+
+             TELL ME (AFTER LUNCH TOMORROW)
+
+             will deliver the message after 12:00 on the day following
+             today.
+
+             TELL FORTUNE (NEXT WEEK)
+
+             will deliver the message the first time Fortune asks  for
+             messages after next Sunday.
+
+             TELL ME (13)
+
+             will deliver the  messages  starting  the  13th  of  this
+             month.
+
+             TELL ME (JUNE 16 76)
+
+             will deliver the message starting June 16, 1976.
+                                                                Page 3
+
+
+         3.  The message is typed on one or more lines (no limit)  and
+             terminated  by altmode or ^Z.  The message text may be in
+             a pre-edited file.   To  use  this  feature,  type  "TELL
+             namelist (date)".  When TELL prompts with a #, respond by
+             typing "@file-spec", where file-spec is a  standard  file
+             specification.   you  can  put  the file-spec on the same
+             line as the TELL  command  itself,  howver,  if  TELL  is
+             forced into a dialog peculiar things will happen.
+
+         4.  Switches applicable to TELL.
+
+          CC    (Default) If on, a message sent to more  than  1  user
+             will  get  a  line  with  CC:<list  of  people  receiving
+             message> appended to the end.  If more  than  ten  people
+             get  the message, the line [Distribution to more than ten
+             users] will be appended to the end.
+          NOCC  Turns off the action of /CC, i.e.  no trailer line  is
+             appended.
+          SMART Indicates  that  the  user  is   familiar   with   the
+             intricacies  of  TELL  commands  and need not be prompted
+             with lengthy messages.
+
+                                                                Page 4
+
+
+     2.  MESSAGE
+
+         The general format of a message command is 
+
+         MESSAGE /SWITCH/SWITCH...
+
+         The switches are described below.  The MESSAGE  command  will
+         type  out  all  messages which have been sent to the user and
+         have delivery dates less than or equal to the current date.
+
+              The actual action of MESSAGE depends on the value of the
+         /QUERY  switch  (default value is AFTER).  If /QUERY:AFTER is
+         set, MESSAGE will type each message, type "Dispose:" and wait
+         for  a  command.   If /QUERY:BEFORE is set, MESSAGE will type
+         the header of the message and the  number  of  lines  in  the
+         message followed by the prompt "Action:".
+
+              The following  are  the  command  options  available  in
+         response to either the Action:  query or the Dispose:  query.
+      HELP      type a brief help message listing some of the options
+      TYPE      type the message.  (It will type the message  even  if
+         it has already been typed).
+      SAVE      save the  message  (will  be  printed  the  next  time
+         MESSAGE is typed).
+      HOLD      puts the message on 'hold'.  It will  not  be  printed
+         again  until  the user explicitly requests that it be printed
+         by specifying the /HOLD switch, i.e.  MESSAG/HOLD.  The  user
+         will  be  told  that  he  has  messages on hold when he types
+         MESSAGE without the /HOLD switch.  The only way to  delete  a
+         message  on  hold is to explicitly type DELETE in response to
+         the Dispose:  query.
+      REPLY     This command is used to reply to  the  sender  of  the
+         message.   It  enters  TELL  and  asks  for  the  text of the
+         message.  If you want to  send  your  reply  to  other  users
+         beside  the  sender  of  the  message,  you can add the names
+         following  the  REPLY  command  (using  the   "+"   and   "-"
+         constructions of the TELL command).  Example:
+
+              Dispose:  REPLY FINKE+DEWOLF
+
+         sends the message you type to the sender of the  message  you
+         just received and to FINKE and DEWOLF.  You cannot reply to a
+         message you sent to yourself, nor can you add  your  name  to
+         the list of people to whom the reply is directed.
+      FORWARD   Forwards the message to  other  users  (i.e.   if  you
+         think  they  might  be  interested).   The  list  of users is
+         specified as in a TELL command following the FORWARD command.
+         The  line  "[Forwarded from <your name>]" will be appended to
+         the end of the message.  You cannot forward mail to yourself.
+      COPY      copies this message to a file.  The file specification
+         can be specified after the COPY command, e.g.
+              Dispose:  COPY BUG.FIX
+
+         Copies the message into the file BUG.FIX.
+                                                                Page 5
+
+
+     3.  SWITCH.INI
+
+         Tell switches that affect MESSAGE (all of these may appear in
+         SWITCH.INI).
+
+      QUERY Affects whether or not the user  is  queried  when  typing
+         messages.   The possible values are BEFORE, AFTER, NEVER, and
+         BOTH.  If /QUERY:AFTER is set, the message will be typed  and
+         the  user  will  be queried about to do with the message.  If
+         /QUERY:BEFORE is set, the header message and  the  number  of
+         lines  in  the  message  will  be typed, and the user queried
+         about what to do with the message.  If  /QUERY:BOTH  is  set,
+         the user will be queried both before and after the message is
+         typed.  If /QUERY:NEVER  is  set,  the  user  will  never  be
+         queried.   In  this  case  the  disposition  of  the messages
+         depends on the /DISPOSE switch (defaults to DELETE).
+      DISPOSE sets the default value  for  response  to  a  "Dispose:"
+         request printed by MESSAGE.  It is used if carriage return is
+         typed or if /QUERY:AFTER is not in  effect.   The  acceptable
+         values  are the same as the responses to "Dispose:";  however
+         the only useful ones are DELETE, SAVE and HOLD.
+      HOLD If this  is  set,  messages  on  hold  instead  of  regular
+         messages  will be printed.  The default value for this switch
+         is off.
+      SAVE is the same as /DISPOSE:SAVE.  If specified,  all  messages
+         typed will be saved.
+      GROUP (This switch may appear only in SWITCH.INI).  This  switch
+         allows you to define "group names".  For example, if you find
+         that you  are  doing  TELL's  to  the  same  list  of  people
+         frequently,  you  could  define  a  group name for that list.
+         Then rather than explicitly specifying the list of  receivers
+         in  the  TELL  command,  you can just specify the group name.
+         Group names are defined by enclosing the group name, an  "=",
+         and  a  list  of  the  people  in  the  group, in parentheses
+         following a /GROUP switch.  For example
+              TELL /GROUP:(PROJECT=345,*-ME)/GROUP:(STEVE=[1,752])
+
+         defines two groups.  The first is called  PROJECT,  which  is
+         all users with project number 345 except for the account that
+         is doing the TELL.  The second group defines STEVE to be  one
+         user.  Group names may be nested to any reasonable level (but
+         may not be recursively defined).  The TELL at  the  beginning
+         of  this  line  in  SWITCH.INI  specifies  that  this line is
+         applicable to the TELL program and should not be looked at by
+         any other program reading SWITCH.INI (such as DIRECT).
+                                                                Page 6
+
+
+      LOGIN switches that affect messages (may appear in SWITCH.INI)
+
+      MAIL /MAIL may be used with LOGIN  or  added  to  SWITCH.INI  to
+         control the options pertaining to your mail.
+
+         a) /MAIL:IGNORE will tell LOGIN to ignore any mail  that  has
+         been  directed to you and thus not inform you that it exists.
+         The advantage is that no lookup will be done and  LOGIN  will
+         be slightly faster.
+
+         b) /MAIL:INFORM (Default) directs LOGIN to inform you if  you
+         have  any mail, but the mail itself is not printed (until you
+         type MESSAGE).
+
+         c) /MAIL:PRINT will  start  printing  your  messages  at  the
+         terminal as soon as you have logged in.
+
+         d) /MAIL:BRIEF is similar to /MAIL:INFORM except that it will
+         not inform you of messages on hold.
+
+         e) /MAIL:NAMES is a recent  development  which  includes  the
+         feature  of  /MAIL:INFORM  but  also lists up to 3 senders of
+         messages.  For example,  "You  have  a  message  from  Smith,
+         Dewolf, Edwards and others."
+
+         Since  the  greatest  benefit  of  the  various  switches  is
+         realized   by   including   them   in  SWITCH.INI,  it  seems
+         appropriate to give an example:
+
+         LOGIN/MAIL:NAMES
+
+         TELL/GROUP:(BILL=ROUSE)/GROUP:(OPRS=7,*-THRONEBURG)
+
+         TELL/QUERY:BOTH/DISPOSE:SAVE/SMART
+
+         TELL/GROUP:(STAFF=11,*-EDWARDS+DEW+PAUL)
+

@@ -1,0 +1,111 @@
+%EXTERNALROUTINE DECODE(%INTEGER VALUE, WHERE)
+   %INTEGER OP, ACC, T, X, Y, IND
+%String(6)%name OPC
+%Conststring(6)%Array OPCODE(0:511) =
+"", "USER  "(31),
+"CALL  ","INIT  ",""(5), "CALLI ",
+"OPEN  ","TTCALL",""(3), "RENAME","IN    ","OUT   ",
+"SETSTS","STATO ","STATUS","STATZ ","INBUF ","OUTBUF","INPUT ","OUTPUT",
+"CLOSE ","RELEAS","MTAPE ","UGETF ","USETI ","USETO ","LOOKUP","ENTER ",
+""(24),
+"UFA   ","DFN   ","FSC   ","IBP   ","ILDB  ","LDB   ","IDPB  ","DPB   ",
+"FAD   ","FADL  ","FADM  ","FADB  ","FADR  ","FADRI ","FADRM ","FADRB ",
+"FSB   ","FSBL  ","FSBM  ","FSBB  ","FSBR  ","FSBRI ","FSBRM ","FSBRB ",
+"FMP   ","FMPL  ","FMPM  ","FMPB  ","FMPR  ","FMPRI ","FMPRM ","FMPRB ",
+"FDV   ","FDVL  ","FDVM  ","FDVB  ","FDVR  ","FDVRI ","FDVRM ","FDVRB ",
+"MOVE  ","MOVEI ","MOVEM ","MOVES ","MOVS  ","MOVSI ","MOVSM ","MOVSS ",
+"MOVN  ","MOVNI ","MOVNM ","MOVNS ","MOVM  ","MOVMI ","MOVMM ","MOVMS ",
+"IMUL  ","IMULI ","IMULM ","IMULB ","MUL   ","MULI  ","MULM  ","MULB  ",
+"IDIV  ","IDIVI ","IDIVM ","IDIVB ","DIV   ","DIVI  ","DIVM  ","DIVB  ",
+"ASH   ","ROT   ","LSH   ","JFFO  ","ASHC  ","ROTC  ","LSHC  ","",
+"EXCH  ","BLT   ","AOBJP ","AOBJN ","JRST  ","JFCL  ","XCT   ","",
+"PUSHJ ","PUSH  ","POP   ","POPJ  ","JSR   ","JSP   ","JSA   ","JRA   ",
+"ADD   ","ADDI  ","ADDM  ","ADDB  ","SUB   ","SUBI  ","SUBM  ","SUBB  ",
+"CAI   ","CAIL  ","CAIE  ","CAILE ","CAIA  ","CAIGE ","CAIN  ","CAIG  ",
+"CAM   ","CAML  ","CAME  ","CAMLE ","CAMA  ","CAMGE ","CAMN  ","CAMG  ",
+"JUMP  ","JUMPL ","JUMPE ","JUMPLE","JUMPA ","JUMPGE","JUMPN ","JUMPG ",
+"SKIP  ","SKIPL ","SKIPE ","SKIPLE","SKIPA ","SKIPGE","SKIPN ","SKIPG ",
+"AOJ   ","AOJL  ","AOJE  ","AOJLE ","AOJA  ","AOJGE ","AOJN  ","AOJG  ",
+"AOS   ","AOSL  ","AOSE  ","AOSLE ","AOSA  ","AOSGE ","AOSN  ","AOSG  ",
+"SOJ   ","SOJL  ","SOJE  ","SOJLE ","SOJA  ","SOJGE ","SOJN  ","SOJG  ",
+"SOS   ","SOSL  ","SOSE  ","SOSLE ","SOSA  ","SOSGE ","SOSN  ","SOSG  ",
+"SETZ  ","SETZI ","SETZM ","SETZB ","AND   ","ANDI  ","ANDM  ","ANDB  ",
+"ANDCA ","ANDCAI","ANDCAM","ANDCAB","SETM  ","SETMI ","SETMM ","SETMB ",
+"ANDCM ","ANDCMI","ANDCMM","ANDCMB","SETA  ","SETAI ","SETAM ","SETAB ",
+"XOR   ","XORI  ","XORM  ","XORB  ","OR    ","ORI   ","ORM   ","ORB   ",
+"ANDCB ","ANDCBI","ANDCBM","ANDCBB","EQV   ","EQVI  ","EQVM  ","EQVB  ",
+"SETCA ","SETCAI","SETCAM","SETCAB","OPCA  ","ORCAI ","ORCAM ","ORCAB ",
+"SETCM ","SETCMI","SETCMM","SETCMB","ORCM  ","ORCMI ","ORCMM ","ORCMB ",
+"ORCB  ","ORCBI ","ORCBM ","ORCBB ","SETO  ","SETOI ","SETOM ","SETOB ",
+"HLL   ","HLLI  ","HLLM  ","HLLS  ","HRL   ","HRLI  ","HRLM  ","HRLS  ",
+"HLLZ  ","HLLZI ","HLLZM ","HLLZS ","HRLZ  ","HRLZI ","HRLZM ","HRLZS ",
+"HLLO  ","HLLOI ","HLLOM ","HLLOS ","HRLO  ","HRLOI ","HRLOM ","HRLOS ",
+"HLLE  ","HLLEI ","HLLEM ","HLLES ","HRLE  ","HRLEI ","HRLEM ","HRLES ",
+"HRR   ","HRRI  ","HRRM  ","HRRS  ","HLR   ","HLRI  ","HLRM  ","HLRS  ",
+"HRRZ  ","HRRZI ","HRRZM ","HRRZS ","HLRZ  ","HLRZI ","HLRZM ","HLRZS ",
+"HRRO  ","HRROI ","HRROM ","HRROS ","HLRO  ","HLROI ","HLROM ","HLROS ",
+"HRRE  ","HRREI ","HRREM ","HRRES ","HLRE  ","HLREI ","HLREM ","HLRES ",
+"TRN   ","TLN   ","TRNE  ","TLNE  ","TRNA  ","TLNA  ","TRNN  ","TLNN  ",
+"TDN   ","TSN   ","TDNE  ","TSNE  ","TDNA  ","TSNA  ","TDNN  ","TSNN  ",
+"TRZ   ","TLZ   ","TRZE  ","TLZE  ","TRZA  ","TLZA  ","TRZN  ","TLZN  ",
+"TDZ   ","TSZ   ","TDZE  ","TSZE  ","TDZA  ","TSZA  ","TDZN  ","TSZN  ",
+"TRC   ","TLC   ","TRCE  ","TLCE  ","TRCA  ","TLCA  ","TRCN  ","TLCN  ",
+"TDC   ","TSC   ","TDCE  ","TSCE  ","TDCA  ","TSCA  ","TDCN  ","TSCN  ",
+"TRO   ","TLO   ","TROE  ","TLOE  ","TROA  ","TLOA  ","TRON  ","TLON  ",
+"TDO   ","TSO   ","TDOE  ","TSOE  ","TDOA  ","TSOA  ","TDON  ","TSON  ",
+"BLKI  ", ""(7),
+""(56)
+%Routine OCTAL(%Integer N, D)
+   D = (D-1)*3;  D = 0 %If D < 0
+   %Cycle D = D, -3, 0
+      PRINTSYMBOL(N>>D&7+'0')
+   %Repeat
+%End
+%ROUTINE WOCT(%INTEGER N, P)
+   %INTEGER SIGN
+   %ROUTINE Q(%INTEGER N)
+      P = P-1
+      Q(N>>3) %UNLESS N&8_777770 = 0
+      %IF SIGN # 0 %START
+         SPACES(P)
+         PRINTSYMBOL(IND) %UNLESS IND = ' ';  IND = ' '
+         PRINTSYMBOL(SIGN) %UNLESS SIGN = ' ';  SIGN = 0
+      %FINISH
+      PRINTSYMBOL(N&7+'0')
+   %END
+   SIGN = ' '
+   %IF N < 0 %START
+      N = -N;  SIGN = '-';  P = P-1
+   %FINISH
+   P = P-1 %IF IND = '@'
+   Q(N)
+%END
+   OP = VALUE>>27
+   ACC = VALUE>>23&15
+   T = VALUE>>22&1
+   X = VALUE>>18&15
+   Y = VALUE&8_777777
+   OCTAL(WHERE, 6);  SPACES(2)
+   OCTAL(VALUE>>18, 6);  SPACE;  OCTAL(Y,6)
+   OPC == OPCODE(OP)
+   %IF OPC # "" %START
+      SPACES(2);  PRINTSTRING(OPC)
+      SPACE;  IND = ' '
+      WOCT(ACC, 2);  PRINTSYMBOL(',')
+      %If T = 0 %Then IND = ' ' %Else IND = '@'
+      %If X = 0 %Start
+         WOCT(Y, 7)
+      %Else
+         %IF Y=0 %START
+            SPACE;  PRINTSYMBOL(IND);  IND = ' '
+         %ELSE
+            WOCT(Y, 7)
+         %FINISH
+         PRINTSYMBOL('(')
+         WOCT(X, 0)
+         PRINTSYMBOL(')')
+      %Finish
+   %FINISH
+   NEWLINE
+%End
+%ENDOFFILE

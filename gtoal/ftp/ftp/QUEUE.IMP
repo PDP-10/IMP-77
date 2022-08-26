@@ -1,0 +1,388 @@
+!QUEUE.IMP
+!ENTERS A FILE INTO A GIVEN GALAXY QUEUE
+
+%INCLUDE "IMP:IOLIB.INC"
+
+%CONSTINTEGER MAX STREAMS=15
+%EXTERNALRECORD(SCBNAME)%ARRAY %SPEC INVEC(-1:MAX STREAMS)
+%EXTERNALRECORD(SCB)%NAMESPEC INSCB
+%EXTERNALRECORD(FILESPEC)%FNSPEC STRTOFS(%STRING(255) STR)
+%EXTERNALPREDICATESPEC CALLI2(%INTEGER N,%INTEGERNAME X)
+%EXTERNALSTRING(6)%FNSPEC SIXTOSTR(%INTEGER N)
+%EXTERNALINTEGERFNSPEC PPN
+%SYSTEMPREDICATESPEC GETTAB(%INTEGER N,M,%INTEGERNAME RES)
+%externalstring(255)%fnspec asctostr(%name adr)
+%systemroutinespec zero(%name from,to)
+%externalintegerfnspec strtosix(%string(6) s)
+%externalintegerfnspec strtooct(%string(1)%name s)
+%externalroutinespec strtoasc(%string(1)%name s, %name adr)
+%externalstring(12)%fnspec inttostr(%integer n)
+%EXTERNALROUTINESPEC QUEUEIT(%NAME N,%STRING(1)%NAME MESS);   !TO SEND REQUEST TO QUASAR
+%EXTERNALSTRING(255)%SPEC ERRMSG
+%owninteger edinburgh
+%constinteger true=-1, false=0
+
+!now the galaxy v4 data
+%constinteger maxarg=25
+%recordformat arg pair(%integer type,value)
+%recordformat queue argument(%integer function,node,response %record(arg pair)%array arg(1:max arg))
+%ownrecord (queue argument) quearg
+
+!now the galaxy v4 symbols
+%constinteger quprt=1, quplt=4, qubat=5
+%constinteger qbfil=8_10, qbfrm=8_12, qbodp=8_14, qblim=8_17, qblog=8_22
+%constinteger qbnod=8_25, qbnam=8_26, qboid=8_27, qbnot=8_30, qbblt=8_31
+%constinteger qbjbn=8_32, qbfrr=8_37
+!now the FTP ones
+%constinteger quftp=8_777777
+%constinteger qbfad=8_777777, qbfun=8_777776, qbfup=8_777775, qbfan=8_777774
+%constinteger qbfap=8_777773, qbfma=8_777772 ,qbflo=8_777771, qbfmo=8_777770
+%constinteger qbffn=8_777767, qbffp=8_777766, qbfco=8_777765, qbfde=8_777764
+%constinteger qbfio=8_777763, qbfpr=8_777762, qbfso=8_777761, qbfml=8_777760
+!now the values
+%constinteger qblnl=1, qbllg=2, qblle=3
+%constinteger qbnty=1
+%constinteger qbbnd=1, qbbde=2, qbbsp=3
+%constinteger print device=8_5460, plot device=8_6054, batch device=8_5156; !sixbit/lp/pl/in/
+
+
+%STRING(6)%FN DEVICE OF(%RECORD(FILESPEC) FS)
+!==================================================
+!returns the device on which a file exists
+!
+%STRING(6) DEV
+%INTEGER N,M,TEMP,ARG,DEVNAME
+%RECORDFORMAT DSKCHR(%INTEGER NAM,UFT,FCT,UNT,SNM)
+%RECORD(DSKCHR) D
+   %IF FS_DEV#"" %THEN %RESULT=FS_DEV %ELSE FS_DEV="ALL"
+   %FOR N=1,1,MAX STREAMS %CYCLE
+      %IF INVEC(N)_NAME_DEVTYP=UNDEV %START
+         TEMP=N; ->OK
+      %FINISH
+   %REPEAT
+   ERRMSG="No free streams for routine QUEUE "
+   %SIGNAL 10
+OK: FS_SWITCHES="/EXT:#16"
+   XDEFINE INPUT(TEMP,FS)
+   N=INSTREAM; SELECT INPUT(TEMP)
+   DEVNAME=INSCB_LKENT_DEV
+   CLOSE INPUT
+   SELECT INPUT(N)
+   D=0
+   D_NAM=DEVNAME
+   ARG=5<<18!ADDR(D)
+   %IF CALLI2(8_45,ARG) %START; %FINISH
+   %RESULT = SIXTOSTR(D_SNM)
+%END
+
+
+
+%INTEGERFN ERSATZ(%STRING(6) DEV)
+!================================
+!RETURNS THE PPN IMPLIED BY AN ERSATZ DEVICE NAME
+%INTEGER PN
+%CONSTINTEGER DEVPPN=8_55, DSK=8_446353 000000;   !SIXBIT 'DSK'
+   %RESULT=0 %IF LENGTH(DEV)#3
+   PN=STRTOSIX(DEV)
+   %RESULT=0 %IF PN=DSK %OR %NOT CALLI2(DEVPPN,PN)
+   %RESULT=PN
+%END
+
+%INTEGERFN GETJOB(%INTEGER N)
+   %INTEGER M
+   %UNLESS GETTAB(N,-1,M) %START
+      M=0
+   %FINISH
+   %RESULT=M
+%END
+
+%externalpredicate is version 4
+!==============================
+!IS THIS VERSION 4 GALAXY?
+%integer cty,n
+%constinteger where=8_63, get special pid=8_126
+   cty=8_436471 000000;  !sixbit/cty/
+   %if calli2(where,cty) %and cty=8_50 %then edinburgh=true %else edinburgh=false;  !i.e. EDXA
+   %true %IF GETTAB(get special pid,3,N) %AND N#0;   !PID for MDA
+   %false
+%END
+
+%routine set arg(%integername args,%integer type,value)
+!======================================================
+!fill in a value for the queue argument record
+   args=args+1
+   quearg_arg(args)_type=type; quearg_arg(args)_value=value
+%end
+
+%externalroutine FTP(%record(filespec)%name file, %string(1)%name jobnm,dest,dfile,user, %c
+pass %integer gateway,mode,mail,dispose,log %string(1)%name resp)
+!================================================================================================================
+!routine for issuing ftp requests to galaxy v4 using QUEUE. UUO
+!
+!FILE      name of DEC-10 file
+!JOBNM     name of the job
+!DEST      name of remote machine
+!DFILE     name of remote file
+!USER      name of remote user
+!PASS      password for remote user
+!GATEWAY   node through which to send transfer
+!MODE      1=Make 2=Replace 3=Replace-make 4=Append 5=Append-make 6=Job input 7=Job output
+!MAIL      non-zero for mail
+!DISPOSE   non-zero for delete
+!LOG       1=Append 2=Supercede 3=Spool log file
+!RESP      is a (255) string for response from GALAXY
+!
+%integerarray response(1:52)
+%integerarray address(1:4)
+%integerarray filename,dfilename(1:11)
+%integerarray username,userpass(1:4)
+%string(12) str
+%integer n,i,error,disp,jobnam,d,node,args
+   zero(response(1),userpass(4)); !zero arrays
+!file in file block
+   filename(1)=strtosix(file_dev)
+   filename(2)=strtosix(file_file)
+   filename(3)=strtosix(file_ext)
+   filename(4)=file_ppn
+   filename(5)=strtosix(file_sfds(1))
+   filename(6)=strtosix(file_sfds(2))
+   filename(7)=strtosix(file_sfds(3))
+   filename(8)=strtosix(file_sfds(4))
+   filename(9)=strtosix(file_sfds(5))
+!now the destination file
+   strtoasc(dfile,dfilename(1))
+!fill in the destination address
+   %if length(dest)>6 %start
+      address(1)=strtosix(substring(dest,1,6))
+      %if length(dest)>=12 %then n=12 %else n=length(dest)
+      address(2)=strtosix(substring(dest,7,n))
+   %else address(1)=strtosix(dest)
+   address(3)=gateway
+!the job name
+   jobnam=strtosix(jobnm)
+!Now the username
+   strtoasc(user,username(1))
+!now the password
+   strtoasc(pass,userpass(1))
+   %if dispose#0 %then disp=1 %else disp=0
+!set up the request
+   quearg=0; args=0
+   quearg_function=1<<35!quftp;  !set response bit
+   quearg_node=-1            ;!central site
+   quearg_response=52<<18!(addr(response(1))&8_777777)
+   set arg(args,9<<18!qbfil,addr(filename(1)))
+   set arg(args,10<<18!qbffn,addr(dfilename(1)))
+   set arg(args,3<<18!qbfad,addr(address(1)))
+   set arg(args,4<<18!qbfun,addr(username(1)))
+   set arg(args,4<<18!qbfup,addr(userpass(1)))
+   set arg(args,8_400001<<18!qbjbn,jobnam)     ;!/jobname:?
+   set arg(args,8_400001<<18!qbflo,log)        ;!/ftplog:?
+   set arg(args,8_400001<<18!qblog,qbllg)      ;!/output:always
+   set arg(args,8_400001<<18!qbodp,disp)       ;!/disp:?
+   set arg(args,8_400001<<18!qbnot,qbnty)      ;!/notify
+   set arg(args,8_400001<<18!qbfmo,mode)       ;!/mode:?
+   set arg(args,8_400001<<18!qbfio,1)          ;!/direc:out
+   set arg(args,8_400001<<18!qbfml,mail)       ;!/mail:?
+   ac(1)=(3+(args*2))<<18!addr(quearg)&8_777777
+   *8_047040 000201;   !queue. 1,
+   *8_634100 000002;   !tdza 2,2
+   *8_476000 000002;   !setom 2
+   %if ac(2)=0 %start
+      error=ac(1)
+      resp="[File did not get queued to GALAXY - error code = ".inttostr(error)."]"
+      %return
+   %finish
+   resp=asctostr(response(1))
+%end
+
+%externalroutine mail(%record(filespec)%name file, %string(1)%name jobnm,dest, %c
+ %integer gateway, %string(1)%name resp)
+!============================================================================================
+!to do v4 mail
+%string(12) blank
+   blank=""
+   FTP(file,jobnm,dest,blank,blank,blank,gateway,1,1,1,1,resp)
+%end
+%externalroutine que v4(%record(filespec)%name file, %string(1)%name jobname,user, %c
+device %integer user ppn,size,limit,dispose,log %string(1)%name resp)
+!================================================================================================================
+!routine for issuing mail requests to galaxy v4 using QUEUE. UUO
+%integerarray response(1:52)
+%integerarray filename(1:9)
+%integerarray username(1:2)
+%string(12) str
+%integer n,i,error,disp,jobnam,d,node,args
+   zero(response(1),username(2)); !zero arrays
+!file in file block
+   filename(1)=strtosix(file_dev)
+   filename(2)=strtosix(file_file)
+   filename(3)=strtosix(file_ext)
+   filename(4)=file_ppn
+   filename(5)=strtosix(file_sfds(1))
+   filename(6)=strtosix(file_sfds(2))
+   filename(7)=strtosix(file_sfds(3))
+   filename(8)=strtosix(file_sfds(4))
+   filename(9)=strtosix(file_sfds(5))
+!Now the username
+   N=LENGTH(USER)
+   %IF N=0 %START
+      USERNAME(1)=GETJOB(8_31)
+      USERNAME(2)=GETJOB(8_32)
+   %ELSE
+      %IF N<6 %THEN I=N %ELSE I=6
+      USERNAME(1)=STRTOSIX(SUBSTRING(USER,1,I))
+      USERNAME(2)=STRTOSIX(SUBSTRING(USER,7,N)) %IF N>6
+   %FINISH
+   %IF USER PPN=0 %THEN user ppn=PPN
+   %IF JOBNAME="" %THEN JOBNAM=STRTOSIX(FILE_FILE) %ELSE jOBNAM=STRTOSIX(JOBNAME)
+   %if dispose#0 %then disp=1 %else disp=0
+   d=strtosix(device); node=(d&8_777777)>>6; d=d>>24;    !get device and node
+   %if node#0 %start
+      str=sixtostr(node)
+      node=strtooct(str)
+   %finish
+!set up the type of request
+   quearg=0; args=0
+   %if d=print device %start
+      quearg_function=quprt
+   %elseif d=plot device %start
+      quearg_function=quplt
+   %elseif d=batch device %start
+      quearg_function=qubat
+      disp=0
+   %else
+      resp="[Cannot queue to device ".device."]"
+      %return
+   %finish
+   quearg_function=1<<35!quearg_function;  !set response bit
+   quearg_node=-1            ;!central site
+   quearg_response=52<<18!(addr(response(1))&8_777777)
+   set arg(args,9<<18!qbfil,addr(filename(1)))
+   set arg(args,2<<18!qbnam,addr(username(1)))
+   set arg(args,8_400001<<18!qblim,size<<18!limit)   ;!/limit:? and /core:? ***requires patch to QSRQUE
+   set arg(args,8_400001<<18!qbnod,node)             ;!/node:?
+   set arg(args,8_400001<<18!qboid,user ppn)         ;!/ppn:
+   set arg(args,8_400001<<18!qbjbn,jobnam)           ;!/jobname:?
+!   set arg(args,8_400001<<18!qbfrm,0)                ;!/forms:
+!   set arg(args,8_400001<<18!qbnot,qbnty)            ;!/notify
+   %if quearg_function=1<<35!qubat %start;   !for batch output
+      set arg(args,8_400001<<18!qblog,log)           ;!/output:?
+      set arg(args,8_400001<<18!qbblt,2)             ;!/batlog:supercede
+   %else
+      set arg(args,8_400001<<18!qbodp,disp)          ;!/disp:?
+   %finish
+   ac(1)=(3+(args*2))<<18!addr(quearg)&8_777777
+   *8_047040 000201;   !queue. 1,
+   *8_634100 000002;   !tdza 2,2
+   *8_476000 000002;   !setom 2
+   %if ac(2)=0 %start
+      error=ac(1)
+      resp="[File did not get queued to GALAXY - error code = ".inttostr(error)."]"
+      %return
+   %finish
+   resp=asctostr(response(1))
+%end
+
+%EXTERNALROUTINE QUEUE(%STRING(70) FILSPEC, %STRING(12) JOB NAME, USER NAME,DEVICE,%INTEGER USER PPN,SIZE,LIMIT,DISPOSE,LOG,%STRING(1)%NAME MESSAGE)
+!====================================================================================================
+!
+!This routine sends a file request to QUASAR for V2 or calls QUE V4 for version 4
+!
+!Arguments are:
+!FILSPEC       a full filespec which if it does not include a structure name
+!              the file will be looked up for it.
+!JOB NAME      the JOB NAME in the queue which defaults to the file name
+!USER NAME     which defaults to the user name of this job
+!DEVICE        any device recognised by QUASAR, may include node number
+!USER PPN      PPN of request, defaults to this jobs PPN
+!SIZE          OUTPUT size of file in blocks, INPUT memory size in pages
+!LIMIT         OUTPUT page limit or INPUT time limit(seconds)
+!DISPOSE       for OUTPUT  0 = preserve, 1=delete, 2=rename
+!              for INPUT /output:value
+!LOG           what to do with the log file for batch jobs
+!              1=nolog, 2=always, 3=only on error
+!
+%RECORDFORMAT FPARAM(%INTEGER SIZE,INF,START,REP1,REP2)
+%RECORDFORMAT FD(%INTEGER DEV,FILE,EXT,PPN,%INTEGERARRAY SFD(1:5))
+%RECORDFORMAT EQ(%INTEGER HEAD,PID,LEN,REQDEV,JOBNAME,SEQ,SPC,AFT,DED,LIM1,  %C
+LIM2,LIM3,LIM4,LIM5,%INTEGERARRAY CHECK(1:5),ACC(1:8),USERNAME(1:2),  %C
+%INTEGER OWNER, %INTEGERARRAY OWN PATH(1:5),%RECORD(FPARAM) FP, %RECORD(FD) F,  %C
+%RECORD(FPARAM) FP1, %RECORD(FD) F1)
+%RECORD(EQ) E
+%RECORD(FILESPEC) FS
+%INTEGER N,I,EPPN,LEN,SIZ,NUM OF FILES, DELETE, OUTPUT SW,CTY
+%CONSTINTEGER QSRVER=8_33; !QUEUE VERSION
+%CONSTINTEGER EQLEN=35, FPLEN=9 ;  !LENGTH OF EQ AND BASIC F
+%CONSTINTEGER INP DEV=8_515660;   !SIXBIT/INP/
+   %ON %EVENT 15 %START
+      PRINTSTRING(ERRMSG)
+      PRINTSTRING("IN QUEUE routine")
+      %RETURN
+   %FINISH
+
+   FS=STRTOFS(FILSPEC)
+   %IF FS_FILE="" %START
+      ERRMSG="filename missing in QUEUE request"
+      %signal 15
+   %FINISH
+   EPPN=ERSATZ(FS_DEV)
+   %IF EPPN#0 %START
+      FS_PPN=EPPN; FS_DEV="";    !USE ERSATZ PPN
+   %FINISH
+   FS_DEV=DEVICE OF(FS)
+   %if is version 4 %or edinburgh=true %start; !galaxy v4
+      que v4(fs,job name,user name,device,user ppn,size,limit,dispose,log,message)
+      %return
+   %FINISH
+   E=0;  !initialise the record
+   E_LEN=QSRVER<<18!EQLEN
+   E_REQDEV=STRTOSIX(DEVICE)
+   %if DISPOSE>1 %then DISPOSE=1
+   %IF E_REQDEV>>18=INP DEV %START;   !DISTINGUISH BETWEEN INPUT AND OUTPUT QUEUES
+      NUM OF FILES=2; DELETE=0; OUTPUT SW=DISPOSE!8_500!LOG;  !UNIQUE AND NON-RESTARTABLE
+   %ELSE
+      NUM OF FILES=1; DELETE=DISPOSE; OUTPUT SW=0
+   %FINISH
+   %IF JOBNAME="" %THEN E_JOBNAME=STRTOSIX(FS_FILE) %ELSE E_JOBNAME=STRTOSIX(JOBNAME)
+   E_SEQ=8_600!(GETJOB(8_26)<<12);   !STATION # OF LAST LOCATE COMMAND AND PRIV BIT TO ALLOW DELETES AFTER PRINTING
+   E_SPC=NUM OF FILES  ;!NUMBER OF REQUESTS
+   E_LIM1=OUTPUT SW<<27
+   E_LIM2=SIZE<<18!LIMIT
+   N=LENGTH(USERNAME)
+   %IF N=0 %START
+      E_USERNAME(1)=GETJOB(8_31)
+      E_USERNAME(2)=GETJOB(8_32)
+   %ELSE
+      %IF N<6 %THEN I=N %ELSE I=6
+      E_USERNAME(1)=STRTOSIX(SUBSTRING(USERNAME,1,I))
+      E_USERNAME(2)=STRTOSIX(SUBSTRING(USERNAME,7,N)) %IF N>6
+   %FINISH
+   %IF USER PPN=0 %THEN E_OWNER=PPN %ELSE E_OWNER=USER PPN
+!Now fill the file parameter block
+   E_FP_INF=8_10001 000001!(DELETE&1)<<17;  !STANDARD BIT SETTINGS
+   E_FP_START=1
+!Now fill the file definition record
+   E_F_DEV=STRTOSIX(FS_DEV)
+   E_F_FILE=STRTOSIX(FS_FILE)
+   E_F_EXT=STRTOSIX(FS_EXT)
+   %IF FS_PPN=0 %THEN E_F_PPN=PPN %ELSE E_F_PPN=FS_PPN
+   SIZ=4;  !SIZE OF PATH BLOCK
+   LEN=EQLEN+FPLEN;  !BASIC LENGTH OF ENTRY
+   %FOR N=1,1,5 %CYCLE
+      %EXIT %IF FS_SFDS(N)=""
+      SIZ=SIZ+1;   !INCREASE LENGTH OF PATH BLOCK COUNT
+      LEN=LEN+1; !INCREASE LENGTH OF ENTRY COUNT
+      E_F_SFD(N)=STRTOSIX(FS_SFDS(N))
+   %REPEAT
+   E_FP_SIZE=5<<18!SIZ
+   %IF NUM OF FILES=2 %START
+      E_FP1=E_FP; E_F1=E_F; E_F1_EXT=STRTOSIX("LOG");   !PUT IN A LOG FILE
+      E_FP1_INF=E_FP1_INF!8_200000;   !SAY THIS IS THE LOG FILE
+      E_FP_SIZE=5<<18!FPLEN;   !USE MAX PATH SIZE FOR FIRST SPEC
+      LEN=LEN+FPLEN+5;  !ADD ONE MORE FILESPEC OVER THE BASIC LENGTH
+   %FINISH
+   E_HEAD=8_400000 000007!(LEN<<18);   !REPLY, LENGTH AND TYPE(7=CREATE)
+   QUEUEIT(E,MESSAGE)
+%END
+
+%ENDOFFILE

@@ -1,0 +1,21 @@
+%EXTERNALINTEGERFN RAD50(%STRING(6) NAME)
+   %INTEGER S, SYM, J, X
+   %INTEGERFN SYM50
+      SYM=CHARNO(NAME,J)
+      %RESULT = SYM-'A'+8_13 %IF 'A' <= SYM <= 'Z'
+      %RESULT = SYM-'0'+1 %IF '0' <= SYM <= '9'
+      %RESULT = 8_45 %IF SYM = '.'
+      %RESULT = 8_46 %IF SYM = '$'
+      %RESULT = 8_47 %IF SYM = '%'
+      %RESULT = 0
+   %END
+   X = 0
+   %CYCLE J = 1, 1, LENGTH(NAME)
+      S = SYM50;  %RESULT=X %IF S = 0
+      X = X*40+S
+   %REPEAT
+   %RESULT=X
+%END
+
+%ENDOFFILE
+

@@ -1,0 +1,186 @@
+.ps 66,79
+^&The DEC10 POST system comprises:-\&
+.nf.s
+.lm 5
+TELL system	;Univ of Arizona V4 mail system with ERCC and YORK mods
+FTP system	;ERCC's version 11 FTP system or later or YORK's system
+POST.EXE	;program to send post to network users
+MAIL.CTL	;a control file to be submitted at regular intervals by the
+		;site to de-spool incoming mail
+MAISPL.EXE	;spooler run by control file to pass mail to tell
+SETUSR.EXE	;program to change the current job's USERNAME
+.lm 0
+.s
+.f
+The POST system uses the user's own area for outgoing mail and a special area for
+it's incoming mail files. The outgoing files have names dsk:nnnnnn.PST[-] and
+the incoming mail has names of the form  SSL:nnnnnn.mai[3,5].
+.s
+^&Sequence of operation.\&
+.s2
+^&Outgoing post\&
+.s
+The user runs POST which generates both a DSK:nnnnnn.PST[-] file on the user's
+area and an FTP request to the destination machine using
+the JNT Mail protocol.
+After FTP transfers the file it deletes it from the user's area. A log file
+called SSL:POST.LOG[3,5] shows all outgoing mail. See 3A01C.MEM for description
+of the user interface.
+.s
+^&For incoming mail.\&
+.s
+Mail is sent from network users to FTPSPL and FTPSPL creates a
+unique file SSL:nnnnnn.MAI[3,5] in the mail area, and puts the source network host
+address and the DEC10 user name or ppn in as the first two lines.
+The site should then arrange for a batch job (CTL:MAIL.CTL) to be run periodically in
+order to de-spool this incoming mail. ERCC do so every half-hour.
+This batch job runs SYS:MAISPL.EXE which generates a MIC file called MAIL.MIC on the 
+mail area which the batch file then executes. This MIC file does a TELL
+to the DEC-10 user and then deletes the mail file. If TELL gives an error,
+this error is interpreted and
+sent back to the mail originator by issuing a POST command.
+MAISPL also generates a log file on the mail area called MAIL.LOG this contains
+a full log of what mail has been sent, to whom and from whom.
+.s 2
+Below is a listing of the control file and a typical MIC file.
+.nf
+CTL:MAIL.CTL
+.lm 5
+.s
+.lit
+.delete ctl:mail.log               ;delete old log file
+.if (error)                        ;do nothing on error
+.set default buffer 2              ;that is all we need
+.r maispl                          ;create the mic file which does the TELLing
+.if (error) .goto err1
+.do mail[3,5]                      ;send the mail using TELL
+.if (error)                        ;ignore errors
+.delete mail.mic[3,5]              ;ok I have finish with that
+.GOTO END
+err1::
+.print ctl:mail.log
+end::
+
+.end lit
+.s 2
+If it is desired to have more logging on the incoming mail, or debugging is
+required, the headers of each message can be displayed when they are being
+processed by adding the command "-headers" to the .r maispl command in the
+control file. i.e.
+_.r maispl-headers          ;process the files and have extended logging
+.s 3
+.i-5
+And the MIC file
+.page
+.lit
+.MIC SET NO LC
+.ERROR ?
+
+;Incoming mail from YKXA in file DSKE:723151.mai[3,5]
+;To:   K.FARVIS
+
+;here to use TELL to issue the command file we have built up
+.R SETUSR
+*NOBODY@YORK           ;set the account name to be the mail originator
+.IF (ERROR)            ;so that TELL says who it is from
+.mic set no parameter
+.MIC RESPONSE R(30)
+.TELL @DSKE:723151.mai[3,5]  ;do the TELL
+.IF (NOERROR) .GOTO 1B
+;here on an error
+.R SETUSR
+*(MAIL ERROR)          ;set the account name to be from the mail system
+.IF (ERROR)
+;here on an error from TELL
+.LET R=$R.[1,"
+"]
+.let S=$R.[2,12]
+;here if TELL is busy -  will try again later
+.if ($S="I couldn't T") .goto 1C
+;Real error - give a negative ack. and interpret the TELL message
+.SILENCE
+.if ($S="%You can't T") .let B="is not able to receive mail"
+.if ($S="Do you mean ") .let B="is not unique - use the project-programmer number"
+.if ($S="I don't know") .let B="is unknown"
+.if ($S="") .let B="was missing"
+.if ($B#"") .let B="The mailbox specified in the To: field "+$B
+.if ($B="") .let B="The local mailer message was "+$R
+.mic set parameter
+.REVIVE
+.R POST-NOBODY@YORK      ;send error message back to originator
+*ERROR - could not deliver mail
+*'B
+*The start of the original message was:-
+
+*Via: ERCC    ; Sunday, 17-Oct-82  21:56:55-GMT
+*Date:       Sunday, 17-Oct-82  21:56:55-GMT
+*From:       SOMEBODY  <Nobody@ykxa>
+*To:         k.farvis@edxa
+*Subject:    test
+*
+*--------
+*hello
+*--------
+*
+*^Z
+.IF (NOERROR) .GOTO 1B
+
+;here if invalid user/invalid return address/error in sending negative ack.
+.PRINT/AFT:+0:5:0/DELETE CTL:MAIL.LOG,DSKE:723151.mai[3,5]
+.GOTO 1C
+1B::
+.DELETE DSKE:723151.mai[3,5]
+1C::
+.mic set parameter
+;----------------- end of work on file DSKE:723151.mai[3,5] -----------------
+
+; ************** END OF MAIL RUN *************
+.end lit
+.page
+.f
+.lm0
+Installation instructions.
+.s
+1) Create a mail area - the same disk as SYS: and [3,5].
+.s
+2) Copy POST.EXE, SETUSR.EXE and MAISPL.EXE to SYS: and make POST a JACCTed
+   monitor command.
+.S
+3) Copy MAIL.CTL to CTL:
+.s
+4) Mount FTP, either the YORK system or the ERCC system (version 11 or later).
+.s
+5) Mount the TELL system from University of Arizona, Version 4 with ERCC/YORK mods
+   especially a /BATCH switch, which does not allow conversational interraction.
+.s
+6) If required, create a file called SYS:ALIAS.ADD in which various aliases for
+   the same host can be given. It is used by MAISPL to determine when different given
+   host titles refers to the same host. (All names must be
+   defined in SYS:NETWRK.ADD).
+   The form of ALIAS.ADD is one line per host and
+.b
+<primary name>=<secondary name>,<secondary name>, ....
+.b
+e.g.
+.b
+.lit
+ERCC=EDXA,EDDA
+YORK=YKXA,YKDA
+YORKS=YKDB
+.end lit
+.s
+7) It has proved useful at ERCC to give users unique mailbox names, rather than
+use the account names, PPNs or octal strings to define them. This is because
+of the possible non-uniqueness of the account names and the user-unfriendliness
+of PPNs. We therefore use the file SYS:TELL.INI to define unique user names
+of the form  Initial dot Surname e.g. K.Farvis. This is described in UPDATE.MEM.
+.s
+8) Both POST and MAISPL use either FTP77 (ERCC version) or FTP80 (YORK version)
+automatically. It tests to see if there is a PID for MDA and if so assumes that
+because Galaxy V4 is running that FTP80 should be used. If there is no MDA PID
+then FTP77 is used.
+.s2
+Finally if the system needs to be modified or rebuilt use the two LINK command
+files POST.CMD and MAISPL.CMD.
+The general edit history of POST and MAISPL (and FTXSPL) is contained in
+CONFIG.MAC.

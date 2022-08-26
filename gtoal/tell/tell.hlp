@@ -1,0 +1,32 @@
+     The TELL command is used to send messages to other users;  the  MESSAG
+command is used to receive messages that have been sent to you.  Most usage
+of TELL and MESSAG can be demonstrated by the following examples:  To  send
+a message to another user, say Burtnett, type
+
+     TELL BURTNETT
+
+TELL will respond with the message
+
+     Enter message, end with ^Z
+
+After you have typed the message (as many lines as you want) and have typed
+the  ^Z  (altmode  works  just  as well), TELL will respond with OK, I told
+Burtnett.
+
+     If you have any messages, when you login you will be given  a  message
+to  that  effect.   To  type  your  messages, just type the monitor command
+MESSAGE.  After a message has been typed, you will be questioned as to  how
+to dispose of the message.  The most useful options are SAVE, in which case
+the message is kept and the next time you ask for your messages it will  be
+printed,  and  DELETE, in which case the message disappears.  Other options
+are to FORWARD the message (type a list  of  names  after  FORWARD),  REPLY
+(which  gets  you  into TELL, but talking to the sender of the message) and
+HOLD, which keeps the message until  you  explicitly  request  that  it  be
+printed  by  a  MESSAGE/HOLD.   You  can also copy the message to a file by
+saying COPY <filename>.
+
+     For more details like more command  options,  multiple  TELL's,  group
+names,  setting default values in SWITCH.INI, specifying dates when sending
+messages, etc.   see  DOC:TELL.MAN  (DETAILED  USER  INSTRUCTIONS)  OR  SEE
+DOC:TELL.DOC  (DESCRIPTION  OF  TELL  INCLUDING CONTENTS OF TELL.MAN).  GET
+TELL.DOC OR TELL.MAN BUT NOT BOTH.

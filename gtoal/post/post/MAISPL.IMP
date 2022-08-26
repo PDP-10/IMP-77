@@ -1,0 +1,948 @@
+!MAISPL.IMP
+!This generates a MIC file to be used by TELL to forward on messages in
+!the disk area QDEV:[3,5] which have been put there by FTPSPL for post files.
+!
+!the form of the mail file is as follows
+!
+!address of host from which this mail received <nl>
+!username@host, ...<nl>  - list from ARPA standard system
+!<nl>
+!header lines
+!<nl>
+!body of message
+!<eof>
+!
+!MAISPL converts this form to the following:-
+!
+!username/BATCH
+!Via:  host from which mail recieved
+!header lines
+!<nl>
+!body of message
+!<eof>
+!
+!the /BATCH switch converts the file to act as a command file for TELL,
+!MAISPL generates a MIC file for PIP to delete the messages once they have
+!been processed.
+%begin
+%externalstring(255)%spec errmsg
+%externalroutinespec init nodes
+%externalpredicatespec isnode(%string(1)%name host,type,%integername status)
+%externalstring(6)%fnspec qdevice
+%externalstring(12)%fnspec  our node
+%externalstring(10)%fnspec node name(%string(1)%name number)
+%externalpredicatespec is version 4
+%externalstring(6)%fnspec sixtostr(%integer i)
+%systempredicatespec gettab(%integer tab,ind,%integername res)
+%externalstring(255)%fnspec fstostr(%record(filespec)%name fs)
+%externalpredicatespec isfile(%string(255) file)
+%externalroutinespec xdelete(%record(filespec)%name fs)
+%externalroutinespec delete(%string(255) file)
+%externalroutinespec readline(%string(1)%name str)
+%externalstring(50)%fnspec datestamp
+%externalstring(12)%fnspec octtostr(%integer n)
+%externalstring(12)%fnspec inttostr(%integer n)
+%externalroutinespec reset input
+%externalroutinespec rewind input
+%externalintegerfnspec get now
+%externalroutinespec writefs(%record(filespec)%name fs)
+%externalroutinespec get unique(%record(filespec)%name fs)
+%externalroutinespec do ftp(%string(1)%name jobnm,dest,name,%record(filespec)%name file,%integer stream,%string(1)%name mess)
+%externalroutinespec read aliases
+%externalroutinespec alias(%string(1)%name dest)
+%externalpredicatespec delist(%string(1)%name user,user1,dest1)
+%externalpredicatespec casematch(%string(255) str1,str2)
+%externalroutinespec print via(%string(1)%name host)
+%record(filespec) qdirfs,fs,fs1
+%string(255) number,dummy,user
+%string(255) return address,remote host
+%string(6) qdev
+%string(12) this host
+%conststring(15) mail file=":mail.mic[3,5]", mail log=":mail.log[3,5]"
+%constinteger tty=0, mail=1, ufd=2, fil=3, log=4, this=5, other=6, fil1=7, log1=8;  !stream numbers
+%constinteger comma=',', colon=':'
+%constinteger true=-1, false=0
+%constinteger sixbit mai=8_554151
+%integer f,e,last char,num files,local mail,some local mail,log headers
+%routinespec skip to header line
+%routinespec skip blank lines
+%routinespec read text(%string(1)%name str,%integer sep1,sep2)
+
+
+%routine newline
+!===============
+!do not put in double <cr>s
+   printsymbol(nl)
+%end
+%routine copy rest of file
+!=========================
+!copies file from input stream to output stream
+   %integer s
+   %on %event 9 %start
+      %return;  !do nothing
+   %finish
+
+   %cycle
+      readsymbol(s); print symbol(s)
+   %repeat
+%end
+
+%routine err report(%string(255) report)
+!======================================
+!reports problem to cty and log file
+   %integer out
+   out=outstream
+   select output(log)
+   printsymbol('?'); printstring(report); newline
+   define output(log1,"cty:/trmop"); select output(log1)
+   printstring("MAIL-SYSTEM error - look at log file ");printstring(qdev.mail log); newline
+   printstring(report); newline
+   close output
+   select output(tty)
+   printstring("!?"); printstring(report); newline
+   select output(out)
+%end
+
+%routine abort run(%string(255) report)
+!======================================
+!aborts run and outputs error message to log and operator
+   err report(report)
+   %stop
+%end
+
+
+%routine print info(%record(filespec)%name fs,%string(1)%name user,return address)
+!================================================================================
+!generates logging information to the current output stream - suitable for mic
+   %integer out
+   out=outstream
+   %if out=mail %then printsymbol(';')
+   printstring("Incoming mail from "); printstring(remote host); printstring(" in file ")
+   writefs(fs); newline
+   %if out=mail %then printsymbol(';')
+   printstring("To:   "); printstring(user); newline
+   %if out#mail %start;  !can cause problems for mic if in the mail file
+      printstring("From: "); printstring(return address); newline
+   %finish
+   %if user="" %or return address="" %start
+      %if out=mail %then printsymbol(';')
+      printstring("%Illegal user and/or return address specification"); newline
+   %finish
+%end
+
+%routine open log
+!================
+!open the log file
+   define output(log,qdev.mail log."/fun:6")
+%end
+
+
+%routine dolog(%record(filespec)%name fs,%string(1)%name user,return address)
+!============================================================================
+!outputs logging info to a log file
+   newline
+   printstring(datestamp); newline
+   print info(fs,user,return address)
+%end
+
+
+%routine do relay log(%record(filespec)%name fs,%string(1)%name host,%integer number)
+!=========================================================================================
+!does logging in the relay code
+   %if host=this host %start
+      %return
+   %else
+      printstring("Relaying mail for ")
+   %finish
+   write(number,1); printstring(" user(s) at host ")
+   printstring(host); printstring(" in file "); writefs(fs); newline
+%end
+
+
+%routine do telling log(%record(filespec)%name fs,%string(1)%name user)
+!======================================================================
+!does logging in TELLing code
+   printstring("	To:   """); printstring(user)
+   printstring(""" in file "); writefs(fs); newline
+%end
+
+
+%routine do no process log(%record(filespec)%name fs,%string(1)%name user, ret add)
+!======================================================================================
+!does logging in do not process file routine
+   printstring("Local mail (already processed)"); newline
+   printstring("   To:   """); printstring(user);
+   printstring(""" in file "); writefs(fs); newline
+   printstring("   From: "); printstring(ret add); newline
+%end
+
+
+%routine log mail header
+!=======================
+!for debugging purposes, log the JNT and RFC headers
+%integer s,num lines,heads
+%on %event 9 %start
+   newline; printsymbol(tab)
+   ->end
+%finish
+
+   num lines=0; heads=0
+   newlines(2)
+   printsymbol(tab); printstring("***Start of incoming mail file (precedes the proper log of the file)***"); newline
+   printsymbol(tab)
+   %cycle
+      readsymbol(s); printsymbol(s)
+      %if s=nl %start
+         num lines=num lines+1
+         %if next symbol=nl %and num lines>1 %then heads=heads+1;  !mark when a header group finishes
+         printsymbol(tab)
+      %finish
+   %repeat %until heads=2 %or num lines=24
+end:printstring("***End of headers (now the log proper)***"); newline
+%end
+
+%integerfn upper case(%integer char)
+!================================
+   char=char-32 %if 'a'<=char<='z'
+   %result=char
+%end
+
+%routine remove trailing space(%string(1)%name str)
+!==================================================
+   %integer n
+   n=length(str)
+   %return %if n=0 %or charno(str,n)#sp
+   str=substring(str,1,n-1)
+%end
+
+
+%routine skip lws
+!================
+   skip symbol %while %not (sp#next symbol#tab)
+%end
+
+%routine skip line
+!=================
+!skips a line of input - upto and including a newline
+   %integer s
+   readsymbol(s) %until s=nl
+%end
+
+%routine skip blank lines
+!========================
+   skipsymbol %while nextsymbol=nl
+%end
+
+
+%routine skip to header line
+!===========================
+!skips the file upto the first header line
+   skip blank lines
+   skipline;  !tell command line
+   skipline %until nextsymbol=nl;  !address line(s)
+   skip blank lines;  !until header section
+%end
+
+%routine skip header line
+!========================
+!skips a header line-possible folded in a mail file
+   %cycle
+      skip line
+      %exit %if tab#nextsymbol#sp;   !exit if not a continuation line
+   %repeat
+%end
+
+%routine discard comment
+!=======================
+!have read a '(' will read upto and including a ')'
+   %integer s
+   %cycle
+      readsymbol(s)
+      %if s='\' %start
+         readsymbol(s)
+      %elseif s='(' %start;  !a nested comment
+         discard comment
+      %elseif s=')' %start
+         %exit
+      %finish
+   %repeat
+   readsymbol(last char)
+%end
+
+%routine dequote(%string(1)%name user)
+!=====================================
+!this routine removes quotes if they are present
+   %return %if user=""
+   %if charno(user,1)=('"') %start
+      user=substring(user,2,length(user))
+      %if user->user.("""").dummy %start; %finish
+   %else%if charno(user,1)=('''') %start;  !and single quotes
+      user=substring(user,2,length(user))
+      %if user->user.("'").dummy %start; %finish
+   %finish
+%end
+
+%routine read fname(%string(1)%name text)
+!========================================
+!reads a field name
+   %integer n
+   text=""
+   skip lws
+   %for n=1,1,45 %cycle
+      readsymbol(last char)
+      %if last char=sp %or last char =tab %start
+         skip lws; last char=sp
+      %elseif last char=colon %start;  !end of field
+         %exit
+      %finish
+      text=text.tostring(upper case(last char))
+   %repeat
+%end
+
+%routine read text(%string(1)%name text %integer sep1, sep2)
+!===========================================================
+!read some text upto and including the given separators - throwing away comments
+   text=""
+   skip lws
+   %cycle
+      readsymbol(last char)
+      %if last char=sp %or last char=tab %start
+         skip LWS
+         last char=sp
+      %elseif last char='"' %start;  !handle a quoted string
+         %cycle
+            readsymbol(last char)
+            %if last char='\' %start;  !handle a quoted char
+               readsymbol(last char)
+            %elseif last char='"' %start
+               ->loop
+            %finish
+            text=text.tostring(upper case(last char))
+            %if last char=nl %then skip lws
+         %repeat
+      %elseif last char='(' %start;    !a comment
+         discard comment
+         skip lws;  !we already have a space from before the comment as a separator so ignore all after
+      %elseif last char='\' %start;  !handle a quoted char
+         read symbol(last char)
+      %finish
+      last char=upper case(last char)
+      %exit %if last char=sep1 %or last char=sep2
+      text=text.tostring(last char)
+loop:
+   %repeat
+%end
+
+
+%routine read jnt head(%string(1)%name text,%integer sep1,sep2)
+!==============================================================
+!reads the jnt address list up to the given two separators
+   text=""
+   skip lws
+   %cycle
+      readsymbol(last char)
+      %if last char=sp %or last char=tab %start
+         %continue;  !omit lws
+      %elseif last char='"' %start;  !handle a quoted string
+         text=text.""""
+         %cycle
+            readsymbol(last char)
+            %if last char='\' %start;  !handle a quoted char
+               text=text."\"
+               readsymbol(last char)
+            %elseif last char='"' %start
+               %exit
+            %finish
+            text=text.tostring(last char)
+         %repeat
+         text=text.tostring(last char)
+         %continue
+      %elseif last char='\' %start;  !handle a quoted char
+         read symbol(last char)
+         text=text."\".tostring(last char)
+         %continue
+      %finish
+      %exit %if last char=sep1 %or last char=sep2
+      text=text.tostring(last char)
+   %repeat
+%end
+
+%routine read header line(%string(1)%name text)
+!=============================================
+!reads a header line into 'text' - unfolded and without LWS  and comments
+   %string(255) text1
+   text=""
+   %cycle
+      read text(text1,nl,nl)
+      text=text.text1
+      %return%if tab#nextsymbol#sp;    !not a folded line
+      skip lws
+      text=text." "
+   %repeat
+%end
+
+
+%routine get params(%string(1)%name return address)
+!===================================================
+!this routine gets the parameters required, from the currentfile for src format
+%string(255) str,dummy,str1
+%string(50) sender,host
+
+%on %event 9 %start
+   ->end
+%finish
+
+   select input(fil)
+   rewind input
+   skip line; skip line
+   skip blank lines
+!now parse the header to find the sender
+   sender=""; host=""
+   readline(str)
+   %if str->dummy.("Message from ").str1 %start;    !gec
+     %if str1->sender.(" at ").str %start
+         %if str->host.(" on ").dummy %start; %finish
+      %finish
+   %else%if str->dummy.("Post at ").dummy %start;  !PRIME
+      readline(str)
+      %if str->dummy.("From ").str1 %start;   !prime
+         %if str1->host.(" ").str %start
+            %if str->sender.("=").dummy %start; %finish
+         %finish
+      %finish
+   %finish
+!dont know who you are - I hope I can send the mail without having to reply
+end:
+   %if sender#"" %and host#"" %then return address=sender."@".host %else return address=""
+%end
+
+%routine get return address(%string(1)%name return address)
+!=======================================================
+!runs through the message header lines and gets preferably a SENDER field
+!or else a FROM field and extracts the senders address adding VIA fields, if present
+   %string(50) name,sender,host,last host
+   %string(255) host phrase,text,dummy,address,host phrase 1
+   %string(1) prefix
+   %integer read sender,lines,first via
+
+   %on %event 9 %start
+      ->end
+   %finish
+
+   read sender=false; first via=true
+   sender=""; host=""; address=""; host phrase=""; last host=""; prefix="@"
+   select input(fil)
+   lines=0
+   %if return address#"" %start
+      alias(return address);  !get a common name for this host
+      last host=return address;  !remember it
+      host phrase=return address; ->1;  !pretend you got it from a via: field
+   %finish
+   %cycle
+      read fname(name)
+      lines=lines+1
+      %if name="SENDER" %or (name="FROM" %and read sender=false) %start
+         %if name="SENDER" %then read sender=true
+         read header line(text)
+         host phrase1= text %unless text->dummy.("<").host phrase1 %and host phrase1->host phrase1.(">").dummy
+         %unless host phrase1->sender.(" AT ").host %start
+            %unless host phrase1->sender.("@").host %start
+               sender=""; host=""
+            %finish
+         %finish
+      %elseif name="VIA" %start
+         read header line(host phrase)
+         %if host phrase->host phrase.(";").dummy %start; %finish; !remove comment
+         remove trailing space(host phrase)
+         %if last host#"" %start;  !try and remove multiple hosts of the same name
+            alias(host phrase)
+            %continue %if case match(host phrase,last host);  !same host
+            last host="";  !end of alias host list
+         %elseif first via=true %start;  !or initialisehost phrase if first time through
+            alias(host phrase)
+            last host=host phrase
+         %finish
+1:       address=prefix.host phrase.address
+         prefix="%"; first via=false
+      %else skip header line
+   %repeat %until next symbol=nl %or lines=45;  !blank line at end of header
+end:
+   %if sender="" %then sender="Postmaster"
+   %if host="" %then host="""unknown"""
+   %if address="" %start;  !if no via fields
+      return address=sender.prefix.host
+      %return
+   %finish
+   %if last host#"" %start;  !here if only one via
+      alias(host)
+      %if case match(last host,host) %start
+         return address=sender."@".host
+         %return
+      %finish
+   %finish
+   %if case match(host phrase,host) %start; !is sender host name same as last via field
+      return address=sender.address;  !yes, do not addhost name twice
+   %else
+      return address=sender."%".host.address
+   %finish
+%end
+
+
+%routine copy tell command file(%record(filespec)%name fs,%string(1)%name user)
+!================================================================
+!copies the rest of the current input file with a tell command file header
+!into the specified output file
+   %on %event 10 %start
+      errmsg="cannot open output file ".fstostr(fs)
+      %signal 11
+   %finish
+
+   xdefine output(fil,fs)
+   select output(fil)
+   printstring(user); printstring("/BATCH"); newline
+   rewind input
+   skip to header line
+   print via(remote host)
+   copy rest of file
+   close output
+   select output(log)
+   do telling log(fs,user)
+   select output(tty)
+   do telling log(fs,user)
+   select output(fil)
+%end
+
+
+%routine do the tell(%record(filespec)%name fs,%STRING(1)%NAME USER,RETURN ADDRESS)
+!=================================================================================
+!this generates the MIC file
+   %owninteger count=0
+   %string(50) frm
+
+   %routine copy start of file
+   !--------------------------
+      %integer s,num lines
+      %on %event 9 %start
+         newline
+         %return
+      %finish
+
+      num lines=0
+      printsymbol('*')
+      %cycle
+         readsymbol(s)
+         %if s='''' %or s='^' %then printsymbol(s);  !double up significant chars
+         printsymbol(s)
+         %if s=nl %start
+            num lines=num lines+1
+            printsymbol('*');  !move any funny chars off column 1
+         %finish
+      %repeat %until num lines=49
+      printstring(".....etc......"); newline
+   %end
+
+   count=count+1
+   select output(mail)
+   newline
+   print info(fs,user,return address);   !tell the MIC file what is happening
+   newline
+   %if user="" %start;   !a good user?
+      printstring(";%Cannot do the TELL as I do not have a valid username"); newline
+   %else
+      printstring(";here to use TELL to issue the command file we have built up"); newline
+      %if return address="" %start
+         frm="MAIL-SYSTEM"
+      %else
+         %if length(return address)>12 %then frm=substring(return address,1,12)  %else frm=return address
+      %finish
+      printstring(".R SETUSR"); newline
+      printsymbol('*'); printstring(frm); newline; !set up USRname
+      printstring(".IF (ERROR)"); newline
+      printstring(".mic set no parameter"); newline
+      printstring(".MIC RESPONSE R(30)"); newline
+      printstring(".TELL @"); writefs(fs); newline
+      printstring(".IF (NOERROR) .GOTO "); write(count,0); printsymbol('B'); newline
+   %finish
+   newline
+   printstring(".R SETUSR"); newline
+   printsymbol('*'); printstring("(MAIL ERROR)"); newline
+   printstring(".IF (ERROR)"); newline
+   %if return address="" %start;  ! a valid return address?
+      printstring(";%Cannot send back negative ack. as I do not have a legal return address"); newline
+   %else
+      printstring(";here on an error from TELL"); newline
+      printstring(".LET R=$R.[1,""
+""]"); newline
+      printstring(".let S=$R.[2,12]"); newline;  !now get first bit of response 
+      printstring(";here if TELL is busy -  will try again later"); newline
+      printstring(".if ($S=""I couldn't T"") .goto "); write(count,0); printsymbol('C'); newline
+      printstring(";Real error - give a negative ack."); newline
+      printstring(".SILENCE"); newline
+      printstring(".let U=""(To: ".user.") """); newline
+      printstring(".if ($S=""%You can't T"") .let B=""is not able to receive mail"""); newline
+      printstring(".if ($S=""Do you mean "") .let B=""is not unique - use the project-programmer number"""); newline
+      printstring(".if ($S=""I don't know"") .let B=""is unknown"""); newline
+      printstring(".if ($S="""") .let B=""was missing"""); newline
+      printstring(".if ($B#"""") .let B=""The mailbox specified ""+$U+$B"); newline
+      printstring(".if ($B="""") .let B=""The local mailer message was ""+$R"); newline
+      printstring(".mic set parameter"); newline
+      printstring(".REVIVE"); newline
+      printstring(".R POST-"); printstring(return address); newline
+      printstring("*ERROR - could not deliver mail"); newline
+      %if user="" %start
+         printstring("*No legal user name was specified for the destination mailbox")
+      %else
+         printstring("*'B")
+      %finish
+      newline
+      printstring("*The start of the original message was:-"); newline; newline
+      copy start of file
+      printstring("*^Z"); newline
+      printstring(".IF (NOERROR) .GOTO "); write(count,0); printsymbol('B'); newline
+   %finish
+   newline
+   printstring(";here if invalid user/invalid return address/error in sending negative ack."); newline
+   printstring(".PRINT/AFT:+0:5:0/DELETE CTL:MAIL.LOG,"); writefs(fs); newline
+   printstring(".GOTO "); write(count,0); printsymbol('C'); newline
+   write(count,0);printstring("B::"); newline
+   printstring(".DELETE "); writefs(fs); newline
+   write(count,0); printstring("C::"); newline
+   printstring(".mic set parameter"); newline
+   printstring(";----------------- end of work on file "); writefs(fs)
+   printstring(" -----------------");newline
+%end
+%routine return to sender(%record(filespec)%name fs,%string(1)%name host,name,%integer stream, %string(1)%name message)
+!========================================================================================================
+!I don't know who to relay this message on to so I will return to sender
+   %string(6) mailer
+   xdefine input(fil1,fs); select input(fil1)
+   xdefine output(fil1,fs); select output(fil1)
+   printstring(return address);newline; newline
+   print via(this host)
+   printstring("From: (mail-system@"); printstring(this host); printsymbol(')'); newline
+   printstring("Subject:  Relaying of mail to "); printstring(host); newline
+   printstring("Comments: Unknown host name """); printstring(host)
+   printstring(""". So I return the following mail"); newline
+   newline
+   printstring("--------"); newline
+   skip line; skip blank lines
+   copy rest of file
+   newline; printstring("--------"); newline
+   close input; close output
+   mailer="MAILER"  ;!meaning mail error
+   do ftp(mailer,remote host,name,fs,stream,message)
+   message="Unknown host """.host.""" - am returning mail to sender
+".message;  !log message
+   select input(fil)
+%end
+
+%routine do relaying(%string(1)%name return address,%integername local mail)
+!===========================================================================
+!sorts out the address list at the start of the file and does any relaying required
+   %string(255) address list,message
+   %string(100) dest,user,user1,dest1,name,str
+   %string(39) other host,next host
+   %string(12) type,relay
+   %record(filespec) old fs,fs1
+   %integer this first, other first,this number,other number,status
+
+   %routine read address list(%string(1)%name address list)
+   !-------------------------------------------------------
+   !get the address list off the top of the file
+      %integer n,s,len
+      len=length(address list)
+      %for n=len,1,254 %cycle
+         readsymbol(s)
+         %return %if s=nl %and nextsymbol=nl;  !end of list
+         address list=address list.tostring(s)
+      %repeat
+      address list=address list."+"
+   %end
+
+   read jnt head(user,'@',nl);  !get the first user
+   %if last char=nl %start;  !an src style file
+      copy tell command file(fs,user)
+      get params(return address)
+      select output(log)
+      do log(fs,user,return address)
+      select output(tty)
+      do log(fs,user,return address)
+      rewind input; skip to header line
+      do the tell(fs,user,return address)
+      errmsg=""; %signal 11,1;  !escape
+   %finish
+!otherwise an ARPA format file
+   address list=user."@"
+   read address list(address list)
+   skip blank lines
+   get return address(return address)
+   close input
+   select output(log)
+   do log(fs,address list,return address)
+   select output(tty)
+   do log(fs,address list,return address)
+   %cycle
+      this first=true; other first=true; other host=""; next host=""
+      this number=0; other number=0
+      xdefine input(fil,fs); select input(fil);  !re-open basic file for this host
+      !which is remade every time round this loop
+      skip line;  !previous host line
+      skip blank lines;  !get to start of address list
+      old fs=fs; getunique(fs)
+      xdefineoutput(this,fs);   !open a new output file for this host(+others)
+      fs1=fs; fs1_ext="pst"; fs1_prot=8_077;  !create a post file for the other host
+      get unique(fs1)
+      xdefineoutput(other,fs1);  !open a new post file for one other host
+      %cycle
+         read jnt head(user,'@','@')
+         read jnt head(dest,comma,nl)
+         alias(dest)
+         !if I do not know the first host name, assume it is me by a name I do not know
+         %if %not isnode(dest,type,status) %then dest=this host
+         %while delist(user,user1,dest1) %cycle;  !remove multiple occurrences of this site
+            user=user1; dest=dest1
+            alias(dest)
+            %exit %unless case match(dest,this host)
+         %repeat
+         %unless case match(dest,this host) %start;  !for somebody else
+         !note if there is another host pending in 'next host'
+            %if other host="" %then other host=dest %else next host=dest
+         %finish
+         %if case match(dest,other host) %start;  !for the other host
+            select output(other)
+            %if other first=true %start
+               other first=false
+               name=user
+            %else printsymbol(',')
+            printstring(user); printsymbol('@'); printstring(dest)
+            other number=other number+1
+         %else;   !for this host and any others
+            select output(this)
+            %if this first=true %start
+               this first=false
+               printstring(remote host); newline;  !duplicate start of file
+            %else printsymbol(',')
+            printstring(user); printsymbol('@'); printstring(dest)
+            this number=this number+1
+         %finish
+         %if last char=nl %start;   !end of list
+            skip blank lines;  !now sort out file for other host
+            select output(other)
+            %if other host#"" %start
+               newline; newline
+               print via(remote host)
+               copy rest of file
+               close output
+               select output(log)
+               do relay log(fs1,other host,other number)
+               select output(tty)
+               do relay log(fs1,other host,other number)
+               select output(other)
+               name=""; relay="RELAY"
+               %if isnode(other host,type,status) %start
+                  do ftp(relay,other host,name,fs1,other,message)
+               %else
+                  return to sender(fs1,other host,name,other,message)
+               %finish
+               select output(tty);  !log the information
+               printstring(message); newline
+               select output(log)
+               printstring(message); newline
+               select output(other)
+               rewind input; skip to header line
+            %else;  !no output for other host
+               close output
+               xdelete(fs1)
+            %finish
+            !now sort out this host  (in this order in case of crash)
+            select output(this)
+            newline; newline
+            copy rest of file
+            close output;close input
+            xdelete(old fs);   !ok release original
+            %exit %if next host#"";  !more hosts to relay to
+            %if this number>0 %start;  !got some local mail
+               local mail=true
+               select output(log)
+               do relay log(fs,this host,this number)
+               select output(tty)
+               do relay log(fs,this host,this number)
+            %else
+               local mail=false
+               xdelete(fs)
+            %finish
+            %return;   !finished relaying
+         %finish;   !more in the address list
+      %repeat
+   %repeat
+%end
+
+%routine do not process file
+!===========================
+!this routine is called when the mail files have already
+!been processed by an earlier run of the program and we just want to do the tell.
+   get return address(return address)
+   %if return address="" %start
+      rewind input
+      skip line;   !the /batch line
+      skip line;   !the via line
+      get params(return address)
+   %finish
+   rewind input; skip line; skip line
+   select output(tty)
+   do no process log(fs,user,return address)
+   select output(log)
+   do no process log(fs,user,return address)
+   do the tell(fs,user,return address)
+   close input
+%end
+
+
+%routine process file(%string(1)%name return address)
+!====================================================
+!this has the main body of the work, it is a recursive routine which
+!processes files according to the list of addresses at its head
+!it deals only with files destined for this host
+   %string(100) dest,user
+   read text(user,'@','@');  !get the first user
+   readtext(dest,comma,nl)
+   %if last char=comma %start;    !have got a list
+      skip symbol %if next symbol=nl; !optional newline
+      process file(return address)
+      fs1=fs
+      getunique(fs1)
+      copy tell command file(fs1,user)
+      rewind input; skip to header line
+      do the tell(fs1,user,return address)
+   %else
+      copy tell command file(fs,user)
+      rewind input; skip to header line
+      do the tell(fs,user,return address)
+   %finish
+%end
+
+%routine open mic file
+!=====================
+!check to see if MIC file already present and if not open it
+!and close a dummy file in order to block another version of myself from running
+   %on %event 10 %start
+      abort run("command file already present - ".qdev.mail file)
+   %finish
+
+   define output(mail,qdev.mail file."/fun:2");   !define the mic file - unless present already
+   select output(mail)
+   close output
+   define output(mail,qdev.mail file); !now reopen in order to write
+   printstring(".MIC SET NO LC"); newline
+   printstring(".ERROR ?"); newline
+%end
+!main program
+
+%on %event 1,2,3,4,5,6,7,8,9,10,11 %start
+   %if event=9 %start;   !end of directory
+      %if instream=ufd %start
+         ->endok
+      %else errmsg="Premature end of file in ".fstostr(fs)
+   %finish
+   dummy=" (".inttostr(event).",".inttostr(subevent).",".inttostr(eventinfo).")"
+   err report(errmsg.dummy) %unless event=11 %and subevent=1
+   select input(fil); close input
+   select output(mail); newline
+   printstring(";here when a file does not look like a mail file - just dump it"); newline
+   print string(".print/delete "); writefs(fs); newline
+   printstring(";-------------------------------------------------"); newline
+   select output(fil); close output
+   ->1
+%finish
+
+   this host=our node
+   qdev=qdevice
+   open log
+   open mic file
+   init nodes
+   read aliases
+   alias(this host)
+   select input(tty)
+   *8_051400 000000;  !rescan
+   *8_255000 000000;  !jfcl
+   log headers=false
+   skipsymbol %until nextsymbol=esc %or nextsymbol='-' %or nextsymbol=nl;  !skip to end of Run command
+   %if nextsymbol='-' %start;  !note if command was .r maispl-headers
+      skipsymbol %until tab#nextsymbol#sp;  !skip spaces
+      %if nextsymbol='h' %or nextsymbol='H' %then log headers=true
+   %finish
+   skipsymbol %while esc&nextsymbol#nl; skipsymbol;  !skip rest of line
+!open the directory
+   qdirfs=0
+   qdirfs_dev=qdev
+   qdirfs_file=sixtostr(8_3000005)
+   qdirfs_ext="ufd"
+   qdirfs_ppn=8_1000001
+   qdirfs_switches="/mode:#10"
+   xdefine input(ufd,qdirfs)
+   select input(ufd)
+   num files=0; some local mail=false
+   %cycle
+1:    select input(ufd); select output(mail)
+      %cycle;   !get a ??????.mai file
+         readsymbol(f); readsymbol(e)
+      %repeat%until e>>18=sixbit mai
+      num files=num files+1
+      fs=0
+      fs_dev=qdev; fs_file=sixtostr(f); fs_ext="mai"; fs_ppn=8_3 000005
+      %if fs_file->fs_file.(" ").dummy %start; %finish;  !remove trailing spaces
+      xdefine input(fil,fs); select input(fil)
+      %if log headers=true %start;      !for debugging
+         select output(log)
+         log mail header
+         rewind input
+         select output(tty)
+         log mail header
+         rewind input
+         select output(mail)
+      %finish
+      readtext(remote host,nl,nl);     !get who sent it.
+      %if remote host->user.("/BATCH").dummy %start;  !already processed - i.e. a rerun
+         remote host="";   !I have lost that information
+         return address=""
+         some local mail=true
+         do not process file
+      %else
+         skip blank lines
+         %if remote host->number.(".").dummy %start;  !get the address
+            remote host=node name(number);  !get the name
+            %if remote host="" %then remote host=number;  !an ANF-10 node name
+         %finish
+         return address=remote host
+         do relaying(return address,local mail)
+         %if local mail=true %start
+            some local mail=true
+            xdefine input(fil,fs); select input(fil)
+            skip line; skip blank lines;   !set up input for 'process file'
+            process file(return address)
+            close input
+         %finish
+      %finish
+   %repeat
+
+endok:
+   select output(log)
+   close output
+   select output(mail)
+   newline; printstring(".R SETUSR"); newline
+   printstring("*MAIL SYSTEM"); newline
+   printstring("; ************** END OF MAIL RUN *************"); newline
+   close output
+   %if some local mail=false %start
+      delete(qdev.mail file)
+   %finish
+   select output(tty)
+   newline
+   %if num files=0 %start
+      printstring("No mail files found")
+   %else
+      write(num files,0); printstring(" mail file processed")
+   %finish
+   newline
+
+%endofprogram

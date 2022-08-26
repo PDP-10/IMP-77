@@ -1,0 +1,7 @@
+LAYOUT text formatting program  requires  the  following  form  of  file
+specifications,
+
+Files:- output file, correction file = input file
+
+then prompts for the sections facility (i.e. the ability  to  process  a
+single section at a time).

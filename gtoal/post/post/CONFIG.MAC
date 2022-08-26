@@ -1,0 +1,212 @@
+TITLE CONFIG	CONTAINS VERSION NUMBER AND EDIT HISTORY
+;	COPYRIGHT K.FARVIS ERCC 1980,1981,1982
+
+VWHO==0
+VFTP==16
+VMINOR==0
+VEDIT==74
+
+	SEARCH	JOBDAT
+	LOC	.JBVER
+	BYTE	(3)VWHO(9)VFTP(6)VMINOR(18)VEDIT
+	RELOC
+
+REPEAT 0,<
+**REVISION HISTORY**
+
+Prior to version 10 it worked ok to DEC-10s and GECs and the IBM but not with all
+facilities of the latter two.
+;VERSION 10
+;15	Add ability to delete entries in FTP queue when they have started transferring
+	Add support for defaulting to XFORMAT=0 for text mode transfers.
+	Allow the type of /ACCESS switch determine what one is prompted for in
+	an FTP request.
+	Add ability to send to GEC devices as well as files.
+;16	REMOVE XFORMAT=0 FACILITY IT WAS WRONG. CHECK FOR /DEL:NEVER TO GECS
+	AS THE ONLY VALID SWITCH
+
+17	ADD ESSEX AND HATFIELD MACHINES, INCREASE TIMEOUT TO 30 MINUTES AND
+	SET A NODE DOWN AFTER 3 SUCCESSIVE TIMEOUTS. ALSO FIX XOUTDEV PARAMETER ON A /ACC:PRINT
+
+20	ADD PRIME SUPPORT
+
+21	ADD SET NODE= COMMAND AND FIX TEST MODE TRANSFERS TO GECS
+
+22	ADD OXFORD
+
+VERSION 11
+
+23	add support for network mail (xoutdev=POST) and allow job submission
+	on the DEC-10s both for mail and IBM output (xoutdev=D60)
+	also change node names to 4 chars and only generate the end "f" in TRANSP module
+	and in FSTORE when checking SWITCH.INI
+
+24	MAKE MORE ROBUST, CATCH MORE ERRORS
+
+25	Make set gateway=? work
+
+26	PROGRAM ROUND PROBLEM WITH BYTE COUNT BEING WRONG IN TSKSER
+
+VERSION 12   -START VERSION 1 COMPATIBILITY
+
+27	DO NOT OUTPUT VERSION ID PARAMETER AND ACCEPT 0 OR 1
+	ALLOW POST TO A DEVICE
+	ALLOW A FILE SPEC TO DEFAULT TO CURRENT PATH RATHER THAN PPN
+30	ALLOW POST TO GO TO A TTY DEVICE - E.G. CTY: FOR EASY COMMNS.
+
+31	make changes for ARPA post format compatibility
+
+VERSION 13 FTP80 COMATIBILITY PHASE 1
+
+32	make major FTP80 compatibility changes up to stage one as defined
+	in Chris Coopers paper to SERCNET network devel meeting 25-aug-81
+	also add Private transfer code parameter to allow a value="36BIT"
+	for DEC-10 interworking
+
+33	Add full support for ARPA MAIL according to Chris Bennets revised paper
+	use TSK. UUO to get name of remote process
+	prompt for nul IBM DATASET name
+
+34	start sending full [P,PN]s as username
+	only use one listening task TSK:FTP
+	do not send out node number to DEC-10s but get it from TSK. UUO
+	but tolerate an incoming old type of task
+	change to allow remote node names in /USERS field
+35	make complete use of TSK. UUO and iuse NETWRK.ADD for the addresses
+
+36	make qdevice and our SRC name be generated in FNODES so that we
+	do not have to build new versions for every machine
+37	A FEW BUG FIXES FOR FTP80 AND MAIL
+
+40	bug fixes to recover from bad packet/window size, send EORs on blank
+	lines at level 2 and move to proper TS addresses in NETWRK.ADD
+
+41	sort problem of not always sending mapping params and not sending
+	filename and username back on a mail request. also look upand read
+	netwrk.add whenever it changes
+
+VERSION 14
+
+42	ADD ABILITY FOR USER TO DEFINE HIS LOCAL NETWRK.ADD FILE
+	add allowance for take job input with no filename
+
+43	Sort SET NODE *XXXX OFFLINE and do a frig for Queueing under galaxy v4
+	REMOVE LOCAL NETWRK.ADD FACILITY AND INSTEAD ADD /GATEPASS SWITCH
+
+44	INCREASE MAX DATA RECORD SIZE TO 1024
+
+45	fix ABORT OUTPUT routine to work correctly and increase TS address
+	length to 150 chars
+
+46	search multiple FTP lines in switch.ini
+	output a PSS log to FTPPSS.LOG[3,3]
+	test that a set phys guide 40 or 50 pages makes it work better - it does
+	check for newer NETWRK.ADD file when you check for requests
+
+47	INCLUDE SUPPORT FOR DL PROTOCOL CONVERTER
+
+50	DO NOT REJECT NEW FTP-80 PARAMS BUT JUST MONITOR THEM
+
+51	(POST) CONVERT TO INTERFACE TO GALAXY V4 FTP80
+	(FTP) ON A /KILL: COMMAND, FOR POST, DELETE POST FILE AS WELL
+	(MAISPL) SORT OUT BUGS WITH SENDING BACK BUM MESSAGES
+
+52	(FTPSPL) send STOPACK to FTP80s and wait for another SFT or TS RESET
+	(POST) add a To: field
+
+53	(FTP)(FTPSPL) add EMAS private code
+
+54	(FTP)(FTPSPL) use 36BIT private code between DEC10s
+
+55	(FTP)(FTPSPL) for DEC10s start sending destination PPN as username
+	and remove requirement for/USERS switch in switch.ini
+
+57	(FTPSPL) various fixes for EAAK, including:
+	a) sending monitoring back on RPOS of parameters which I have changed
+	b) making code to read NETWRK.ADD file more secure
+	c) make a "Reading level 2 data beyond record boundary" a fatal error
+
+**VERSION 15**
+
+60	(FTXSPL) CHANGE name to FTXSPL and add TASK <name> command.
+	(MAISPL) make more inteligent for error reporting and fix a bug
+	whereby "[1,2]" became [1,2]"
+
+61	(FTXSPL) make all error messages have the SENDING etc line prefixing them
+	(MAISPL) put in mail-list and relaying code
+
+62	(post) make mail to oneself work properly
+	(mailspl) make SRC mail work properly
+
+63	(post) make POST send only JNT mail - maispl still receives old SRC
+
+64	(post) create post file with <077> protection
+	(maispl) change Comment: to Comments: field, and do relaying properly
+		and change logging information format. and convert TELL messages to own
+
+65	(post) add support for TELL.INI names and make a reply-to field
+	(maispl) sort out various problems with MIC file and recover from bad
+		mail files
+66	(maispl) add SETUSR program use and make MIC file more robust.
+
+67	(all) make galaxy version 4 code dependent on a sigle module - QUEUE
+		(not quite true - a hack in PSTLIB to force old mail)
+		and make mail even more robust.
+
+*****VERSION 16****
+
+70	(FTXSPL) fix enormously longstanding problem where TSK input buffers
+	get set up in the wrong place - randomly. I have no idea how FTXSPL
+	ever worked properly.
+	(FTXSPL) put raw TS address at start of incoming mail file rather than
+	interpreting it in order to be compatible with  York code.
+	(FTXSPL) change the way that the log file is opened so that it is closed
+	between transfers.
+	(FTXSPL) be more intelligent about putting nodes down.
+	(FTXSPL) convert the task name in the TASK command to upper case.
+	(POST) put in a via field when sending mail so that we know exactly
+	which ANF-10 node it came from.
+	(POST) put post files in users own area rather than [3,5]
+	(MAISPL) put * at the start of each line to POST on an error, so as not
+	to ^C out with a . at the start of a line.
+	(MAISPL) interpret TS address at head of mail file.
+
+71	(POST) DO NOT ALLOW WILDCARDS IN TELL.INI FILE DEFINITIONS
+	(FTXSPL) USE KBYTES IN WHAT MESSAGE
+
+72	(MAISPL+ FTXSPL) fix mail addressing problems from ANF-10 hosts
+	(MAISPL) fix problem of relaying to our own host by another name
+	(MAISPL) if mail is sent to me as as a funny host name I will now
+	accept it.
+	(POST) sort problem of mail being created on wrong [3,5] disk area
+	(FTXSPL) make private codes work again
+	(FTXSPL) remove support for EMAS-EMAS private code, fix 36BIT private code
+	(POST) make queue. UUO work (except that /dispose:delete does not work)
+	(POST) use the destination user name as the jobname
+	(MAISPL) add logging to print out the headers of each file in MAIL.LOG
+	(POST) do not use a via field to indicate the local ANF-10 node -use
+	a comment in the From field.
+
+73	(FTXSPL) make P process wait for other end to clear call down or send
+	stopack
+	(FTXSPL) fix Fortran formatting problem as a P station
+	(FTXSPL) fix NEXT command and remove extra <CR>s from log file
+	(FTXSPL) do not fall over if FTP request in for non-existent node
+	(MAISPL) double up ' and ^ chars in mail to be returned, so that
+	MIC does not munge them.
+	(POST) sort out replies of 'yes' or 'no' to REPLY-TO prompt
+	(POST) did not delete null post file when it bombed out (say no
+	indirect file)
+	(MAISPL) add logging of headers as a runtime option switch
+		.RUN MAISPL-HEADERS
+
+****RELEASE TAPE TO YORK,DUNDEE,BANGOR,HATFIELD,ESSEX,OXFORD****
+
+74	(MAISPL) change name of job back to MAIL SYSTEM when finished
+
+****VERSION 17****
+
+**END OF REVISION HISTORY**
+>;end of repeat 0
+
+	END

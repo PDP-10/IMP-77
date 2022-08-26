@@ -1,0 +1,24 @@
+%include "imp:iolib.inc"
+%externalroutinespec reset input
+%externalroutinespec uset input(%integer block)
+
+
+%externalroutine rewind input
+!============================
+!reset the current input stream to the beginning
+   %externalrecord(scb)%namespec inscb
+   %integer bufadr,n
+   %return %if inscb_devtyp=undev %or inscb_devtyp=ttydev
+   inscb_nxtchr=0; inscb_flags=inscb_flags&8_377777 777777;  !clear pending symbols
+   reset input %if inscb_devtyp=strdev %or inscb_devtyp=tmpdev
+   uset input(1)
+   inscb_ringhead_bytcnt=0;  !no bytes left
+!   inscb_ringhead_bufadr=inscb_ringhead_bufadr&8_377777 777777; ! and use bit off
+   bufadr=inscb_ringhead_bufadr&8_777777
+   %for n=1,1,inscb_bufnum&8_777777 %cycle; !go round ring zeroing word count
+      integer(bufadr+1)=integer(bufadr+1)&8_777777 000000
+      bufadr=integer(bufadr)&8_777777
+   %repeat
+%end
+
+%endoffile

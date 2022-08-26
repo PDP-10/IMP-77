@@ -1,0 +1,49 @@
+%BEGIN
+   %INTEGER TYPE, LEN, PENDING
+   %EXTERNALROUTINESPEC WRITE OCTAL(%INTEGER I,J)
+   %EXTERNALROUTINESPEC SETSTREAMS
+   %ROUTINE OCTAL(%INTEGER N)
+      %INTEGER J
+      SPACE
+      SPACES(24) %AND PENDING = 6 %IF PENDING = 0
+      PRINTSYMBOL(N>>J&7+'0') %FOR J = 33, -3, 0
+      PENDING = PENDING-1
+      %IF PENDING = 0 %START
+         NEWLINE
+      %ELSE
+         SPACE
+      %FINISH
+   %END
+   %PREDICATE TERMINATED(%INTEGER N)
+      %INTEGER J,K
+      %CYCLE J = 1, 1, 5
+         K = N>>(36-7);  N = N<<7
+         %TRUE %IF K = 0
+         PRINTSYMBOL(K)
+      %REPEAT
+      %FALSE
+   %END
+   %INTEGER J,K,L,N
+   SETSTREAMS
+   SELECTINPUT(1);  SELECTOUTPUT(1)
+   %CYCLE
+      PENDING = 7
+      READSYMBOL(K)
+      %IF K>>18 > 8_3777 %START;! ASCII
+         PRINTSTRING("ASCII:                 ")
+         READSYMBOL(K) %WHILE %NOT TERMINATED(K)
+         NEWLINE
+      %ELSE
+         TYPE = K>>18;  LEN = K&8_7777
+         WRITE OCTAL(TYPE, 4);  WRITE(LEN, 3)
+         %IF TYPE < 8_40 %START
+             READSYMBOL(K); OCTAL(K); SPACE; !RELOCATION WORD
+         %ELSE SPACES(15)
+         %CYCLE J = 1, 1, LEN
+            READSYMBOL(N);  OCTAL(N)
+         %REPEAT
+         NEWLINE %UNLESS PENDING = 0
+         %EXIT %IF TYPE = 5
+      %FINISH
+   %REPEAT
+%ENDOFPROGRAM

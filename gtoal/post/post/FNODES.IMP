@@ -1,0 +1,407 @@
+!FNODES.IMP
+!COPYRIGHT K.FARVIS   1978,79
+!Contains the information and control of the currently acceptable nodes for FTP
+!to talk to, what kind of nodes they are and their state (whether up or down) etc.
+%include "imp:iolib.inc"
+%EXTERNALPREDICATESPEC CALLI2(%INTEGER N,%INTEGERNAME AC)
+%EXTERNALINTEGERFNSPEC GETNOW
+%EXTERNALSTRING(255)%FNSPEC FSTOSTR(%RECORD(FILESPEC)%NAME FS)
+%EXTERNALSTRING(6)%FNSPEC SIXTOSTR(%INTEGER N)
+%EXTERNALSTRING(12)%FNSPEC OCTTOSTR(%INTEGER N)
+%EXTERNALINTEGERFNSPEC STRTOOCT(%STRING(1)%NAME STR)
+%EXTERNALSTRING(12)%FNSPEC INTTOSTR(%INTEGER N)
+%EXTERNALSTRING(255)%SPEC ERRMSG
+%STRING(12)%FNSPEC OUR NODE
+%STRING(6)%FNSPEC ANF NODE NAME(%INTEGER N)
+%CONSTINTEGER TTY=0,TEMP=8;   !STREAMS
+%CONSTINTEGER OFFLINE=-1, DOWN=0, UP=1;   !NODE STATUS
+
+
+%CONSTINTEGER MAX MAX NODES=100;  !CURRENT MAX NODE LIMIT
+%EXTERNALINTEGER MAXNODES
+%EXTERNALSTRING(10)%ARRAY NODES(0:MAX MAX NODES)
+%EXTERNALSTRING(7)%ARRAY NODETYPE(0:MAX MAXNODES)
+%EXTERNALSTRING(150)%ARRAY NODE ADDRESS(0:MAX MAX NODES)
+
+%OWNSTRING(20)%ARRAY NODE NO(0:MAX MAX NODES)
+%OWNINTEGERARRAY LOCAL NODE(0:MAX MAX NODES)
+%OWNINTEGERARRAY NODE STATUS(0:MAX MAX NODES)
+%OWNINTEGERARRAY NODE TIME(0:MAX MAX NODES)
+%EXTERNALSTRING(12) OUR SRC NODE
+%CONSTINTEGER MAX SRC TABLE=9
+%CONSTSTRING(6)%ARRAY ANF TITLE(0:MAX SRC TABLE)=
+"ERCC", "DUNDEE", "YORK", "YORKS", "KELVIN", "OXFORD", "SXKL10", "BLUE", "ORANGE", "UCNWCS"
+%CONSTSTRING(12)%ARRAY SRC TITLE(0:MAX SRC TABLE)=
+"EDXA", "DDXA", "YKXA", "YORKS", "GWXA", "XXXA", "", "", "", "BGXA"
+
+%EXTERNALSTRING(6) QDEV;  !THE QUEUEING DEVICE
+
+%CONSTINTEGER WHERE CALLI=8_63
+%routinespec check netwrk file
+%routinespec read net file(%record(filespec)%NAME fs)
+%owninteger netwrk file time=0
+
+!THE NEXT ROUTINE IS FOR FTP
+
+
+%EXTERNALROUTINE LIST FTP NODES
+!=============
+!LISTS THE KNOWN NODES
+   %INTEGER N,M
+   PRINTSTRING("
+List of nodes to which file transfer is possible from this PPN
+Node	type	node	type	node	type"); NEWLINE
+   M=0
+   %FOR N=0,1,MAX NODES %CYCLE
+     %CONTINUE %IF NODES(N)="GATEWAY"
+      PRINTSTRING(NODES(N)); PRINTSYMBOL(TAB); PRINTSTRING(NODE TYPE(N))
+      M=M+1
+      %IF REM(M,3)=0 %THEN NEWLINE %ELSE PRINTSYMBOL(TAB)
+   %REPEAT
+   NEWLINE
+%END
+
+
+!THE NEXT THREE ROUTINES ARE USED BY THE SPOOLERS COMMANDS
+
+%EXTERNALROUTINE LIST SPOOL NODES
+!==========================
+!LISTS THE NODES FOR FTPSPL
+%INTEGER OUT,N
+   OUT=OUTSTREAM
+   SELECT OUTPUT(TTY)
+   PRINTSTRING("
+ Node   type    status  address"); NEWLINE
+   %FOR N=0,1,MAX NODES %CYCLE
+      PRINTSTRING(NODES(N)); PRINTSYMBOL(TAB)
+      PRINTSTRING(NODE TYPE(N)); PRINTSYMBOL(TAB)
+      %IF NODE STATUS(N)=UP %START
+         PRINTSTRING("UP")
+      %ELSEIF NODE STATUS(N)=DOWN %START
+         PRINTSTRING("DOWN")
+      %ELSE PRINTSTRING("OFF-LINE")
+      PRINTSYMBOL(TAB); PRINTSTRING(ANF NODE NAME(LOCAL NODE(N)))
+      PRINTSYMBOL('.'); PRINTSTRING(NODE ADDRESS(N))
+      NEWLINE
+   %REPEAT
+   SELECT OUTPUT(OUT)
+%END
+
+
+%EXTERNALPREDICATE NODE OFFLINE(%STRING(1)%NAME NODE)
+!===============================
+!SETS NODE OFF-LINE
+   %INTEGER N
+   %FOR N=0,1,MAX NODES %CYCLE
+      %FALSE %IF NODES(N)=""
+      %IF NODES(N)=NODE %THEN NODE STATUS(N)=OFFLINE %AND %TRUE
+   %REPEAT
+   %FALSE
+%END
+
+
+%EXTERNALPREDICATE NODE ONLINE(%STRING(1)%NAME NODE)
+!==============================================
+   %INTEGER N
+   %FOR N=0,1,MAX NODES %CYCLE
+      %FALSE %IF NODES(N)=""
+      %IF NODES(N)=NODE %THEN NODE STATUS(N)=UP %AND %TRUE
+   %REPEAT
+   %FALSE
+%END
+
+
+%ROUTINE REMOVE SPACES(%STRING(1)%NAME STR)
+!===========================================================
+!just that
+   %string(12) str1
+   %integer n
+   %return %if length(str)=0
+   STR1=""
+   %FOR N=1,1,LENGTH(STR) %CYCLE
+      %CONTINUE %IF CHARNO(STR,N)=SP;   !DELETE SPACES
+      STR1=STR1.TOSTRING(CHARNO(STR,N))
+   %REPEAT
+   STR=STR1
+%END
+
+%ROUTINE NO LEADING ZEROES(%STRING(1)%NAME NUMBER)
+!=================================================
+!Removes the leading zeoes of a string format number
+   %INTEGER N,M
+   N=LENGTH(NUMBER)
+   %RETURN %IF N<=1
+   %FOR M=1,1,N %CYCLE
+      %EXIT %IF '0'#CHARNO(NUMBER,M)#SP
+   %REPEAT
+   %RETURN %IF M=1;  !NO LEADING ZEROES
+   NUMBER=SUBSTRING(NUMBER,M,N)
+%END
+
+
+
+%EXTERNALSTRING(6)%FN QDEVICE
+!============================
+!returns the name of the device for queueing FTP requests i.e. SYS: device
+   %string(6) str
+   *8_561040 000135;  !hrroi  1,135   - move arg1,[xwd -1,.gtrdv]
+   *8_047040 000041;  !gettab 1,
+   *8_402000 000001;  !setzm  1
+   str=sixtostr(ac(1))
+   remove spaces(str)
+   %result=str
+%end
+
+
+%EXTERNALSTRING(6)%FN ANF NODE NAME(%INTEGER NODE)
+!======================================
+!Returns the node name for a given octal node number
+%STRING(12) STR
+%INTEGER N
+%INTEGERARRAY ARGS(0:1)
+   %RESULT=OUR NODE %IF NODE=-1
+   ARGS(0)=2; !NUMBER OF ARGS
+   ARGS(1)=NODE;  !NODE NUMBER
+   N=2<<18!ADDR(ARGS(0));   !RETURN NODE NAME
+   %IF CALLI2(8_157,N) %START
+      STR=SIXTOSTR(N)
+      REMOVE SPACES(STR)
+      %RESULT=STR
+   %FINISH
+   %RESULT=OCTTOSTR(NODE)
+%END
+
+
+
+%EXTERNALSTRING(10)%FN NODE NAME(%STRING(1)%NAME NUMBER)
+!===========================================================
+!returns the node title for a given address
+   %integer n,IN
+   %ON %EVENT 3 %START
+     CLOSE INPUT; SELECT INPUT(IN)
+     %RESULT=""
+   %FINISH
+   IN=INSTREAM
+   NO LEADING ZEROES(NUMBER)
+   CHECK NETWRK FILE
+   %FOR N=0,1,MAX NODES %CYCLE
+      %IF NODENO(N)=NUMBER %THEN %RESULT=NODES(N)
+   %REPEAT
+   %RESULT=""
+%END
+
+
+%EXTERNALSTRING(12)%FN OUR NODE
+!==============================
+!returns the node name for the node we are running on.
+%INTEGER N
+   N=8_436471 000000;   !SIXBIT/CTY/ TO GET OUR NODE NUMBER
+   %UNLESS CALLI2(WHERE CALLI,N) %THEN %RESULT=""
+   %RESULT=ANF NODE NAME(N)
+%END
+
+%STRING(12)%FN OUR SRC NAME
+!=================================================
+%INTEGER N
+%STRING(6) ANF NAME
+   ANF NAME=OUR NODE
+   %FOR N=0,1,MAX SRC TABLE %CYCLE
+      %RESULT=SRC TITLE(N) %IF ANF NAME=ANF TITLE(N)
+   %REPEAT
+   %RESULT=""
+%END
+
+
+
+%ROUTINE UPDATE STATUS(%INTEGER N)
+!=============================
+!UPDATE THE STATUS OF A NODE WHEN THE TIME LIMIT HAS ELAPSED
+   %RETURN %IF NODE STATUS(N)=OFFLINE
+   %IF NODE TIME(N)<GETNOW %START
+      NODE STATUS(N)=UP
+   %FINISH
+%END
+
+%EXTERNALROUTINE INIT NODES
+!==========================
+!INITIALISE the node tables
+   QDEV=QDEVICE;   !GET THE DEVICE WE ARE RUNNING FROM
+   OUR SRC NODE=OUR SRC NAME
+   CHECK NETWRK FILE
+%end
+
+%EXTERNALROUTINE CHECK NETWRK FILE
+!===========================
+!Determines whether or not there is a later netwrk file to the one which was read
+   %externalrecord(scb)%namespec inscb
+   %record(filespec) fs
+   %integer in,time
+   %on %event 10 %start
+      select output(tty)
+      newline; printstring(errmsg)
+      %stop
+   %finish
+
+   in=instream
+   fs=0; fs_dev="sys"; fs_file="netwrk"; fs_ext="add"; fs_switches="/ext:#35"
+   xdefine input(temp,fs)
+   select input(temp)
+   time=inscb_lkent_tim
+   %if time#netwrk file time %start
+      netwrk file time=time
+      fs_switches=""
+      read net file(fs)
+   %finish
+   close input
+   select input(in)
+%end
+
+
+%PREDICATE READ NET ITEM(%INTEGER N)
+!========================
+!READS AN ITEM INTO THE NODE ARRAYS
+   %INTEGER S
+   %STRING(100) LOCAL,DUMMY,STR,STR1
+   %ON %EVENT 1,2,3,4,5,6,7,8,10 %START; !CATCH ALL
+      %FALSE
+   %FINISH
+
+   %ROUTINE READLINE(%STRING(1)%NAME STR)
+   !---------------------------------------
+      %INTEGER S
+      STR=""
+      %CYCLE
+         READSYMBOL(S) %UNTIL S#SP %AND S#TAB
+         %IF S=';' %START;  !A COMMENT
+            READSYMBOL(S) %UNTIL S=NL %OR S=FF
+         %FINISH
+         %EXIT %IF S=NL %OR S=FF
+         S=S-32 %IF 'a'<=S<='z';    !MAKE UPPER CASE
+         STR=STR.TOSTRING(S)
+      %REPEAT
+   %END
+
+   READLINE(NODES(N))
+   %IF NODES(N)="" %THEN %SIGNAL 9
+   READLINE(NODE ADDRESS(N))
+   READLINE(STR); %IF LENGTH(STR)>7 %THEN NODE TYPE(N)=SUBSTRING(STR,1,7) %ELSE NODE TYPE(N)=STR
+   NODE STATUS(N)=UP
+   %UNLESS NODE ADDRESS(N)->LOCAL.(".").STR %THEN ERRMSG="?Incorrect format of address line" %AND %FALSE;  !MUST HAVE ANF-10 NODE
+   LOCAL NODE(N)=STRTOOCT(LOCAL)
+   %IF STR->DUMMY.("TSK.").STR1 %AND DUMMY="" %THEN STR=STR1;  !"TSK" IS NOISE
+   NODE ADDRESS(N)=STR;    !GET MAIN PART OF ADDRESS
+1: %IF STR->STR1.(".").DUMMY %THEN STR=STR1 %ELSE DUMMY="";   !GET NEXT ELEMENT UP TO '.'
+   %IF STR="" %THEN NODENO(N)="0" %AND %TRUE
+!*   %IF STR="" %THEN ERRMSG="?No numeric address field" %AND %FALSE
+2: S=CHARNO(STR,1)
+   %IF '0'<=S<='9' %START
+      NODENO(N)=STR
+      NO LEADING ZEROES(NODENO(N))
+   %ELSEIF S='(' %START
+      ->2 %IF STR->STR1.(")").STR %AND STR#"";   !IF  (USER,PASS,5W,8P)ADDR
+      STR=DUMMY;   !GET REST OF ADDRESS AND TRY NEXT FIELD
+      ->1
+   %ELSE NODENO(N)="0";  !NAME OR NUMBER
+  %TRUE
+%END
+
+%ROUTINE READ NET FILE(%RECORD(FILESPEC)%NAME FS)
+!========================
+!put all nodes on line
+   %INTEGER N
+   %ON %EVENT 9 %START
+      MAX NODES=N-1
+      %RETURN
+   %FINISH
+
+
+    %FOR N=0,1,MAX MAX NODES %CYCLE
+      ->ER1 %UNLESS READ NET ITEM(N)
+   %REPEAT
+   ERRMSG="?Too many entries in ".FSTOSTR(FS)." for internal tables =".inttostr(n)
+   ->ER
+ER1: ERRMSG=ERRMSG." in ".FSTOSTR(FS)." - ".NODE ADDRESS(N)
+ER:
+   SELECT OUTPUT(TTY)
+   PRINTSTRING(ERRMSG); NEWLINE
+   %STOP
+%END
+
+%EXTERNALROUTINE UPD NODES
+!=========================
+!update the tables to the current state
+   %INTEGER N
+   %FOR N=0,1,MAX NODES %CYCLE
+      %CONTINUE %IF NODE STATUS(N)=OFFLINE
+      NODE STATUS(N)=UP
+   %REPEAT
+%END
+
+
+%EXTERNALPREDICATE ADDRESS(%STRING(1)%NAME TITLE,TS ADDRESS,%INTEGERNAME NODE NUM)
+!==================================================================================
+!gets the transport service address of the the given title and also the
+!node number for the task connect
+   %STRING(255) DUMMY
+   %INTEGER N   ;!G ,N1,N2
+   %FOR N=0,1,MAX NODES %CYCLE
+      %IF NODES(N)=TITLE %START
+         TS ADDRESS=NODE ADDRESS(N)
+         NODE NUM=LOCAL NODE(N)
+         %TRUE
+      %FINISH
+   %REPEAT
+   ERRMSG="Unknown node ".TITLE
+   %FALSE
+%END
+
+%STRING(255)%FN UPPER CASE(%STRING(1)%NAME STR)
+!=============================================
+!Convert the given string to to upper case
+   %STRING(255) STR1
+   %INTEGER N,L,S
+   L=LENGTH(STR)
+   %RESULT="" %IF L=0
+   STR1=""
+   %FOR N=1,1,L %CYCLE
+      S=CHARNO(STR,N)
+      S=S-32 %IF 'a'<=S<='z'
+      STR1=STR1.TOSTRING(S)
+   %REPEAT
+   %RESULT=STR1
+%END
+
+%EXTERNALPREDICATE ISNODE(%STRING(1)%NAME NODE,TYPE %INTEGERNAME STATUS)
+!=======================================================================
+!determines whether a given node name is a supported one, and if so,
+!returns the type of node and it's status
+   %INTEGER N
+   %STRING(100) NOD
+   NOD=UPPER CASE(NODE)
+   %FOR N=0,1,MAX NODES %CYCLE
+      %IF NODES(N)=NOD %START
+         TYPE=NODE TYPE(N)
+         %IF NODE STATUS(N)=DOWN %THEN UPDATE STATUS(N)
+         STATUS=NODE STATUS(N)
+         %TRUE
+      %FINISH
+   %REPEAT
+   STATUS=DOWN; TYPE=""
+   %FALSE
+%END
+
+
+
+%EXTERNALROUTINE SET NODE DOWN(%STRING(1)%NAME NODE,%INTEGER SECS)
+!===================================================
+!Makes a note that the node is down and sets a time stamp on it
+   %INTEGER N
+   %FOR N=0,1,MAX NODES %CYCLE
+      %IF NODES(N)=NODE %START
+         NODE TIME(N)=GETNOW+(SECS*3)
+         NODE STATUS(N)=DOWN
+         %RETURN
+      %FINISH
+   %REPEAT
+%END
+%ENDOFFILE

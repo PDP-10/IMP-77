@@ -1,0 +1,9 @@
+MAKREL is used in conjuction with RELDUM, so  that  one  can  edit  .REL
+files.   The  ASCII  output  file  from RELDUM can be edited with a text
+editor, and the .REL file recreated with MAKREL.   The  program  prompts
+for files thus:-
+
+.R MAKREL
+Files:- output file = input file (e.g. TEST.REL = TEST.LST )
+
+   there are no defaults allowed.

@@ -1,0 +1,112 @@
+!
+!Q1 contains a template for the spool request file
+!
+%CONSTINTEGERARRAY Q1(1:31)=     %C
+8_000000010101,8_023014000001,8_546064000000,8_000001000002,8_514255444555,8_000000000000,8_000000055012,8_000000000000    %C
+,8_000000000000,8_000000000000,8_000000000000,8_000000000000,8_000000000372,8_464151546341,8_464500000000,8_000000000000    %C
+,8_000000000010,8_000000000000,8_000000000000,8_446353442000,8_000110000112,8_000000000000,8_000000000000,8_000000000000    %C
+,8_000000000000,8_000000000000,8_514255444555,8_647064000000,8_000000000000,8_000000000001,8_010000111101
+%EXTERNALSTRING(50)%FNSPEC DEFUNI(%INTEGER I,%STRING(20)S1,S2)
+%EXTERNALRECORD(FILESPEC)%FNSPEC  STRTOFS(%STRING(1)SPEC)
+%EXTERNALROUTINESPEC REPORT(%STRING(255) S)
+%EXTERNALINTEGERFNSPEC STRTOSIX(%STRING(1)S)
+%OWNINTEGERNAME P=8_17;     !STACK
+%OWNINTEGER SAVEP
+%OWNINTEGERNAME ARG1=1
+%EXTERNALROUTINESPEC QUEUER
+
+
+%EXTERNALROUTINE MPBQUEUE(%STRING(255)FSPEC,JOB NAME,USER NAME,DEVICE,%INTEGER PPN,LOCATION,SIZE,DELETE)
+!=====================================================================================================
+!
+!This is a complete kludge to enter files into a LPT or IBM queue. for MPB
+!
+!Arguments are:
+!FSPEC        a full filespec including structure and PPN
+!JOB NAME     JOB NAME in queue. Will eventually default to filename
+!USER NAME    User name. Will default to user name of this job
+!DEVICE       Device for queue request. must be "LPT" or "IBM"
+!PPN          PPN for request. Default is as for file, or jobs ppn
+!LOCATION     Node number for queue, default is node for this job
+!SIZE       Size of file (can probably be omitted)
+!DELETE       =1 delete file after sending, otherwise preserve
+!
+!N.B.  This routine calls QUEUER, which calls QMANGR by doing a GETSEG
+!
+!BEWARE
+!======
+!
+!Programs using this routine MUST be shareable, and MUST have the stack in the
+!low segment
+!
+%RECORD(FILESPEC) FILE
+%INTEGER %ARRAY Q2(0:31)
+%STRING (50) FNAME
+%INTEGER I,J
+%INTEGERFN GETJOB(%INTEGER I)
+!==========================
+!
+!Does a GETTAB for this job on table I
+!
+%EXTERNALPREDICATESPEC CALLI2(%INTEGER NUM,%INTEGERNAME AC)
+  I=-1<<18+I
+  %SIGNAL %EVENT 15 %UNLESS CALLI2(8_41,I)
+  %RESULT=I
+%END
+
+%ON %EVENT 15 %START
+  REPORT("GETTAB failed in PRINT request")
+  %RETURN
+%FINISH
+
+%UNLESS DEVICE="LPT" %OR DEVICE="IBM" %START;     !First check an allowed queue
+  REPORT("Illegal QUEUE request for Device ".DEVICE)
+  %RETURN
+%FINISH
+
+Q2(I)=Q1(I) %FOR I=1,1,31;     !Copy template into parameter area
+FILE=STRTOFS(FSPEC);           !Get FSPEC into record to ease later processing
+%IF LOCATION<=0 %OR LOCATION>63 %THEN LOCATION=8_50; !Set a default location
+Q2(3)=STRTOSIX(DEVICE."S")+(LOCATION&8_70)<<3+LOCATION&8_7+8_2020;  !make device acceptable to QMANGR (i.e. LPTS50)
+%IF PPN=0 %START
+  %IF FILE_PPN=0 %THEN PPN=GETJOB(8_02) %ELSE PPN=FILE_PPN;  !FIind a convenient default for PPN
+%FINISH
+%IF FILE_PPN=0 %THEN FILE_PPN=PPN
+%IF JOB NAME#"" %THEN Q2(5)=STRTOSIX(JOB NAME) %ELSE Q2(5)=STRTOSIX(FILE_FILE); !DEFAULT FOR JOB NAME
+%IF USERNAME#"" %START;        !unless user name null then
+  J=LENGTH(USER NAME)
+  %IF J<6 %THEN I=J %ELSE I=6
+   Q2(14)=STRTOSIX(SUB STRING(USER NAME,1,I))
+  %IF J>6 %THEN  Q2(15)=STRTOSIX(SUB STRING(USER NAME,7,J))
+%FINISH %ELSE %START
+  Q2(14)=GETJOB(8_31);       !First half of user name in SIXBIT
+  Q2(15)=GETJOB(8_32);       !Second half of user name
+%FINISH
+Q2(17)=Q2(17)+(SIZE<<18);    !Size to print (QMANGR will probably sort this out)
+ Q2(20)=STRTOSIX(FILE_DEV)
+%IF Q2(20)=0 %THEN Q2(20)=STRTOSIX("ALL"); !If no structure given spread the net widely
+Q2(21)=FILE_PPN
+I=1
+%CYCLE
+  J=STRTOSIX(FILE_SFDS(I))
+  Q2(21+I)=J
+  I=I+1
+%REPEAT %UNTIL I=5 %OR J=0;     !Copy file spec
+
+Q2(27)=STRTOSIX(FILE_FILE);    !File name
+Q2(28)=STRTOSIX(FILE_EXT);     !Extension
+Q2(31)=Q2(31)!(DELETE<<7)
+
+%BEGIN
+  %INTEGERARRAY FOO(0:50);   !Kludge to ensure sufficient stack
+  FOO(50)=0
+%END
+SAVEP=P;           !Preserve stack pointer
+P=-50<<18+P&8_777777; !QMANGR assumes PDL is of normal form
+ARG1=32<<18+ADDR(Q2(0));    !Pass request in AC1
+QUEUER
+P=SAVEP
+%END
+
+
+%ENDOFFILE
