@@ -1,0 +1,274 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                    IMP Signal Mechanism Definition
+
+            Document_IMP_Signals Version 2.1.0 (2-APR-1985)
+
+
+                  Draft for circulation; return to IAY
+
+
+                           Copyright (c) 1984
+                           Lattice Logic Ltd
+                             9 Wemyss Place
+                           Edinburgh EH3 6DH
+
+
+
+   This document is a simplified proposal for the core specification of
+the IMP signal facility; it is based on thoughts and discussions
+prompted by the first version of "Document_IMP_Signals".
+
+   This paper makes no attempt to define the syntax and semantics of the
+event mechanism itself, leaving this to the proposed more formal
+revision of the IMP language manual, but rather concentrates on the
+three questions:
+
+  1. What information should be contained in the global record
+     describing an event?
+
+  2. What events should be predefined by the language?
+
+  3. How can separately compiled IMP modules cooperate via events?
+
+<EM>Changes to the EVENT record</EM>
+
+   The current format of the global record accessed via the external
+EVENT record is:
+
+      record format   EVENT FM (   -
+         integer      EVENT,
+                      SUB,
+                      EXTRA,
+         string(255)  MESSAGE  )
+
+   This format allows some user information about the event (EXTRA and
+MESSAGE) to be propagated with the signal but is not a general facility.
+To avoid user programs having to declare extra "parallel" event
+descriptors, the EVENT record should be generalised to allow the
+procedure which signals an event to pass an arbitrary amount of
+parameter information.  Also, implementations may wish to provide
+system-specific extra information about the event.  It would be tidier
+and user programs would be more clearly marked as system-dependent if
+such information were grouped into a sub-record of EVENT.
+
+   One concrete proposal is as follows:
+
+   record format   SYS EVENT FM ( {is implementation defined} )
+
+   const  integer  MAX EVENT PARAM
+
+   record format   EVENT PARAM FM ( string(*) name S  or
+                                    integer I         or
+                                    long real R       or
+                                    record(*) name X )
+
+   record(EVENT PARAM FM) array Param(1:MAX EVENT PARAM)
+
+   record format   EVENT FM (   -
+      integer                EVENT,
+                             SUB,
+                             EXTRA,
+      string(255)            MESSAGE,
+      record(SYS EVENT FM)   SYSTEM,
+      record(*) name         USER,      {extra user-defined information}
+      record(EVENT PARAM FM) array PARAM(1:MAX EVENT PARAM) )
+
+
+   The contents of SYSTEM would be implementation-defined but the record
+format SYS EVENT FM and the field EVENT_SYSTEM would always exist.
+
+   The value of MAX EVENT PARAM would be implementation-dependent, but
+would always be at least (say) five.
+
+   The USER record pointer would make the event record format
+user-extensible in arbitrary ways.  It would be used in cases where it
+was inappropriate to represent the required event parameter information
+as integer values or pointers to character string values.
+
+   Please make suggestions for simplifying or extending the format of
+the EVENT record.
+
+
+<EM>Predefined events</EM>
+
+   The following identifiers for events should be predefined on all
+implementations of IMP, i.e. should be part of the core library.  These
+events must be signalled by all implementations in the circumstances
+indicated.
+
+   [ADC: The exact circumstances are not yet written down.  This will
+get done if this proposal meets with general approval.]
+
+   Signalling or trapping events by number should be strongly
+discouraged.  Numeric equivalences are given for some identifiers for
+compatibility with previous implementations of IMP.
+
+   constant integer PROGRAM STOP = 0
+   constant integer OVERFLOW = 1
+   constant integer STORE EXCEEDED = 2
+   constant integer CONVERSION ERROR = 4
+   constant integer ARGUMENT ERROR = 5
+   constant integer RANGE ERROR = 6
+   constant integer STRING RESOLUTION FAILS = 7
+   constant integer UNDEFINED VALUE = 8
+   constant integer INPUT ENDED = 9
+   constant integer IO ERROR = 10
+   constant integer JUMP OUT = 11
+   constant integer USER EVENT = 12 {See next section, "modular programs"}
+
+        [IAY requested that the numeric equivalences for the last three
+     events be added; this has been done].
+
+        [IAY: Suggest that event numbers 13..15 be 'reserved'.  Note
+     that this would make some existing programs illegal].
+
+
+<EM>Events and modular programs</EM>
+
+   Separately compiled packages of external procedures (program modules)
+may wish to use the IMP event mechanism to signal a range of error
+conditions to calling procedures.  Since event numbers must be known at
+compile-time, and there are only sixteen of them anyway, it is not
+possible to give each package its own unique event number.
+
+   To work round this problem, a single event, USER EVENT above, is
+dedicated for use by all such packages.  A unique <EM>sub</EM>-event number must
+be claimed by a package at runtime (during its initialisation phase)
+
+
+from a central pool maintained by the IMP runtime library.  The
+package's subevent number is made available to its callers via an
+external integer variable.  The EVENT_EXTRA field is used for further
+discrimination between the various events which may be signalled by that
+package.
+
+   The IMP runtime library procedure which dispenses subevent numbers to
+be used with the event USER EVENT would be as follows:
+
+   integer function spec FACILITY CODE ( string(255) FAC NAME )
+
+   [RMM: why not "FACILITY NAME"?]
+
+   [ADC: because I think the name should indicate the <EM>returned</EM> value.  I
+myself would now prefer the name "MODULE NUMBER" or "MODULE CODE".]
+
+   The FAC NAME supplied to FACILITY CODE is a text string which is the
+identifier of the package (e.g. "stack_manager", "I/O-Library" etc).
+The value returned by FACILITY CODE is a module number, 'n', which can
+be used later in statements of the form:
+
+      signal USER EVENT, n, m
+
+   Where 'm' is a number indicating one of the events detected by this
+package. 'm' defaults to zero if not specified.
+
+   As an example, consider a small package maintaining a stack data
+structure (yawn), which can signal two error conditions: stack overflow
+and stack underflow.
+
+   Note that as this scheme requires more runtime checking of event
+numbers by event handlers, the following code presupposes the existance
+of a core IMP library procedure RESIGNAL which will re-signal the
+current event as described by the event record.
+
+      !
+      ! Package specification  (STACK.INC)
+      !
+      external routine spec  INITIALISE STACK
+      external routine spec  PUSH ( real X )
+      external routine spec  POP  ( real name X )
+
+      !
+      ! Event identifier
+      !
+      external integer spec  STACK ERROR
+      constant integer       STACK OVERFLOW = 1     { type of STACK ERROR }
+      constant integer       STACK UNDERFLOW = 2
+
+      end of file
+
+
+
+<hr>
+
+      !
+      ! STACK package body
+      !
+      !
+      ! Private data objects
+      !
+      constant integer MAX STACK = 100
+      own integer SP = 0
+      own real array STACK(1:MAX STACK)
+
+      !
+      ! Externally visible data objects
+      !
+      external integer STACK ERROR
+
+      !
+      ! Externally visible operations
+      !
+      external routine INITIALISE STACK
+         SP = 0
+         STACK ERROR = FACILITY CODE("stack_manager")
+      end
+
+      external routine PUSH ( real X )
+         SP = SP + 1
+         signal USER EVENT, STACK ERROR, STACK OVERFLOW  -
+                unless 0 &lt; SP &lt;= MAX STACK
+         STACK(SP) = X
+      end
+
+      external routine POP ( real name X )
+         signal USER EVENT, STACK ERROR, STACK UNDERFLOW  -
+                unless 0 &lt; SP &lt;= MAX STACK
+         X = STACK(SP)
+         SP = SP - 1
+      end
+
+      end of file
+
+<hr>
+
+      !
+      ! Calling program (uses STACK to reverse a list of numbers)
+      !
+      begin
+         include "STACK.INC"    { access specifications }
+         real X
+
+         on INPUT ENDED start
+            begin
+               integer J
+               real VAL
+               on USER EVENT start
+                  if EVENT_SUB = STACK ERROR and
+                     EVENT_EXTRA = STACK UNDERFLOW start
+                     return     { from begin...end block }
+                  else
+                     RESIGNAL   { some other sort of error -- propagates }
+                  finish
+               else
+                  cycle         { till stack underflows }
+
+
+                     POP(VAL)
+                     PRINT(VAL, 5, 3)
+                     NEW LINE
+                  repeat
+               finish
+            end
+         else
+            INITIALISE STACK
+            cycle               { terminates when INPUT ENDED }
+               READ(X)
+               PUSH(X)
+            repeat
+         finish
+      end
+
+</PRE></BODY></HTML>

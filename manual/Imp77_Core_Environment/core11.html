@@ -1,0 +1,44 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                       Section 11: Miscellaneous
+
+
+
+
+*       <EM>constant</EM> <EM>name</EM> NIL
+
+           The predefined pointer NIL may be used to terminate linked
+        lists of items; any pointer variable which is pointing to NIL
+        will have all its bits clear (0) {IAY: better wording required
+        here, but see language implications section}.
+
+
+*       <EM>integer</EM> <EM>function</EM> SIZE OF ( <EM>name</EM> X )
+
+           The number of storage units occupied by the given variable is
+        returned.  The unit is machine dependent but is commonly a byte.
+
+
+*       <EM>integer</EM> <EM>function</EM> TYPE OF ( <EM>name</EM> X )
+
+           This function returns a code which indicates the type of the
+        object supplied as parameter.  The complete list of code values
+        which may be returned by TYPE OF is as follows:
+
+         0 - unknown type
+         1 - <EM>integer</EM>
+         2 - <EM>real</EM>
+         3 - <EM>string</EM>
+         4 - <EM>record</EM>
+         5 - <EM>byte</EM> <EM>integer</EM>
+         6 - <EM>short</EM> <EM>integer</EM>
+         7 - <EM>long</EM> <EM>integer</EM>
+         8 - <EM>long</EM> <EM>real</EM>
+         9 - <EM>array</EM>
+        10 - <EM>label</EM>
+
+</PRE></BODY></HTML>

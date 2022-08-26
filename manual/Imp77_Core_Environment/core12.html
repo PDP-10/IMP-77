@@ -1,0 +1,83 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                     Section 12: Archaic Procedures
+
+   The procedures described in this section are never available as
+pre-defined objects.  Instead, they are provided by use of a pre-defined
+IMP <EM>include</EM> file as follows:
+
+            <EM>from</EM> IMP <EM>include</EM> Archaisms
+
+
+*       <EM>string</EM>(255) <EM>function</EM> IN FILE NAME
+
+           This procedure is identical to the predefined procedure INPUT
+        NAME.
+
+
+*       <EM>integer</EM> <EM>function</EM> IN STREAM
+
+           This procedure is identical to the predefined procedure INPUT
+        STREAM.
+
+
+*       <EM>byte</EM> <EM>map</EM> LENGTH ( <EM>string</EM>(*) <EM>name</EM> S )
+
+           Where the predefined procedure LENGTH returns the current
+        length of the string S, this procedure returns a reference to
+        that value, allowing the length of the string to be modified "on
+        the fly".  This "hole" in the checking mechanisms defined in the
+        IMP language is the reason for the change in definition.
+        Adjustment of string length should normally be performed by the
+        predefined procedure TRIM.
+
+
+*       <EM>routine</EM> NEW PAGE
+
+           As with the NEW LINE procedure, NEW PAGE simply passes a
+        single 8-bit data item to the procedure PRINT SYMBOL for
+        processing by the stream facility associated with the currently
+        selected output stream:
+
+            <EM>routine</EM> New Page
+               Print Symbol(12)
+            <EM>end</EM>
+
+        Here the data item has value 12, which is the ISO/ASCII code for
+        the FF (Form Feed) function.  This function requests that the
+        output medium is advanced to the top of the next page, a concept
+        which is clearly highly dependent on the physical device
+        involved.  This complex device-dependence is the reason for the
+        removal of NEW PAGE from the main body of the environment
+
+
+        standard; its presence in the standard might lead users to
+        expect that implementations should always do "the obvious thing"
+        with this procedure; this requirement leads to excessive
+        complexity in the otherwise simple text-handling facilities to
+        identify devices and process them accordingly.  Most stream
+        facilities will simply treat the value 12 as a normal data item,
+        without attempting any special action.
+
+
+*       <EM>string</EM>(255) <EM>function</EM> OUT FILE NAME
+
+           This procedure is identical to the predefined procedure
+        OUTPUT NAME.
+
+
+*       <EM>integer</EM> <EM>function</EM> OUT STREAM
+
+           This procedure is identical to the predefined procedure
+        OUTPUT STREAM.
+
+
+*       <EM>constant</EM> <EM>string</EM>(1) SNL
+
+           This string contains a single character whose value is NL.
+
+</PRE></BODY></HTML>

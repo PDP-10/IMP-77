@@ -1,0 +1,2272 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                 <B>IMP</B> <B>ON</B> <B>THE</B> <B>DECsystem-10/20</B>
+
+                        <B>USERS</B> <B>GUIDE</B>
+
+                 second edition: June 1978
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Keith M. Farvis,
+Edinburgh Regional Computing Centre.
+<HR>
+IMP on the DECsystem-10/20: User Guide                Page 1
+
+
+                         CONTENTS.
+
+
+                                                  Page
+Forward                                           2
+Section 1. Using the compiler                     3
+               Use of COMPIL                      4
+               Compiler messages                  4
+Section 2. External procedures                    5
+               The system library                 5
+               %INCLUDE files                     6
+Section 3. Input and output                       7
+               Stream input/output                7
+               The stream input/output procedures 7-9
+                  Symbol i/o                      8
+                  String i/o                      8
+                  Number i/o                      8-9
+               Stream input/output conventions    9
+               Example using basic i/o procedures 9
+               Strings as streams                 10
+               Direct Access and Sequential Files 11-12
+               File definition efficiency         13
+               Example using FILESPEC records     14
+               Internal handling of input/output  15
+Section 4. Memory Management                      16-17
+Section 5. Calling other languages                18-20
+           Calling FORTRAN from IMP               18
+           COMMOM blocks                          18-19
+           Calling IMP from FORTRAN               19
+           Calling MACRO from IMP                 20
+           Calling IMP from MACRO                 20
+Section 6. Program debugging                      21-25
+               DDT                                21
+               /CROSS                             22
+               ALIST                              23-24
+               RECODE                             23-25
+
+                         APPENDICES
+
+A   Useful constants and variables                26
+B   Definition of the file specification record   27
+C   Definition of internal input/output records   28-30
+D   Data storage                                  31
+    Code conventions                              32-36
+        Register allocation                       32
+        Procedure entry and exits                 32-33
+        Parameters to procedures                  33-35
+        Procedure parameters                      35
+        Use of machine code                       36
+E   ASCII character set                           37
+F   Related library procedures                    38-39
+G   System library procedures                     40-43
+H   Runtime error codes                           44-46
+
+Index                                             47-48
+<HR>
+IMP on the DECsystem-10/20: User Guide                Page 2
+
+
+<B>Forward</B>
+
+This manual describes the  operation  of  the  portable  IMP
+language  compiler  on  the  DECsystem-10, together with the
+system dependent features of this implementation.
+
+It is not a description of the IMP language and  it  assumes
+the  reader  has previous knowledge of the TOPS-10 operating
+system as described in:-
+
+   DECsystem-10 Operating System Commands manual.
+   (AA-0916A-TB)
+
+companion manuals are:-
+
+   The IMP-77 Language: Reference manual.
+   Peter S. Robertson, Department of Computer Science,
+   University of Edinburgh.
+
+   IMP on the DEC-10: Library manual.
+   Keith M. Farvis, Edinburgh Regional Computing Centre,
+   Edinburgh.
+
+other manuals referred to in this document are:-
+
+   DECsystem-10 Monitor Calls Manual. (AA-0974C-TB)
+   DECsystem-10 Hardware Reference Manual. (AA-1023A-TB)
+
+Implementations  of  the  portable  IMP  compiler  are  also
+available for:-
+
+   PDP-11
+   PDP-15
+   Interdata 7/16 and 7/32
+   Nova (in a restricted form)
+   CIL-70
+   Nord-10
+   ICL System 4 (under EMAS operating system)
+versions are planned for
+   Argus 700
+   VAX 11/780
+
+Because an intermediate code is used in  IMP-77,  it  allows
+the  compiler's  first pass, which does the syntax analysis,
+to be replaced by one for another language.  Such a portable
+version  of Algol-60 is available and a version of Pascal is
+being written.
+<HR>
+IMP on the DECsystem-10/20: User Guide                Page 3
+Section 1: <B>Using</B> <B>the</B> <B>compiler</B>
+
+
+The IMP compiler is run by the monitor command
+
+      .R IMP
+to which the compiler responds with the prompt
+
+      *
+the command string it requires is
+
+      * &lt;rel-filespec&gt; , &lt;list-filespec&gt; = &lt;input-filespec&gt;
+or    * &lt;rel-filespec&gt; = &lt;input-filespec&gt;
+or    * &lt;input-filespec&gt;
+
+The  &lt;filespec&gt;s  refer  to   the   standard   DEC-10   file
+specifications namely:-
+
+Device: filename . extension [directory list]
+
+The    directory    list    specification    can     include
+sub-file-directories.    The   following   switches  to  the
+compiler  may  also  be  included  after  any  of  the  file
+specifications:-
+
+      /CROSS  - include a cross referenced listing
+                (implies a /LIST)
+      /LIST   - include a listing file
+      /NOCODE - syntax check only
+      /NOLIST - do not include a listing file
+
+Thus 
+      .R IMP
+      * FRED/CROSS/NOLIST/NOCODE
+
+will produce a listing file called FRED.LST containing  only
+the  cross reference tables and will only do syntax checking
+without generating any code.
+
+The defaults applied to incomplete file specifications are:-
+      input-filespec - DSK: filename . IMP [user]
+      rel-filespec   - DSK: filename . REL [user]
+      list-filespec  - DSK: filename . LST [user]
+
+A .REL file is always  produced  unless  suppressed  by  the
+/NOCODE  switch and a listing file is only produced if asked
+for by the /LIST or /CROSS switches or  if  a  listing  file
+specification is given.
+<HR>
+IMP on the DECsystem-10/20: User Guide                Page 4
+Section 1: <B>Using</B> <B>the</B> <B>compiler</B>
+
+
+<B>Use</B> <B>of</B> <B>COMPIL</B>
+
+The compiler is normally run by using the  COMPIL  class  of
+commands, namely:-
+
+      .COMPILE . . .
+      .LOAD . . .
+      .EXECUTE . . .
+      .DEBUG . . .
+
+The extension .IMP is recognised by COMPIL to imply the  IMP
+compiler and the appropriate command string is generated and
+sent to the compiler.  For a full  description  of  COMPIL'S
+facilities including the passing of switches to the compiler
+see the DEC-10 COMMANDS MANUAL.
+
+
+
+<B>Compiler</B> <B>messages</B>
+
+The compiler runs in 3 passes, the first  doing  the  syntax
+analysis and the second and third producing the code.
+
+During the first pass, syntax error messages are  output  to
+the teletype and the listing file, if one is to be produced.
+At the end of the first pass either the message
+
+"Program contains    n faults"
+
+is output and the compilation terminates, or else
+
+"   n Statements compiled"
+
+is output and compilation  continues  into  the  second  and
+third passes.  On completion, the compiler outputs a message
+giving the sizes of the object file components.  e.g.
+
+Code 78 + Gla 23 + Diags 0 = 101 Words
+
+where 'Code' is the amount of code produced,  'Gla'  is  the
+general  linkage  area  and  'own'  variables,  'Diags'  the
+diagnostic information and then their sum.
+<HR>
+IMP on the DECsystem-10/20: User Guide                Page 5
+Section 2: <B>External</B> <B>procedures</B>
+
+
+<B>The</B> <B>System</B> <B>Library</B>
+
+
+Most  IMP  programs  require  to  use   procedures   to   do
+input/output  or  perform  mathematical functions.  A set of
+such procedures is collected together in the system library.
+This  library  is  automatically  searched  whenever  an IMP
+program is loaded in order to link in any routines which the
+program may have called.  The library contains three classes
+of procedure;  implicit, external and system procedures.
+
+     1) The implicit class are those which do not require to
+     be  declared  before  being called and comprise all the
+     commonly used procedures  like  READSYMBOL,  WRITE  and
+     FRAC PT.  It also includes primitive procedures such as
+     ADDR and REM.
+
+     2) The external class do  require  declarations  before
+     being  used  and  comprise  the  less  frequently  used
+     routines like RESET INPUT and PROMPT.
+
+     3) The system class are similar to the  external  class
+     but  comprise  procedures  that  are either very system
+     dependent or require some  detailed  knowledge  of  the
+     DEC-10  monitor,  for  example  DDT and GETTAB.  In the
+     declaration of system routines,  the  word  %SYSTEM  is
+     used where %EXTERNAL is used in the external class.
+
+     e.g.    %EXTERNALROUTINESPEC PROMPT(%STRING(255) STR)
+             %SYSTEMROUTINESPEC DDT(%NAME X)
+
+     would be the declarations  required  for  the  routines
+     PROMPT and DDT.
+<HR>
+IMP on the DECsystem-10/20: User Guide                Page 6
+Section 2: <B>External</B> <B>procedures</B>
+
+
+<B>%INCLUDE</B> <B>Files</B>
+
+
+In this implementation there are  no  restrictions  on  what
+statements  may  be put in %INCLUDE files.  However a common
+use for them is to contain the declarations of commonly used
+external  or  system  procedures,  or to contain global data
+declarations to be used by a number of program modules.
+
+To help the user who  requires  to  use  a  set  of  related
+procedures  of  the  external  or  system  type, a number of
+%INCLUDE  files  have  been  assembled  which  contain   the
+declarations  for those procedures.  The user simply uses an
+%INCLUDE statement  for  that  file  before  they  call  the
+procedures.   It  should  be noted that procedures which are
+declared but not  used  are  not  loaded  unless  they  were
+compiled in the same file as one which needs to be loaded.
+
+There are also a number  of  include  files  provided  which
+refer  to procedures which are not in the system library but
+which require other files to be loaded, but all the %INCLUDE
+files have the necessary documentation in them.
+
+For a full list  of  the  facilities  offered  look  at  the
+include files on the IMP:  area on disk.
+
+e.g.     %INCLUDE "IMP:DASQ.INC"
+will  include  the  declarations  for  all  the   procedures
+concerned with Direct Access and Sequential Files.
+
+The following are some of the available files:-
+
+      DASQ.INC   - Direct Access and Sequential files
+routines
+      TIME.INC   - Date and Time procedures
+      FORTRA.INC - Calling FORTRAN  routines and functions
+      IOLIB.INC  - Input/Output internal record definitions
+<HR>
+IMP on the DECsystem-10/20: User Guide                Page 7
+Section 3: <B>Input</B> <B>and</B> <B>output</B>
+
+
+<B>Stream</B> <B>input/output</B>
+
+The normal mode of input/output is via character  or  binary
+streams.   There  are  sixteen streams for input and sixteen
+independent streams for output, numbered 0 to 15, however  a
+maximum of 15 streams or DA/SQ channels (excluding stream 0)
+may be open at any one time.  Before one can do either input
+or output a stream has to be associated with a file and then
+selected to be the current  input  or  output  stream;   all
+subsequent  input  or  output  is  directed  to or from that
+stream until another one is selected.
+
+When all the desired input or  output  has  been  done,  the
+stream may be closed, an action which is taken automatically
+for all open streams  when  a  program  completes  execution
+normally  (i.e.  when a %STOP or %END %OF %PROGRAM statement
+is executed).
+
+When a program begins execution both input and output stream
+0  are  automatically  associated with the users console and
+selected as the current streams.  The rest  of  the  streams
+are  associated  with  the  'nul:'  device,  i.e.  any input
+results in an 'end-of-file' condition (%SIGNAL %EVENT 9) and
+any output is thrown away.  Stream 0 cannot be redefined and
+when any other stream is closed it defaults  back  to  being
+associated with the 'nul:' device.
+
+<B>The</B> <B>stream</B> <B>input/output</B> <B>procedures</B>
+
+Below are the basic procedures for input and output, all  of
+which are implicitly defined.
+
+   %ROUTINE DEFINE INPUT (%INTEGER STREAM %STRING(255) FILE)
+   %ROUTINE DEFINE OUTPUT(%INTEGER STREAM %STRING(255) FILE)
+These routines associate  files  with  streams.   The  first
+parameter  is  a stream number in the range 1-15, The second
+is a string which contains a DEC-10 style file specification
+allowing    for    full    sub-file-directory   and   switch
+specifications.  Character streams are the  default,  binary
+streams  are  defined using the /MODE:#10 switch in the file
+specification.  (See Appendix B  for  a  list  of  permitted
+switches.)
+e.g.  DEFINE INPUT(1,"fred.bin[110,110,data]/mode:#10")
+      DEFINE OUTPUT(12,"joe.lst")
+
+When a device name is omitted 'DSK' is assumed  and  when  a
+directory is omitted the users own area is assumed.
+
+   %ROUTINE SELECT INPUT (%INTEGER STREAM)
+   %ROUTINE SELECT OUTPUT(%INTEGER STREAM)
+These are used  to  select  the  current  input  and  output
+streams to be used from then on.
+
+<HR>
+IMP on the DECsystem-10/20: User Guide                Page 8
+Section 3: <B>Input</B> <B>and</B> <B>output</B>
+
+
+   %ROUTINE CLOSE INPUT
+   %ROUTINE CLOSE OUTPUT
+These routines close the currently selected input or  output
+streams which become attached again to the NUL stream.
+
+<B>symbol</B> <B>I/O</B>
+
+The  four  procedures  below  operate  on  ASCII  or  binary
+symbols,  depending  on  the  mode of the currently selected
+stream.
+
+   %ROUTINE READ SYMBOL(%INTEGER SYM)
+inputs the next symbol on the current input stream.
+
+   %INTEGERFN NEXT SYMBOL
+returns the next symbol but  does  not  advance  the  buffer
+pointer,  so  that  a  subsequent  call  of any of the input
+routines will read it again.
+
+   %ROUTINE SKIP SYMBOL
+throws away the next symbol on the current input stream.
+
+   %ROUTINE PRINT SYMBOL(%INTEGER SYM)
+outputs the given symbol on the current output stream.
+
+<B>String</B> <B>I/O</B>
+
+   %ROUTINE READ ITEM(%STRING(1)%NAME STR)
+reads the next symbol from  the  current  input  stream  and
+returns it as a string of length one in the given variable.
+
+   %STRING(1)%FN NEXT ITEM
+returns the next symbol from the current input stream, as  a
+string  of  length  one,  but  does  not  advance the buffer
+pointer, so that a subsequent call of any input routine will
+read it again.
+
+   %ROUTINE READ STRING(%STRING%NAME STR)
+reads a series of ASCII characters  enclosed  within  double
+quotes, into an IMP string variable.
+
+   %ROUTINE READ TEXT(%STRING%NAME STR, %INTEGER TERMIN)
+reads  a  series  of  ASCII  characters  up  till  a   given
+terminator, into an IMP string variable.
+
+   %ROUTINE PRINT STRING(%STRING(255) STR)
+writes out the given IMP string.
+
+<B>Number</B> <B>I/O</B>
+
+   %ROUTINE READ(%NAME X)
+reads a number into the given variable, the type  of  number
+read  depends  on  the  type  of variable given (%INTEGER or
+%REAL - or also %STRING).
+<HR>
+IMP on the DECsystem-10/20: User Guide                Page 9
+Section 3: <B>Input</B> <B>and</B> <B>output</B>
+
+
+   %ROUTINE WRITE(%INTEGER N,PLACES)
+outputs an integer in a given number of printing positions.
+
+   %ROUTINE PRINT(%REAL R, %INTEGER B,A)
+outputs a real  number  with  a  given  number  of  printing
+positions before and after the decimal point.
+
+   %ROUTINE PRINT FL(%REAL R, %INTEGER A)
+outputs a real number in  floating  point  format  with  the
+given number of digits after the decimal point.
+
+
+
+<B>Stream</B> <B>input/output</B> <B>conventions</B>
+
+In normal ASCII mode the end of a line is  terminated  by  a
+newline  character,  which  is defined as ASCII LF, carriage
+return characters being ignored on  input  and  inserted  on
+output.  Null characters are also ignored.  If one wishes to
+see every character and not have them edited  in  this  way,
+the   streams   should   be   set   up   with  the  switches
+"/MODE:#10/BYTE:7" in the file specification.
+
+<B>Example</B> <B>program</B> <B>using</B> <B>basic</B> <B>I/O</B> <B>procedures</B>
+
+Below is a  sample  program  using  the  basic  input/output
+routines described above.
+
+
+%BEGIN;   !A PROGRAM TO COPY A FILE ONTO THE TERMINAL
+          !AND ONTO A LINE-PRINTER
+
+   %CONSTINTEGER IN=1, OUT=1;     !STREAM NUMBERS
+   %INTEGER SYM;          !AN INTEGER TO READ CHARACTERS INTO
+
+   %ON %EVENT 9 %START;   !TRAP WHEN END-OF-FILE ENCOUNTERED ON INPUT
+      CLOSE INPUT;        !CLOSE THE INPUT FILE
+      SELECT OUTPUT(OUT); !SELECT THE LINE-PRINTER
+      CLOSE OUTPUT;       !AND CLOSE IT
+      %STOP;              !AND FINISH PROGRAM EXECUTION
+   %FINISH
+
+   DEFINE INPUT(IN,"MESSAG.TXT"); !OPEN INPUT FILE
+   DEFINE OUTPUT(OUT,"LPT:");     !OPEN LINE-PRINTER
+   SELECT INPUT(IN);              !SET TO READ FROM FILE
+
+   %CYCLE;                 !MAIN PROGRAM LOOP
+      READ SYMBOL(SYM);    !READ A CHARACTER FROM THE FILE
+      PRINT SYMBOL(SYM);   !OUTPUT CHARACTER TO TERMINAL
+      SELECT OUTPUT(OUT);  !SELECT LINE-PRINTER
+      PRINT SYMBOL(SYM);   !AND OUTPUT CHARACTER TO THAT AS WELL
+      SELECT OUTPUT(0);    !RE-SELECT TERMINAL
+   %REPEAT;                !CONTINUE UNTIL END-OF-FILE EVENT 
+%ENDOFPROGRAM
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 10
+Section 3: <B>Input</B> <B>and</B> <B>output</B>
+
+
+<B>Strings</B> <B>as</B> <B>streams</B>
+
+It is possible to have string variables as  the  source  and
+destination  of  the  above  stream input and output.  It is
+necessary to define streams to  be  associated  with  string
+variables by using the two external routines
+
+%EXTERNALROUTINE SDEF INPUT(%INTEGER N, %STRINGNAME STRING)
+%EXTERNALROUTINE SDEF OUTPUT(%INTEGER N, %STRINGNAME STRING)
+
+the routines SELECT  INPUT/OUTPUT,  CLOSE  INPUT/OUTPUT  and
+RESET INPUT/OUTPUT operate as for normal input/output.  Note
+that an End-of-file condition is signalled when the end of a
+string is reached on input, and an output stream needs to be
+closed before the final string length is written.
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 11
+Section 3: <B>Input</B> <B>and</B> <B>output</B>
+
+
+<B>Direct</B> <B>Access</B> <B>and</B> <B>Sequential</B> <B>Files</B>
+
+
+It is often useful to read or write a large section of  data
+or  records  directly  to  or from a file, without having to
+treat each  item  individually.   This  is  accomplished  by
+Direct   Access   (DA)   and  Sequential  (SQ)  files.   The
+difference between them is that with Direct Access  one  can
+read  from and write to any desired block in a file, whereas
+with Sequential Files one can only read or  write  (but  not
+both) in a sequential order as the name indicates.
+
+The DA/SQ system uses data channels in the  range  1  to  15
+which  work independently of the normal input/output streams
+described above.  However  one  can  only  have  a  combined
+maximum of 15 streams and channels open simultaneously.
+
+Channels, like  streams,  must  be  associated  with  files,
+before  being  used,  but  there  is no concept of a current
+channel and  the  channel  number  must  be  given  whenever
+reading, writing or closing a DA/SQ channel.
+
+DA channels allow both reads and writes to them, but with SQ
+files,  the first read or write sets the type of access from
+then on and the file can only be read  from  or  written  to
+until the file is re-opened.
+
+Data is stored in the files differently for DA and SQ files.
+In  DA  files data is written starting at the beginning of a
+block and any space left at the end  of  that  or  subseqent
+blocks on a WRITE DA statement is zero filled.  In SQ files,
+data is read and written sequentially,  without  intervening
+padding, and without data or record separators.
+
+If for example one were to write 3  records  of  length  150
+words  each,  using  a DA file and an SQ file, the resulting
+files (block size 128) would look as follows:-
+
+        ____________________________________________________
+DA file | RECORD  1 |       | RECORD 2 |        | RECORD 3 |
+        ____________________________________________________
+
+disk    | BLOCK 1 | BLOCK 2 | BLOCK 3 | BLOCK 4 | BLOCK 5 |
+
+        ____________________________________________________
+SQ file | RECORD 1 | RECORD 2 | RECORD 3 |
+        ____________________________________________________
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 12
+Section 3: <B>Input</B> <B>and</B> <B>output</B>
+
+
+The routines which operate  on  DA/SQ  files  are  described
+briefly below
+
+   %ROUTINE OPEN DA(%INTEGER CHAN, %STRING(255) FILE)
+   %ROUTINE OPEN SQ(%INTEGER CHAN, %STRING(255) FILE)
+
+The routines OPEN DA and OPEN SQ are used to associate files
+to channel numbers.  The channel number must be in the range
+1-15 and the string can contain  a  full  DECsystem-10  file
+specification.
+
+   %ROUTINE READ DA(%INTEGER CHAN, %INTEGERNAME BLOCK,
+                    %NAME FIRST, LAST)
+   %ROUTINE WRITE DA(%INTEGER CHAN, %INTEGERNAME BLOCK,
+                    %NAME FIRST, LAST)
+   %ROUTINE READ SQ(%INTEGER CHAN, %NAME FIRST, LAST)
+   %ROUTINE WRITE SQ(%INTEGER CHAN, %NAME FIRST, LAST)
+
+The reading and writing routines have to specify the channel
+number  and  the DA routines must give the block number from
+which reading or writing is to take place.   The  number  of
+the  last  block  read from or written to is returned in the
+same variable.  The two %NAME  type  parameters  define  the
+first  and last consecutive items to be transfered and these
+may be of any type, including records.
+
+There exists a limitation, because of the fact that data  is
+being  transferred  directly to the file, without buffering,
+that the data must exist in the low segment i.e.  either  in
+%OWN  or  %EXTERNAL  variables,  or  the  data stack must be
+declared by the user (see Memory Management section).
+
+   %ROUTINE CLOSE DA(%INTEGER CHAN)
+   %ROUTINE CLOSE SQ(%INTEGER CHAN)
+
+These routines close the files  associated  with  the  given
+channel number and release the channel for re-use.
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 13
+Section 3: <B>Input</B> <B>and</B> <B>output</B>
+
+
+<B>File</B> <B>definition</B> <B>efficiency</B>
+
+Whilst the above method of specifying  files  using  strings
+gives  the  most  general  file handling facility, users may
+require  more  flexibility  in  manipulation  of  the   file
+definitions  or  may  wish  to  save  some  of  the overhead
+neccesarily involved in having to  parse  the  given  string
+into its component parts.
+
+To this end there is  an  implicit  %RECORD  %FORMAT  called
+FILESPEC.   All  file  specification  strings are internally
+parsed into these records which are described in Appendix  B
+together  with  a  list  of  the  switches recognised by the
+runtime system.  There are an equivalent set of routines for
+defining  streams  and  channels which take these records as
+the second parameter, namely XDEFINE INPUT, XDEFINE  OUTPUT,
+XOPEN DA and OPEN SQ.
+
+There is also an external routine called READFS  which  will
+read  in  a FILESPEC format record directly from the current
+input stream.  (See the example below.)
+
+All these routines are described in detail in the IMP DEC-10
+Library Manual.
+
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 14
+Section 3: <B>Input</B> <B>and</B> <B>output</B>
+
+
+<B>Example</B> <B>program</B> <B>using</B> <B>FILESPEC</B> <B>records.</B>
+
+
+%BEGIN;   !A PROGRAM TO COPY A FILE ONTO THE USERS CONSOLE
+%EXTERNALROUTINESPEC PROMPT(%STRING(255) S)
+%EXTERNALROUTINESPEC READFS(%RECORD(FILESPEC)%NAME FS)
+
+%RECORD(FILESPEC) INPUT FS
+%INTEGER SYM
+%CONSTINTEGER IN=1;            !INPUT STREAM NUMBER
+
+   %ON %EVENT 9 %START;        !ON END-OF-FILE
+      %STOP
+   %FINISH
+
+   PROMPT("INPUT FILE:- ");    !PROMPT USER
+   READFS(INPUT FS);           !READ THE FILE NAME
+   !NOW ADD AN EXTENSION IF ONE IS NOT GIVEN
+   INPUT FS_EXT="IMP" %IF INPUT FS_EXT=""
+   XDEFINE INPUT(IN,INPUT FS); !OPEN THE FILE
+   SELECT INPUT(IN);           !SELECT IT
+
+   !NOW COPY THE FILE UNTIL AN END-OF-FILE TRAP
+   %CYCLE
+      READSYMBOL(SYM)
+      PRINTSYMBOL(SYM)
+   %REPEAT
+
+%ENDOFPROGRAM
+
+
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 15
+Section 3: <B>Input</B> <B>and</B> <B>output</B>
+
+
+<B>Internal</B> <B>handling</B> <B>of</B> <B>input/output</B>
+
+All  streams  and  DA/SQ  channels  use  internally  defined
+records  called  Stream  Control Blocks (SCBs) which contain
+all the necessary information for  the  runtime  system  for
+that  stream or channel.  Normally these SCBs are completely
+hidden from the  user,  but  they  may  be  used  to  obtain
+information  about  files,  or  to alter the way that i/o is
+handled.
+
+Streams have two record arrays  associated  with  them,  one
+array  for  input  and  the other for output.  These contain
+pointers to the SCBs or TTSCBs (special case for  Teletypes)
+for each stream.
+
+   %EXTERNALRECORD(SCBNAME)%ARRAY INVEC(-1:15)
+   %EXTERNALRECORD(SCBNAME)%ARRAY OUTVEC(-1:15)
+where the SCBNAME record is defined as:-
+   %RECORDFORMAT SCBNAME(%RECORD(SCB)%NAME NAME)
+
+In addition the currently selected streams are pointed to by
+two %RECORD %NAME variables, namely:-
+   %RECORD(SCB)%NAME INSCB
+   %RECORD(SCB)%NAME OUTSCB
+
+Thus by providing %SPEC statements  for  the  above  and  by
+%INCLUDEing   the  file  IMP:IOLIB.INC  (where  the  SCB  is
+defined), the user has complete access to all  the  streams.
+It  should be noted that the users Teletype (e.g.  stream 0)
+has a special short SCB associated with it.   Similarly  the
+unassigned  stream  numbers  have short SCBs associated with
+the 'nul:' device.
+
+The DA/SQ system has a single array:-
+   %EXTERNALRECORD(SCBNAME)%ARRAY DASQVEC(1:15)
+which contains pointers to the  SCBs  associated  with  each
+channel, unassigned channels having an address of zero.
+
+The SCB record and it's sub-records  are  described  in  the
+file IMP:IOLIB.INC and in Appendix C.
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 16
+Section 4: <B>Memory</B> <B>Management</B>
+
+
+The runtime system for IMP on the DECsystem-10/20 needs both
+a stack and a buffer area for the I/O subsytem.
+
+     The  stack  contains   the   return   addresses,   from
+     procedures, the previous stack base-address and storage
+     for all  the  local  arrays  and  variables  which  are
+     dynamically   allocated   upon   entry  to  blocks  and
+     procedures.  It is a dynamic stack  and  grows  upwards
+     from the top of the users high segment.
+
+     The heap is a managed data area which supplies  vectors
+     of  any  length  at  any  contextual  level in the user
+     program.  For example the Input/Output system uses  the
+     heap to get space for it's buffers.  It is also dynamic
+     and grows upward from the top of the users low segment.
+
+             _________________
+            |                 |
+            |                 |
+            |_ _ _ _ _ _ _ _ _|
+            |             ^   |
+            |             |   |
+            |     STACK   |   |
+            |_________________|
+            |   HIGH SEGMENT  |
+            |       CODE      |
+            |_________________|   400000
+            |                 |
+            |                 |
+            |                 |
+            |_ _ _ _ _ _ _ _ _|
+            |             ^   |
+            |      HEAP   |   |
+            |             |   |
+            |_________________|
+            |                 |
+            |       GLA       |
+            |_ _ _ _ _ _ _ _ _|
+            |                 |
+            |   LOW SEGMENT   |
+            |_________________|    0
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 17
+Section 4: <B>Memory</B> <B>Management</B>
+
+
+Normally these data areas are allocated and managed  without
+the user needing to know of their whereabouts.  But the user
+who wants control over them may  assign  fixed  lengths  for
+either  or  both areas by declaring the following variables,
+together with their size (at compile time), in  any  of  the
+program modules to be loaded:-
+
+     %EXTERNALINTEGER STACK SIZE = n
+     %EXTERNALINTEGER HEAP SIZE  = m
+
+
+The data areas themselves can also be  defined  and  thereby
+included in the general linkage area (GLA) thus:-
+
+     %EXTERNALINTEGERARRAY STACK(0:STACKSIZE)
+     %EXTERNALINTEGERARRAY HEAP(0:HEAPSIZE)
+
+It should be noted that when one  of  the  above  data  area
+declarations  is  used, the corresponding size variable must
+also have been declared, together with  its  size  given  at
+compile time.
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 18
+Section 5: <B>Calling</B> <B>other</B> <B>languages</B>
+
+
+<B>Calling</B> <B>FORTRAN</B> <B>from</B> <B>IMP</B>
+
+In order to  call  FORTRAN  from  IMP  it  is  necessary  to
+simulate  FORTRAN's  calling  conventions.   This is done by
+having a set of jacket procedures.  The file  IMP:FORTRA.INC
+contains  the  specifications  for such routines and integer
+and real functions  the  names  of  which  are  CALL0-CALL9,
+ICALL0-ICALL9 and RCALL0-RCALL9 respectively.  The number in
+the name refers to the number of %NAME type parameters being
+passed  to  FORTRAN.   Each procedure actually has n+1 %NAME
+type parameters, the  first  is  the  name  of  the  FORTRAN
+procedure  being  called.   This  has  to  be declared as an
+external and for ease of processing, it should  be  declared
+as an %EXTERNAL %INTEGER.  The example below shows a FORTRAN
+integer function called MIXUP with  four  parameters,  being
+called from IMP.
+
+
+%INCLUDE "IMP:FORTRA.INC"
+%BEGIN
+   %EXTERNALINTEGERSPEC MIXUP
+   %INTEGER A,B,C,D,N
+
+   ........
+   N = ICALL4(MIXUP,A,B,C,D)
+   . . . .
+%ENDOFPROGRAM
+
+Should FORTRAN I/O be required, then  the  external  routine
+INITFOR  should  be  requested  and  called  at the start of
+execution.  This  will  cause  the  FORTRAN  library  to  be
+searched  and  will  initialise the input/output system.  If
+I/O is being done from both IMP and FORTRAN then the FORTRAN
+channels should be set up first and then the IMP ones.  This
+is because IMP sees if a channel is in use before  it  tries
+to  assign  it.   It  is  also necessary that the heap space
+where IMP sets up its buffers is declared in the user's  own
+area  (see  the  memory  management section), otherwise both
+FORTRAN and IMP will compete for store management at the top
+of the low segment.
+
+<B>COMMON</B> <B>blocks</B>
+
+If COMMON blocks need to  be  accessed  from  IMP,  this  is
+accomplished  by declaring an external block of store having
+the same name as the common block and having the same  form.
+This  can be done either by mapping onto an integer array or
+else by defining a record having the appropriate form.
+
+Below is an  example  program  which  accesses  the  FORTRAN
+COMMON block:-
+
+   COMMON/FORIMP/ IA,IB,IC,X,Y,Z
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 19
+Section 5: <B>Calling</B> <B>other</B> <B>languages</B>
+
+
+giving in IMP:-
+
+%BEGIN
+   %RECORDFORMAT COMMON1(%INTEGER IA,IB, %REAL X,Y)
+   %EXTERNALRECORD(COMMMON1)%SPEC FORIMP
+    .......
+   %IF FORIMP_IA = FORIMP_IB %THEN FORIMP_X = FORIMP_Y
+    .....
+%ENDOFPROGRAM
+
+
+<B>Calling</B> <B>IMP</B> <B>from</B> <B>FORTRAN</B>
+
+An IMP procedure may be called from  FORTRAN  just  like  an
+externally  defined  FORTRAN  procedure.   If any parameters
+need to be passed, this may be done  either  through  COMMON
+(see above) or by the appropriate decoding of the parameters
+on the IMP side.  Since FORTRAN passes the address of a list
+of  pointers  to  the parameters, the IMP procedure sees the
+equivalent of a %RECORD %NAME parameter, whose format  is  a
+list  of %NAME type parameters.  The following code would be
+required to handle the call of an  IMP  routine  having  two
+integer name parameters, invoked by the FORTRAN statement
+
+      CALL IMPRTN(IVAL1,IVAL2)
+
+
+in IMP:-
+
+%RECORDFORMAT IMPRTN PARAMETERS(%INTEGERNAME IVAL1,IVAL2)
+%RECORD (IMPRTN PARAMETERS) R
+
+   %EXTERNALROUTINE IMPRTN(%RECORD(IMPRTN PARAMETERS)%NAME R)
+      R_IVAL1=R_IVAL1+1
+      R_IVAL2=R_IVAL2-1
+   %END
+%ENDOFFILE
+
+If the IMP input/output system is required then a call  from
+FORTRAN  of  the IMP routines INITIO and INITHEAP are needed
+before any IMP  input/output  is  done.   However  the  same
+limitation exists, as for calling FORTRAN from IMP, that any
+FORTRAN I/O channels should be set up first, before IMP  I/O
+is  attempted,  and  that the heap should be declared in the
+IMP module (see the memory management section).
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 20
+IMP/MACRO cross calling
+
+
+<B>Calling</B> <B>MACRO</B> <B>from</B> <B>IMP</B>
+
+No difficulties should be encountered, so long  as  the  IMP
+calling  conventions  are  adhered to and the base registers
+are always preserved.  The file IMP:IMPPRM.MAC contains  the
+definition  of registers, IMP strings and SCB records.  (see
+also Appendix D).
+
+
+<B>Calling</B> <B>IMP</B> <B>from</B> <B>MACRO</B>
+
+So long as the stack (register 17) is large enough  for  the
+IMP  procedures  being  called,  no  difficulties  should be
+encountered.  IMP will destroy the left half  of  the  stack
+pointer  and  will  not  necessarily  preserve  any  of  the
+registers.  If the registers need to be preserved  then  the
+macro  program  must  look  after it, although there are two
+routines in the IMP system library to help.
+
+These routines are called SAVEACS and RESTORE and will  save
+and  restore  registers 2-17.  Registers 0 and 1 are left so
+that results from maps and functions can be returned.
+
+If IMP  I/O  is  required,  then  the  routines  INITIO  and
+INITHEAP  must  be  called first, either by MACRO or IMP and
+the heap must be declared in the IMP module (see the  memory
+management section).
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 21
+Section 6: <B>Program</B> <B>debugging</B>
+
+
+    <B>DDT</B>
+
+The standard DEC-10 debugging system DDT can be used in  the
+normal way.  The code can be followed with the help of ALIST
+or RECODE listings (see below).
+
+There is also a system routine DDT which takes a %NAME  type
+parameter and, when encountered, will enter DDT with all the
+registers unchanged and the argument address saved in DDARG.
+The main program can be resumed by typing:-
+
+      DDCONT$G
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 22
+Section 6: <B>Program</B> <B>debugging</B>
+
+
+   <B>/CROSS</B>
+
+A cross reference listing file,  using  the  compiler's  own
+cross  reference lister, is obtained by including the /CROSS
+switch in the compiler command string.   The  output  allows
+one  to  trace  the  use  of  local  and global variables in
+procedures and at different contextual levels.
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 23
+Section 6: <B>Program</B> <B>debugging</B>
+
+
+    <B>ALIST</B>
+
+ALIST is a program on the system area  which  takes  an  IMP
+source file and the corresponding object file and produces a
+listing file which contains, along  with  the  line-numbered
+source,  the  relative  addresses  of the code generated for
+each source line.  An example of ALIST output  is  shown  at
+the end of this section.
+
+
+
+<B>RECODE</B>
+
+Recode is a program residing on the system area which  takes
+an  IMP  source  file  and the corresponding object file and
+produces a  listing  file  which  contains  along  with  the
+line-numbered  source,  the  code  which  the  compiler  has
+generated for every line.  An example of  RECODE  output  is
+shown overleaf.
+
+    <B>The</B> <B>command</B> <B>format</B> <B>for</B> <B>both</B> <B>ALIST</B> <B>and</B> <B>RECODE</B>
+
+Both programs prompt with 
+      *
+to which the response is
+
+      * &lt;list-filespec&gt; = &lt;source-filespec&gt; , &lt;rel-filespec&gt;
+or    * &lt;list-filespec&gt; = &lt;source-filespec&gt;
+or    * &lt;source-filespec&gt;
+
+where the missing arguments are replaced by the following
+
+      list-filespec   - DSK: filename .LST [user]
+      rel-filespec    - DSK: filename .REL [user]
+      source-filespec - DSK: filename .IMP [user]
+
+In addition to this RECODE requires a  range  of  lines  for
+which recoding is required.  The prompts for this are:-
+
+      From: n
+      To:   m
+this may be repeated a number of times.  A response of  zero
+closes the output and returns to monitor level.
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 24
+Section 6: <B>Program</B> <B>debugging</B>
+
+
+                 <B>An</B> <B>example</B> <B>of</B> <B>ALIST</B> <B>output</B>
+
+    1 400016 %BEGIN;   !A PROGRAM TO OUTPUT A FILE ONTO THE TERMINAL
+    2        
+    3           %CONSTINTEGER IN=1;     !STREAM NUMBER
+    4           %INTEGER SYM;          !AN INTEGER TO READ CHARACTERS INTO
+    5        
+    6 400022    %ON %EVENT 9 %START;   !TRAP WHEN END-OF-FILE ENCOUNTERED ON INPUT
+    7 400023       CLOSE INPUT;        !CLOSE THE INPUT FILE
+    8 400024       %STOP;              !AND FINISH PROGRAM EXECUTION
+    9           %FINISH
+   10        
+   11 400027    DEFINE INPUT(IN,"FILE.TXT"); !OPEN INPUT FILE
+   12 400032    SELECT INPUT(IN);              !SET TO READ FROM FILE
+   13        
+   14           %CYCLE;                 !MAIN PROGRAM LOOP
+   15 400034       READ SYMBOL(SYM);    !READ A CHARACTER FROM THE FILE
+   16 400036       PRINT SYMBOL(SYM);   !OUTPUT CHARACTER TO TERMINAL
+   17 400040    %REPEAT;                !CONTINUE UNTIL END-OF-FILE EVENT 
+   18 400004 %ENDOFPROGRAM
+
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 25
+Section 6: <B>Program</B> <B>debugging</B>
+
+
+                <B>An</B> <B>example</B> <B>of</B> <B>RECODE</B> <B>output</B>
+
+   1 %BEGIN;   !A PROGRAM TO OUTPUT A FILE ONTO THE TERMINAL
+      400016  202717 000001  MOVEM  13,      1(17)
+      400017  200700 000017  MOVE   13,     17
+      400020  271740 000003  ADDI   17,      3
+      400021  417017 000006  SETMM   0,      6(17)
+   2 
+   3    %CONSTINTEGER IN=1;     !STREAM NUMBER
+   4    %INTEGER SYM;          !AN INTEGER TO READ CHARACTERS INTO
+   5 
+   6    %ON %EVENT 9 %START;   !TRAP WHEN END-OF-FILE ENCOUNTERED ON INPUT
+      400022  254000 400027  JRST    0, 400027
+      400014  400041 400027  SETZ    1, 400027(1)
+      400015  001000 400023  USER    0, 400023
+   7       CLOSE INPUT;        !CLOSE THE INPUT FILE
+      400023  260740 000000  PUSHJ  17,      0
+   8       %STOP;              !AND FINISH PROGRAM EXECUTION
+      400024  403200 000005  SETZB  14,     15
+      400025  400300 000000  SETZ   16,      0
+      400026  265140 000000  JSP     3,      0
+   9    %FINISH
+  10 
+  11    DEFINE INPUT(IN,"FILE.TXT"); !OPEN INPUT FILE
+      400027  201040 000001  MOVEI   1,      1
+      400030  551300 000001  HRRZI  16,      1
+      400031  260740 400107  PUSHJ  17, 400107
+  12    SELECT INPUT(IN);              !SET TO READ FROM FILE
+      400032  551300 000001  HRRZI  16,      1
+      400033  260740 400136  PUSHJ  17, 400136
+  13 
+  14    %CYCLE;                 !MAIN PROGRAM LOOP
+  15       READ SYMBOL(SYM);    !READ A CHARACTER FROM THE FILE
+      400034  201316 000002  MOVEI  16,      2(16)
+      400035  260740 000000  PUSHJ  17,      0
+  16       PRINT SYMBOL(SYM);   !OUTPUT CHARACTER TO TERMINAL
+      400036  200316 000002  MOVE   16,      2(16)
+      400037  260740 000000  PUSHJ  17,      0
+  17    %REPEAT;                !CONTINUE UNTIL END-OF-FILE EVENT 
+      400040  254000 400034  JRST    0, 400034
+  18 %ENDOFPROGRAM
+      400004  000000 400013
+      400013  000000 400163
+      400005  000000 000000
+      400163  000000 400165
+      400041  000000 000000
+      400165  000000 400167
+      400164  000000 000000
+      400167  000000 400171
+      400166  000000 000000
+      400171  000000 400173
+      400170  000000 000000
+      400173  000000 000000
+      400172  000000 000000
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 26
+                             <B>Appendix</B> <B>A</B>
+
+
+<B>Useful</B> <B>constants</B> <B>and</B> <B>variables.</B>
+
+Characters:-
+      NL  -  newline character
+      SP  -  space character
+      TAB -  tab character
+      FF  -  form-feed character
+      ESC -  escape character
+monitor locations:-
+      AC(0:8_17)         - registers
+      VERSION            - DEC-10 format Version number
+      JOBDAT(8_40:8_140) - Job Data area
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 27
+                             <B>APPENDIX</B> <B>B</B>
+
+
+<B>Definition</B> <B>of</B> <B>the</B> <B>file</B> <B>specification</B> <B>record</B>
+
+%RECORDFORMAT FILESPEC( %C
+   %STRING(6) DEV,      - Device name
+   %STRING(6) FILE,     - File name
+   %STRING(3) EXT,      - File extension
+   %INTEGER PPN,        - Project-programmer pair
+   %STRING(6)%ARRAY SFDS(1:MAX SFDS),
+                        - List of sub-file directories
+   %INTEGER PROT,       - 3 octal digit protection code
+   %STRING(20) SWITCHES)- String of switches
+
+Switches recognised by the DEC-10 system library are:-
+
+    /ALLOCATE:  n  Allocate  'n'  contiguous   blocks   when
+                   creating a file
+    /BLOCKSIZE: n  Set blocksize for a device
+    /BUFFERS:   n  Use 'n' buffers in the buffer ring
+    /BYTE:      n  Set the byte size for reading/writing
+    /DENSITY:   n  Set density for magnetic tape ( 200, 556,
+                   800 or 1600 bpi )
+    /ESTIMATE:  n  Set aside 'n' blocks when creating a file
+    /EXTEND:    n  Use an extended Lookup/Enter block  where
+                   'n' is ommitted 35 octal is assumed
+    /FUNCTION:  n  The appropriate FILOP function is used
+    /MODE:      n  Set the mode to be this (the status word)
+    /PARITY:    n  Set parity for magnetic tapes:  0 = even,
+                   1 = odd
+    /TRMOP         Use TRMOP UUO for terminal I/O
+    /VERSION:   n  Version number interpreted in DEC  .JBVER
+                   format  (see  DECsystem  10 Monitor Calls
+                   Manual)
+Switches can be abreviated to the  shortest  unique  string.
+Numbers  can  be  specified  as  octal if preceded by a hash
+sign.
+
+e.g.    /BL:#203   - set the blocksize to octal 203
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 28
+                             <B>APPENDIX</B> <B>C</B>
+
+
+<B>Definition</B> <B>of</B> <B>the</B> <B>internal</B> <B>input/output</B> <B>records</B>
+
+<B>Definition</B> <B>of</B> <B>stream</B> <B>control</B> <B>blocks</B>
+
+The stream control blocks for all the streams are pointed to
+by the following arrays:-
+
+%EXTERNALRECORD(SCBNAME)%ARRAY INVEC(0:15)
+%EXTERNALRECORD(SCBNAME)%ARRAY OUTVEC(0:15)
+
+where the record SCBNAME is defined:-
+%RECORDFORMAT SCBNAME(%RECORD(SCB)%NAME NAME)
+
+and the current SCBs are pointed to by
+
+%EXTERNALRECORD(SCB)%NAME INSCB
+%EXTERNALRECORD(SCB)%NAME OUTSCB
+
+And for DA/SQ channels they are pointed to by the array:-
+
+%EXTERNALRECORD(SCBNAME)%ARRAY DASQVEC(1:15)
+
+where the format of the SCB is as follows:-
+
+%RECORD %FORMAT SCB(   %C
+    %INTEGER DEVTYP    - Device type, where
+                         (-3=string, -2=tmpcor, -1=nul:
+                         and &gt;=0 is defined in 'DEVTYP' UUO)
+                         is defined in 'DEVTYP' UUO)
+    %INTEGER CHNTYP    - Stream or channel type. Where
+                         (0=stream, 1=DA file, 2=SQ file)
+    %INTEGER NXTCHR    - The next character for input
+    %INTEGERNAME OPER  - Address of read or write routine
+    %INTEGER FLAGS     - Flags (bit0=zero as next symbol)
+    %INTEGER RESERVED  - Reserved
+    %STRING(3) TMPNAME - Name of a tmpcor file.
+    %INTEGER UDX       - Universal Device Index
+    %INTEGER FILOPFN   - First word of a filop type record
+                         physical channel number in lh
+                         and filop function code in rh
+    %INTEGER STATUS    - First word of an open block
+                         is status word, including I/O mode
+    %INTEGER DEVNAM    - Sixbit device name
+    %INTEGER BUFHEDS   - Addresses of buffer ring headers
+                         output(LH) and input(RH)
+    %INTEGER BUFNUM    - Number of buffers in ring
+                         output(LH) and input(RH)
+    %RECORD(LOOKUPBLOCK)%NAME LKENT
+                       - Address of lookup-enter block
+    %INTEGER PATHARG   - Path block pointer
+                         length(LH) and address(RH)
+    %RECORD(RINGHEADER) RINGHEAD
+                       - Buffer ring header
+    %INTEGER IBUFOP    - IN CHAN,0
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 29
+                             <B>APPENDIX</B> <B>C</B>
+
+
+    %INTEGER OBUFOP    - OUT CHAN,0
+    %INTEGER USETI     - USETI CHAN,0
+    %INTEGER USETO     - USETO CHAN,0
+    %INTEGER STATZ     - STATZ CHAN,740000
+    %INTEGER BLOCKSIZE - Size of the device blocks
+    %RECORD(PATHBLOCK) PATHBLK )
+                       - Path block
+
+And for teletypes
+
+%RECORD %FORMAT TTSCB(   %C
+    %INTEGER DEVTYP    - !
+    %INTEGER CHNTYP    - !
+    %INTEGER NXTCHR    - !    same as in SCB
+    %INTEGERNAME OPER  - !
+    %INTEGER FLAGS     - Flag word
+    %INTEGER ARGPTR    - Pointer to TRMOP arg block
+    %INTEGER FUNCT     - First word of arg block -
+                         (function code)
+    %INTEGER UDX       - Universal Device Index
+    %INTEGER OUTARG)   - Next char for output
+
+And for strings
+
+%RECORD %FORMAT STRSCB(   %C
+    %INTEGER DEVTYP    - !
+    %INTEGER CHNTYP    - !
+    %INTEGER NXTCHR    - !    same as in SCB
+    %INTEGERNAME OPER  - !
+    %INTEGER LENGTH    - String length
+    %INTEGER LENPTR    - Pointer to length byte
+    %INTEGER POINTER)  - Pointer to current byte
+
+Where the other records are defined as follows.
+
+
+%RECORDFORMAT OPENBLOCK(  %C
+   %INTEGER STATUS,    - Status including I/O mode
+   %INTEGER DEVNAM,    - Sixbit device name
+   %INTEGER BUFHEDS)   - Addresses of buffers
+                         output(LH) and input(RH)
+
+This record can be mapped onto the SCB at SCB_STATUS
+
+
+%RECORDFORMAT LOOKUPBLOCK( %C
+   %INTEGER CNT,       - Length of following block
+                         (default=4)
+   %INTEGER PPN)       - Project-programmer number
+   %INTEGER NAM,       - Sixbit file name
+   %INTEGER EXT,       - Sixbit extension(LH)
+   %INTEGER PRV,       - Date-time and protection
+The following record items are only used when the  /EXTEND:n
+switch  is  given.   They  are named according to the DEC-10
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 30
+                             <B>APPENDIX</B> <B>C</B>
+
+
+extended lookup-block conventions (see DEC-10 MONITOR  CALLS
+MANUAL).
+   %INTEGER SIZ, VER, SPL, EST, ALC, POS, TF1, NCA, MTA,
+   DEV, STS, ELB, EUN, QTF, QTO, USD, AUT, PCA, UFD, FLR,
+   XRA, TIM)
+
+
+%RECORDFORMAT RINGHEADER( %C
+   %INTEGER BUFADR,    - Address of current buffer
+   %INTEGER BYTPTR,    - Pointer to current byte
+   %INTEGER BYTCNT,    - Byte count
+   %INTEGER MPXUDX)    - Universal device index for MPX
+
+
+%RECORDFORMAT PATHBLOCK( %C
+   %INTEGER FUNCT,     - Required function
+   %INTEGER SWITCHES,  - Scan switches
+   %INTEGER PPN,       - Project-programmer number
+   %INTEGERARRAY SFDS(1:MAXSFDS)) - Sixbit SFD names
+
+
+%RECORDFORMAT FILOPBLOCK( %C
+   %INTEGER FUNCT,     - Physical channel number(LH)
+                         and function code(RH)
+   %INTEGER STATUS,    - Status word, including I/O mode
+   %INTEGER DEVNAM,    - Sixbit device name
+   %INTEGER BUFHEDS,   - Addresses of buffer ring headers
+                         output(LH) and input(RH)
+   %INTEGER BUFNUM,    - Number of buffers in each
+                         output(LH) and input(RH)
+   %RECORD(LOOKUPBLOCK)%NAME LKENT,
+                       - Lookup-enter block address
+   %INTEGER PATHARG)   - Path block pointer
+                         length(LH) and address(RH)
+
+This record can be mapped onto the SCB at SCB_FILOPFN
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 31
+                             <B>APPENDIX</B> <B>D</B>
+
+
+<B>Data</B> <B>storage</B>
+
+%BYTE %INTEGER variables occupy 9-bit bytes and  are  packed
+left to right 4 to a word
+
+%STRING variables comprise 7-bit bytes and are  packed  left
+to right 5 to a word, with the first two bytes being aligned
+on  a  word  boundary  and  containing  the  string  length.
+(maximum 255)
+
+%SHORT  %INTEGER  variables  occupy  18  bits  or   half   a
+DECsystem-10/20 word
+
+%INTEGER  and  %REAL  variables  occupy  36  bits   or   one
+DECsystem-10/20   word,   giving   a   range  of  values  of
+-34,359,738,367 to +34,359,738,367 for integers and  1.4@-39
+to  1.7@38  to  an  significance  of approximately eight and
+one-half decimal digits for reals.
+
+%LONG %REAL variables occupy 72 bits or two  DECsystem-10/20
+words  and  extend  the  precision of real representation to
+about seventeen decimal digits.
+
+%RECORD variables occupy as much space  as  their  component
+items,  allowing for neccessary word allignment of %BYTE and
+%SHORT %INTEGER variables.  There is no record header word.
+
+%NAME variables occupy a single DECsystem-10/20 word.   They
+are  pointers to different types of objects.  The right half
+of the word contains the address of the  object.   The  left
+half  contains the type of object and its length as a number
+of DECsystem-10/20 words (relevant for records and strings)
+
+bits 0-8 contain the length of the object (maximum=255)
+
+bits 9-12 contain the object type, where:-
+   1 = %INTEGER
+   2 = %SHORT %INTEGER
+   3 = %BYTE %INTEGER
+   4 = %STRING
+   5 = %RECORD
+   6 = %REAL
+   7 = %LONG %REAL
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 32
+                             <B>APPENDIX</B> <B>D</B>
+
+
+<B>Code</B> <B>conventions</B>
+
+
+<B>Register</B> <B>allocation</B>
+
+      17 - procedure and data stack pointer
+      16 - first parameter
+      15 - second parameter
+      14 - third parameter
+      13 -!
+      12 -!
+      11 -! - base registers
+      10 -!
+       7 -!
+       6 - general purpose
+       5 - general purpose
+       4 - general purpose
+       3 - general purpose
+       2 - general purpose
+       1 - %RESULT register from %MAPs
+       0 - %RESULT register from %FUNCTIONs
+
+
+Registers 0-6 and 14-16 can be regarded as free for  use  in
+machine code instructions and procedures.
+
+
+<B>Procedure</B> <B>entry</B> <B>and</B> <B>exit</B>
+
+The normal entry and exit sequence is  shown  below,  for  a
+routine  with no parameters.  The routine would be called by
+the instruction
+    PUSHJ   P,routine
+
+entry sequence:-
+    MOVEM  BASE1,1(P)  ;STORE PREVIOUS BASE REGISTER VALUE
+    MOVE   BASE1,P     ;AND LOAD THE NEW BASE ADDRESS
+    ADDI       P,'N'   ;MOVE POINTER OVER LOCAL STORAGE
+    SETMM      0,6(P)  ;DO A TEST WRITE TO TOP OF STACK
+                       ;THIS WILL TRAP TO CORE MANAGEMENT
+                     ;SYSTEM IF BEYOND TOP OF CURRENT CORE
+
+then the routine body, followed by the exit sequence:-
+
+    MOVE      P,BASE1  ;GET CURRENT STACK BASE
+    MOVE  BASE1,1(P)   ;RESTORE PREVIOUS STACK BASE
+    POPJ      P,       ;RETURN
+
+Whenever possible  this  sequence  will  be  optimised,  for
+instance  when there are no local variables and simple or no
+parameters.   Overleaf  is  the  IMPLICIT  routine  NEWLINE,
+together with code produced for it.
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 33
+                             <B>APPENDIX</B> <B>D</B>
+
+
+%EXTERNALROUTINE NEWLINE
+   PRINTSYMBOL(NL)
+%END
+
+gives the following code:-
+
+   HRRZI  ARG1,12      ;LOAD ARGUMENT WITH NEWLINE SYMBOL
+   JRST   PRINTSYMBOL  ;AND JUMP TO ROUTINE, WHICH WILL DO
+                       ; THE 'POPJ' RETURN
+
+<B>Parameters</B> <B>to</B> <B>procedures</B>
+
+On entry to a procedure, any parameters have been stored  on
+the  stack  at  the locations 2(P) upwards.  As we have seen
+the previous stack base address is stored at  1(P)  and  the
+return address at 0(P).
+
+However the first three parameters, if they  have  one  word
+values (e.g.  integers, reals and all name type parameters),
+are passed in the  three  registers  shown  above,  and  are
+stored, if necessary, by the procedure itself.  Similarly if
+the final parameter is a string value, the  address  of  the
+string is passed in register 1.
+
+The base registers and stack pointer must  be  preserved  on
+return from the procedure.  The actual base register used by
+the procedure depends on it's contextual level, there  being
+five  possible  levels.   Overleaf is an example of the code
+produced for a complicated procedure call.
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 34
+                             <B>APPENDIX</B> <B>D</B>
+
+
+%BEGIN
+%RECORDFORMAT INTS(%INTEGER I1,I2)
+%RECORD(INTS) R1
+%INTEGER VAR
+
+   %ROUTINE TEST(%INTEGER N,M %RECORD(INTS) R %STRING(255) S)
+      %INTEGER A1,A2,A3
+      A1=N
+   %END
+
+   TEST(1,VAR,R1,"TESTING")
+%ENDOFPROGRAM
+
+produces the code:-
+
+%BEGIN
+          MOVEM  BASE1,1(P)       ;SAVE OLD STACK BASE
+          MOVE   BASE1,P          ;GET NEW BASE
+          ADDI       P,5          ;MOVE STACK POINTER PAST LOCALS
+          SETMM      0,6(P)       ;CHECK FOR TOP OF CORE
+%RECORDFORMAT INTS(%INTEGER I1,I2)
+%RECORD(INTS) R1
+%INTEGER VAR
+
+   %ROUTINE TEST(%INTEGER N,M %RECORD(INTS) R %STRING(255) S)
+          MOVEM  BASE2,1(P)       ;SAVE OLD STACK BASE
+          MOVE   BASE2,P          ;GET NEW BASE ADDRESS
+          ADDI       P,111        ;MOVE PAST LOCAL STORAGE
+          SETMM      0,6(P)       ;CHECK FOR TOP OF CORE
+          MOVEM   ARG1,2(BASE2)   ;SAVE FIRST ARGUMENT - "N"
+          MOVEM   ARG2,3(BASE2)   ;SAVE SECOND ARGUMENT - "M"
+          MOVEI     P1,6(BASE2)   ;GET ADDRESS FOR WHICH STRING
+          JSP        J,.$MOVE     ;AND MOVE IT FROM REGISTER 1
+       %INTEGER A1,A2,A3
+       A1=N
+          MOVEM   ARG1,106(BASE2) ;MOVE "N" TO FIRST FREE LOCATION
+                                  ;ON STACK, "A1" (AFTER THE STRING)
+    %END
+          MOVE       P,BASE2      ;GET OLD STACK BASE
+          MOVE   BASE2,1(P)       ;RESTORE PREVIOUS VALUE
+          POPJ       P,0          ;RETURN
+    TEST(1,VAR,R1,"TESTING")
+          HRRZI     T2,5(P)       ;DESTINATION ADDRESS FOR "R1"
+          HRLZI     T1,3(BASE1)   ;AND WHERE IT IS AT PRESENT
+          HRR       T1,T2         ;SET UP "BLT" POINTER
+          BLT       T1,1(T2)      ;AND DO THE BLOCK TRANSFER
+          MOVEI      1,T1         ;GET THE ADDRESS OF "S"
+          MOVE    ARG2,2(BASE1)   ;GET THE VALUE OF "VAR"
+          HRRZI   ARG1,1          ;GET THE VALUE "1"
+          PUSHJ      P,TEST       ;AND CALL THE ROUTINE
+%ENDOFPROGRAM
+          MOVE       P,BASE1      ;GET THE BASE ADDRESS
+          MOVE   BASE1,1(P)       ;RESTORE THE PREVIOUS VALUE
+          POPJ       P,0          ;RETURN TO RUNTIME SYSTEM
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 35
+                             <B>APPENDIX</B> <B>D</B>
+
+
+the stack at the time of the return from  the  routine  TEST
+looks as follows:-
+
+BASE2-&gt; | return address |  0 (relative addresses)
+        | old stack base |  1
+        |    N           |  2
+        |    M           |  3
+        |  R_I1          |  4
+        |  R_I2          |  5
+        |  string        |  6
+        |    S           |  .
+        |    .           |  .
+        |    .           |  .
+        |    A1          | 106
+        |    A2          | 107
+        |    A3          | 110
+    P-&gt; |                | 111
+
+
+<B>Procedure</B> <B>parameters</B>
+
+
+This parameter type is passed as the address of an  argument
+block  on  the  stack  which  contains  the  address  of the
+procedure and the future context for  that  procedure  (i.e.
+the  stack  base  registers).  When the procedure is called,
+the current context is exchanged  for  the  context  in  the
+argument  block  before  the  procedure  is  entered.   Upon
+return, the contexts are exchanged back  before  control  is
+returned.
+
+The argument block which is set up looks like this:-
+
+ | procedure entry address  | 0 (relative addresses)
+ | return address to caller | 1
+ |  base1                   | 2
+ |  base2                   | 3
+ |  base3                   | 4
+ |  base4                   | 5
+ |  base5                   | 6
+
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 36
+                             <B>APPENDIX</B> <B>D</B>
+
+
+<B>Use</B> <B>of</B> <B>machine</B> <B>code</B>
+
+
+Blocks of machine code can be planted in-line in  a  program
+by  preceding  the  octal  instructions  with  an  asterisk.
+Spaces are not significant  and  can  be  used  to  separate
+fields.
+
+e.g.
+
+the following code performs the imp function
+   answer = rem(number,10)*12
+
+   ac(1)=number
+   *8_231040 000012;   !idivi 1,^D10   remainder in ac(2)
+   *8_221100 000014;   !imuli 2,^D12
+   answer=ac(2)
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 37
+                             <B>APPENDIX</B> <B>E</B>
+
+
+<B>ASCII</B> <B>character</B> <B>set</B>
+
+OCT DEC CHAR  OCT DEC  CHAR  OCT DEC CHAR  OCT DEC  CHAR
+
+ 0  0   NUL    40 32   SPACE 100 64   @    140  96  grave
+ 1  1   SOH    41 33   !     101 65   A    141  97  a
+ 2  2   STX    42 34   "     102 66   B    142  98  b
+ 3  3   ETX    43 35   #     103 67   C    143  99  c
+ 4  4   EOT    44 36   $     104 68   D    144 100  d
+ 5  5   ENQ    45 37   %     105 69   E    145 101  e
+ 6  6   ACK    46 38   &amp;     106 70   F    146 102  f
+ 7  7   BEL    47 39   '     107 71   G    147 103  g
+
+10  8   BS     50 40   (     110 72   H    150 104  h
+11  9   HT     51 41   )     111 73   I    151 105  i
+12 10   LF     52 42   *     112 74   J    152 106  j
+13 11   VT     53 43   +     113 75   K    153 107  k
+14 12   FF     54 44   ,     114 76   L    154 108  l
+15 13   CR     55 45   -     115 77   M    155 109  m
+16 14   SO     56 46   .     116 78   N    156 110  n
+17 15   SI     57 47   /     117 79   O    157 111  o
+
+20 16   DLE    60 48   0     120 80   P    160 112  p
+21 17   DC1    61 49   1     121 81   Q    161 113  q
+22 18   DC2    62 50   2     122 82   R    162 114  r
+23 19   DC3    63 51   3     123 83   S    163 115  s
+24 20   DC4    64 52   4     124 84   T    164 116  t
+25 21   NAK    65 53   5     125 85   U    165 117  u
+26 22   SYN    66 54   6     126 86   V    166 118  v
+27 23   ETB    67 55   7     127 87   W    167 119  w
+
+30 24   CAN    70 56   8     130 88   X    170 120  x
+31 25   EM     71 57   9     131 89   Y    171 121  y
+32 26   SUB    72 58   :     132 90   Z    172 122  z
+33 27   ESC    73 59   ;     133 91   [    173 123  {
+34 28   FS     74 60   &lt;     134 92   \    174 124  |
+35 29   GS     75 61   =     135 93   ]    175 125  }
+36 30   RS     76 62   &gt;     136 94   ^    176 126  ~
+37 31   US     77 63   ?     137 95   _    177 127  DEL
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 38
+                              <B>APPENDIX</B> <B>F</B>
+
+
+<B>RELATED</B> <B>LIBRARY</B> <B>PROCEDURES</B>
+
+INPUT/OUTPUT PROCEDURES
+
+          INPUT                         OUTPUT
+          INPUT PENDING                 NEWLINE
+          NEXT ITEM                     NEWLINES
+          NEXT SYMBOL                   NEWPAGE
+          READ                          PRINT
+          READ HEX                      PRINT FL
+          READ ITEM                     PRINT STRING
+          READ OCTAL                    PRINT SYMBOL
+          READ STRING                   PROMPT
+          READ SYMBOL                   REPORT
+          READ TEXT                     SPACE
+          SKIP SYMBOL                   SPACES
+                                        WRITE
+                                        WRITE HEX
+                                        WRITE OCTAL
+STREAM DEFINITION ROUTINES
+
+          CHECKPOINT
+          CLOSE INPUT                   CLOSE OUTPUT
+          DEFINE INPUT                  DEFINE OUTPUT
+          INDEV                         OUTDEV
+          INSTATUS                      OUTSTATUS
+          INSTREAM                      OUTSTREAM
+          RESET INPUT                   RESET OUTPUT
+          SDEF INPUT                    SDEF OUTPUT
+          SELECT INPUT                  SELECT OUTPUT
+          USET INPUT                    USET OUTPUT
+          XDEFINE INPUT                 XDEFINE OUTPUT
+
+FILE SYSTEM UTITLITIES
+
+          COPY                          XCOPY
+          CUSP FILES
+          DEFAULT
+          DELETE                        XDELETE
+          ECHO                          NOECHO
+          FSTOSTR                       STRTOFS
+          ISFILE                        XISFILE
+          JOBFILE
+          READ FS                       WRITE FS
+          READ PPN                      WRITE PPN
+          RENAME                        XRENAME
+          SET STREAMS
+
+DIRECT ACCESS/SEQUENTIAL FILE ROUTINES
+
+          CLOSE DA                      CLOSE SQ
+          OPEN DA                       OPEN SQ
+          READ DA                       READ SQ
+          WRITE DA                      WRITE SQ
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 39
+                              <B>APPENDIX</B> <B>F</B>
+
+
+          XOPEN DA                      XOPEN SQ
+
+TYPE CONVERSION PROCEDURES
+
+          INTTOSTR                      STRTOINT
+          HEXTOSTR                      STRTOHEX
+          OCTTOSTR                      STRTOOCT
+          BINTOSTR
+          SIXTOSTR                      STRTOSIX
+          FSTOSTR                       STRTOFS
+
+MAPS
+
+          BYTEINTEGER
+          INTEGER
+          REAL
+          RECORD
+          SHORTINTEGER
+          STRING
+
+STRING PROCEDURES
+
+          CHARNO
+          SUBSTRING
+          LENGTH
+          MATCH
+          NEXT ITEM
+          READ ITEM
+          TO STRING
+
+ARITHMETIC
+
+          FLOAT
+          FRAC PT
+          IMOD
+          INT
+          INT PT
+          MOD
+          PI
+          REM
+          SHIFTC
+
+JOB RELATED INFORMATION
+
+          CPUTIME
+          DAY
+          DATE
+          DATETIME
+          JOBNUM
+          PPN
+          TIME
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 40
+                             <B>APPENDIX</B> <B>G</B>
+
+
+<B>system</B> <B>library</B> <B>procedures</B>
+
+name         class type          parameters
+
+ACCPER       ext %integerfn      %integer udt
+ADDR             %integerfn      %name x
+ASCTOSTR     ext %string(255)%fn %name adr
+BINTOSTR     ext %string(36)%fn  %integer num
+BLT          sys %routine        %name from,to %integer len
+BYTEINTEGER      %byteintegermap %integer adr
+CALL(0-9)    ext %routine        %name rtn, ...
+CALLI1       ext %routine        %integer n %integername ac
+CALLI2       ext %predicate      %integer n %integername ac
+CALLI3       ext %predicate      %integer n %integername ac
+CHARNO           %byteintegerfn  %stringname s %integer n
+CHECKPOINT   ext %routine
+CLOSE        sys %routine        %integer chan
+CLOSE DA     ext %routine        %integer chan
+CLOSE INPUT      %routine
+CLOSE OUTPUT     %routine
+CLOSE SQ     ext %routine        %integer chan
+COPY         ext %routine        %string(255) orig,new
+CPUTIME      ext %integerfn
+CUSP FILES   ext %routine        %record(filespec)%name r,s,
+                                 t,u %integer chan,
+                                 %integername found
+DATE         ext %string(9)%fn
+DATETIME     ext %string(18)%fn
+DATETOSTR    ext %string(9)%fn   %integer date
+DAY          ext %string(9)%fn
+DAYTOSTR     ext %string(9)%fn   %integer udt
+DDT          sys %routine        %name x
+DECODE       ext %routine        %integer inst,adr
+DEFAULT      ext %routine        %record(filespec)%name f,f1
+DEFINE INPUT     %routine        %integer n %string(255) s
+DEFINE OUTPUT    %routine        %integer n %string(255) s
+DELETE       ext %routine        %string(255) spec
+ECHO         ext %routine
+ENDOFPERIOD  ext %integerfn      %integer period
+ESC              %constinteger
+EVENT            %intergerfn
+EVENT INFO       %integerfn
+FF               %constinteger
+FILOP        sys %predicate      %record(scb)%name r,
+                                 %integername err
+FINIT        sys %routine
+FLOAT            %realfn         %integer n
+FRAC PT          %longrealfn     %longreal a
+FREEVEC      sys %routine        %integer adr,len
+FROMDATE     ext %routine        %integer date,
+                                 %integername d,m,y
+FROMTIME     ext %routine        %integer time,
+                                 %integername h,m,s
+FROMUDT      ext %routine        %integer udt,
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 41
+                             <B>APPENDIX</B> <B>G</B>
+
+
+                                 %integername date,time
+FSTOSTR      ext %string(255)%fn %record(filespec)%name fs
+GET CHANNEL  sys %integerfn
+GETDATE      ext %integerfn
+GETNOW       ext %integerfn
+GETPAGES     sys %routine        %integer first,last
+GETSEG       ext %routine        %string(6) dev,file,
+                                 %string(3) ext %integer ppn
+GETSTS       sys %integerfn      %integer chan
+GETTAB       sys %predicate      %integer table,index,
+                                 %integername result
+GETTIME      ext %integerfn
+GETVEC       sys %integerfn      %integer size
+HEXTOSTR     ext %string(9)%fn   %integer n
+ICALL(0-9)   ext %integerfn      %name fn, ...
+IMOD             %integerfn      %integer n
+INDEV        ext %integerfn
+INITFOR      sys %routine
+INITHEAP     sys %routine
+INITIO       sys %routine
+INITSTACK    sys %routine
+INPUT        sys %routine
+INPUT PENDING    %predicate
+INSTATUS     ext %integerfn
+INSTREAM         %integerfn
+INT              %integerfn      %longreal a
+INTEGER          %integermap     %integer adr
+INT PT           %integerfn      %longreal a
+INTTOSTR     ext %string(12)%fn  %integer n
+IOUUO        sys %predicate      %integer fn,chan,
+                                 %name adr
+IOWD         sys %integerfn      %integer len,
+                                 %integername adr
+ISFILE       ext %predicate      %string(255) spec
+JOBFILE      ext %string(6)%fn   %string(3) s
+JOBNUM       ext %integerfn
+JSYS(0-4)    ext %routine        %integer n %integername ...
+LENGTH           %byteintegerfn  %stringname s
+MATCH        ext %integerfn      %stringname src,
+                                 %string(255) target
+MOD              %longrealfn     %longreal a
+NEWLINE          %routine
+NEWLINES         %routine        %integer n
+NEWPAGE          %routine
+NEXT ITEM        %string(1)%fn
+NEXT SYMBOL      %integerfn
+NL               %integerfn
+NOECHO       ext %routine
+OCTTOSTR     ext %string(12)%fn  %integer n
+OPEN DA      ext %routine        %integer chan,
+                                 %string(255) spec
+OPEN SQ      ext %routine        %integer chan,
+                                 %string(255) spec
+OUTDEV       ext %integerfn
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 42
+                             <B>APPENDIX</B> <B>G</B>
+
+
+OUTPUT       sys %routine
+OUTSTATUS    ext %integerfn
+OUTSTREAM        %integerfn
+PI               %constlongreal
+PPN          ext %integerfn
+PRINT            %routine        %longreal a %integer n,m
+PRINT FL         %routine        %longreal a %integer n
+PRINT STRING     %routine        %string(255) s
+PRINT SYMBOL     %routine        %integer n
+PROMPT       ext %routine        %string(255) s
+RAD50        ext %integerfn      %string(6) s
+RCALL(0-9)   ext %realfn         %name fn, ...
+READ             %routine        %name a
+READ DA      ext %routine        %integer chan,
+                                 %integername block,
+                                 %name start,end
+READ FS      ext %routine        %record(filespec)%name fs
+READ HEX     ext %routine        %integername n
+READ ITEM        %routine        %stringname s
+READ OCTAL   ext %routine        %integername n
+READ PPN     ext %routine        %integername ppn
+READ SQ      ext %routine        %integer chan,
+                                 %name start,end
+READ STRING      %routine        %stringname s
+READ SYMBOL      %routine        %name n
+READ TEXT        %routine        %stringname s,
+                                 %integer delim
+REAL             %realmap        %integer adr
+RECORD           %recordmap      %integer adr
+RELEASE      sys %routine        %integer chan
+REM              %integerfn      %integer n,m
+RENAME       ext %routine        %string(255) orig,new
+REPORT       ext %routine        %string(255) s
+RESET INPUT  ext %routine
+RESET OUTPUT ext %routine
+RESTORE      ext %routine
+RUN          ext %routine        %string(6) dev,file,
+                                 %string(3) ext,
+                                 %integer ppn,offset
+SAVE ACS     ext %routine
+SDEF INPUT   ext %routine        %integer n %stringname s
+SDEF OUTPUT  ext %routine        %integer n %stringname s
+SELECT INPUT     %routine        %integer n
+SELECT OUTPUT    %routine        %integer n
+SET STREAMS  ext %routine
+SETSTS       sys %routine        %integer chan,bits
+SHIFTC       ext %integerfn      %integer num,times
+SHORTINTEGER     %shortintegermap %integer adr
+SKIP SYMBOL      %routine
+SLEEP        ext %routine        %integer n
+SP               %constinteger
+SPACE            %routine
+SPACES           %routine        %integer n
+STARTOFPERIODext %integerfn      %integer period
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 43
+                             <B>APPENDIX</B> <B>G</B>
+
+
+STRING           %stringmap      %integer adr
+STRTOASC     ext %routine        %stringname s,
+                                 %name adr
+STRTOFS      ext %record(filespec)%fn %string(255) spec
+STRTOHEX     ext %integerfn      %stringname s
+STRTOINT     ext %integerfn      %stringname s
+STRTOOCT     ext %integerfn      %stringname s
+STRTOSIX     ext %integerfn      %string(6) s
+SUBEVENT         %integerfn
+SUB STRING       %string(255)%fn %stringname s %integer n,m
+SWITCH ARG   ext %predicate      %string(255)%name s,
+                                 %string(11) target,
+                                 %name arg
+TAB              %constinteger
+TAPOP        sys %predicate      %integer funct,chan,nargs,
+                                 %integerarrayname args,
+                                 %integername result
+TIME         ext %string(8)%fn
+TIMETOSTR    ext %string(8)%fn   %integer time
+TMPCOR       sys %routine        %integer n,iowd,file
+TODATE       ext %integerfn      %integer d,m,y
+TOSTRING         %string(1)%fn   %integer n
+TOTIME       ext %integerfn      %integer h,m,s
+TOUDT        ext %integerfn      %integer date,time
+UDTTOSTR     ext %string(18)%fn  %integer udt
+USET INPUT   ext %routine        %integer block
+USET OUTPUT  ext %routine        %integer block
+WRITE            %routine        %integer n,m
+WRITE DA     ext %routine        %integer chan,
+                                 %integername block,
+                                 %name start,end
+WRITE FS     ext %routine        %record(filespec)%name fs
+WRITE HEX    ext %routine        %integer n,m
+WRITE OCTAL  ext %routine        %integer n,m
+WRITE PPN    ext %routine        %integer ppn
+WRITE SQ     ext %routine        %integer chan,
+                                 %name start,end
+XCOPY        ext %routine        %record(filespec)%name f,f1
+XDEFINE INPUT    %routine            %integer n,
+                                 %record(filespec)%name fs
+XDEFINE OUTPUT   %routine            %integer n,
+                                 %record(filespec)%name fs
+XDELETE      ext %routine        %record(filespec)%name fs
+XISFILE      ext %predicate      %record(filespec)%name fs
+XOPEN DA     ext %routine        %integer chan,
+                                 %record(filespec)%name fs
+XOPEN SQ     ext %routine        %integer chan,
+                                 record(filespec)%name fs
+XRENAME      ext %routine        %record(filespec)%name f,f1
+ZERO         sys %routine        %name from,to
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 44
+                             <B>APPENDIX</B> <B>H</B>
+
+
+<B>Runtime</B> <B>error</B> <B>codes</B>
+
+IMP allows the user to trap on any given  condition  by  the
+%SIGNAL  %EVENT  mechanism,  desribed  in the IMP77 Language
+Reference Manual.  The runtime system uses this  feature  to
+signal that errors have taken place in the runtime system or
+system library which it cannot sensibly recover from.  Below
+is  the  full  list  of  these  %EVENTS,  whose format is as
+follows:-
+
+The main events together with the type of event they signal,
+are  given  at  the head of each section.  Following them in
+numeric order are the sub-events which have associated  with
+them  a message held in the global string ERRMSG and also an
+integer containing extra information, the meaning  of  which
+is given in the right-hand column.
+
+e.g.  an end-of-file condition on input  stream  4,  if  not
+trapped  by  the user, would result in the following message
+being output on the users console:-
+
+EOF on stream
+%SIGNAL 9,0,4
+
+
+Event  0, . . Termination
+
+  -1 Abort
+   0 normal stop
+  &gt;0
+
+Event  1, . . Arithmetic overflow
+
+   1 Integer too large
+     Integer too large for short or byte integer      n
+
+Event  2, .. Excess resource
+
+   1 Cannot get store                                 fault
+     Stack space full                                 fault
+   2 Procedure stack full
+   3
+   4 Cannot get store for heap                        size
+     Heap space full                                  reqd.
+   5 All I/O channels in use
+     No free channels for COPYing 'filespec'
+   6 Array space exhausted
+
+Event  3, ..  Data error
+
+   1 Number not found                                 symbol
+     Integer not found                                symbol
+     Octal integer not found                          symbol
+     Hex integer not found                            symbol
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 45
+                             <B>APPENDIX</B> <B>H</B>
+
+
+   2 No opening string quote                          symbol
+
+Event  4, .. Corrupt data
+
+   1 Input error status #nnnnnn                       str/ch
+     Output error status #nnnnnn                      str/ch
+     (See DECsystem-10 Monitor Calls Manual
+      for meaning of the status bits)
+
+Event  5, .. Invalid arguments
+
+   1
+   2
+   3
+   4
+   5
+   6 Illegal %name type parameter                     type
+   7 Illegal string index                             index
+   8 String parameters inside out
+   9 Incorrect argument for switch /....              arg
+  10 Unknown switch /'switch'
+
+Event  6, ..  Out of range
+
+   1 Concatenated string too long
+     String capacity exceeded
+
+Event  7, ..  Resolution fails
+
+   0 Resolution fails
+
+Event  8, ..  Unassigned variable
+
+Event  9, ..  Input ended
+
+   0 EOF on stream                                    stream
+     EOF on DA or SQ channel                          chan
+
+   1 No input on stream                               stream
+     (used for non-blocking input)
+
+Event 10, ..  Library procedure error
+
+   1 Defining illegal stream/channel number           str/ch
+   2 Stream/channel already defined                   str/ch
+   3 Unknown device 'dev'
+   4 Lookup error for 'filespec'                      err*
+   5 Enter error for 'filespec'                       err*
+   6 Cannot open device 'dev'
+     Cannot open device for 'filespec'
+   7
+   8
+   9 Bad file specification 'filespec'
+  10 Selecting illegal input stream                   stream
+<HR>
+IMP on the DECsystem-10/20: User Guide               Page 46
+                             <B>APPENDIX</B> <B>H</B>
+
+
+  11 Selecting illegal output stream                  stream
+  12 Cannot RESET input stream                        stream
+  13 Cannot RESET output stream                       stream
+  14 Checkpoint failure                               err*
+  15 Tapop failure                                    t err
+     ('t err' is a TAPOP error code - see Monitor
+      Calls Manual under magnetic tapes)
+  16 Cannot RENAME/DELETE 'filespec'                  err*
+  17
+  18
+  19
+  20 Not a DA or SQ type device - 'dev'
+  21 Cannot OPEN DA/SQ channel 'filespec' Error:err*  chan
+  22 OPENing already open DA/SQ channel for 'filespec' chan
+  23 Read/write to illegal DA/sq channel              chan
+     Read/write to DA/sq channel before OPENing it    chan
+  24 Accessing DA channel by SQ routine or vice versa chan
+  25 Storage area for DA/SQ routine inside out        chan
+  26 Illegal block number for DA read/write routine   block
+  27 Inputting from an SQ channel set for output      chan
+     Outputting to an SQ channel set for input        chan
+  28 Closing illegal DA/SQ channel                    chan
+     Closing DA/sq channel before OPENing it          chan
+     Closing DA/SQ channel with the wrong routine     chan
+
+
+*
+the extra information labeled 'err' refers to an error  code
+given  in  Appendix  E of the Monitor Calls Manual.  However
+the most common values are:-
+0 - file not found
+1 - incorrect project-programmer number
+2 - protection failure
+<HR>
+                                                Page Index-1
+
+
+
+                           INDEX
+
+
+
+
+%BYTE storage  . . . . . . . . 31
+%EVENTS  . . . . . . . . . . . 44
+%INCLUDE files . . . . . . . . 6
+%INTEGER storage . . . . . . . 31
+%LONG %REAL storage  . . . . . 31
+%REAL storage  . . . . . . . . 31
+%RECORD storage  . . . . . . . 31
+%SHORT %INTEGER storage  . . . 31
+%SIGNAL %EVENT . . . . . . . . 44
+%STRING storage  . . . . . . . 31
+
+/CROSS . . . . . . . . . . . . 3, 22
+/LIST  . . . . . . . . . . . . 3
+/NOCODE  . . . . . . . . . . . 3
+
+ALIST  . . . . . . . . . . . . 23
+ALIST example  . . . . . . . . 24
+Arithmetic . . . . . . . . . . 39
+ASCII character set  . . . . . 37
+
+Calling FORTRAN from IMP . . . 18
+Calling IMP from FORTRAN . . . 19
+Calling IMP from MACRO . . . . 20
+Calling MACRO from IMP . . . . 20
+Character constants  . . . . . 26
+Code . . . . . . . . . . . . . 4
+Code conventions . . . . . . . 32
+COMPIL . . . . . . . . . . . . 4
+Compilation  . . . . . . . . . 4
+COMPILE  . . . . . . . . . . . 4
+Compiler . . . . . . . . . . . 3
+Constants  . . . . . . . . . . 26
+
+DA files . . . . . . . . . . . 11 to 12, 38
+DA/SQ channels . . . . . . . . 15
+Data storage . . . . . . . . . 31
+DDT  . . . . . . . . . . . . . 21
+DEBUG  . . . . . . . . . . . . 4
+Debugging  . . . . . . . . . . 21 to 25
+Diags  . . . . . . . . . . . . 4
+Direct Access files  . . . . . 11 to 12, 38
+
+Error codes  . . . . . . . . . 44
+EXECUTE  . . . . . . . . . . . 4
+External procedures  . . . . . 5 to 6
+
+File specifications  . . . . . 7, 12 to 13, 27
+File switches  . . . . . . . . 27
+File system  . . . . . . . . . 38
+<HR>
+                                                Page Index-2
+
+
+
+FILESPEC records . . . . . . . 13 to 14, 27
+FORTRAN  . . . . . . . . . . . 6, 18
+FORTRAN COMMON blocks  . . . . 18
+
+Gla  . . . . . . . . . . . . . 4, 16 to 17
+
+Heap . . . . . . . . . . . . . 16 to 20
+
+I/o procedures . . . . . . . . 38
+I/o streams  . . . . . . . . . 15
+IMP: . . . . . . . . . . . . . 6
+Implicit procedures  . . . . . 5
+Input/output . . . . . . . . . 7, 18 to 20
+Input/output internal records  28, 30
+Input/output storage area  . . 16
+Internal i/o records . . . . . 15
+
+Job related information  . . . 39
+
+Library  . . . . . . . . . . . 5
+Library procedures . . . . . . 38
+LOAD . . . . . . . . . . . . . 4
+
+Machine code blocks  . . . . . 36
+MACRO  . . . . . . . . . . . . 20
+Memory management  . . . . . . 16 to 17
+Monitor locations  . . . . . . 26
+
+Number i/o . . . . . . . . . . 8
+
+Parameters to procedures . . . 33
+Procedure entry and exit . . . 32
+Procedure parameters . . . . . 35
+Procedures . . . . . . . . . . 5
+
+RECODE . . . . . . . . . . . . 23, 25
+Register allocation  . . . . . 32
+
+SCB  . . . . . . . . . . . . . 15, 20
+SCB record definition  . . . . 28
+Sequential Files . . . . . . . 11, 38
+SQ files . . . . . . . . . . . 11 to 12
+Stack  . . . . . . . . . . . . 16 to 17
+Stream conventions . . . . . . 9
+Streams  . . . . . . . . . . . 7 to 10, 15, 38
+String i/o . . . . . . . . . . 8
+Strings  . . . . . . . . . . . 10
+Strings as streams . . . . . . 10
+Switches . . . . . . . . . . . 3, 7, 27
+Symbol i/o . . . . . . . . . . 8
+System library . . . . . . . . 5, 38
+System library procedures  . . 40
+System procedures  . . . . . . 5 to 6
+
+<HR>
+Type conversion  . . . . . . . 39
+
+</PRE></BODY></HTML>

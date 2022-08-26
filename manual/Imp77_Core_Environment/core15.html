@@ -1,0 +1,210 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                    Section 15: New <EM>include</EM> Facility
+       *** WILL BE SHIFTED OUT OF STANDARD AS OF NEXT EDITION ***
+
+   This section defines the extended <EM>include</EM> facility now becoming
+available on 3L-IMP compilers.  This section, like the "language
+implications" section, will be removed elsewhere when we have a proper
+place in which IMP language definitions can reside.
+
+
+
+15.1 Availability
+
+The facilities described in this document are available on all systems
+which use version 9.10 or above of the IMP first pass.  Currently these
+are:
+
+      Imp/Ns          (NS32000 Panos)
+      Imp/Ns/SysV     (NS32000 Unix System V, eg Opus5)
+      Imp/Mg          (NS32000 Genix)
+      Imp/42nix       (NS32000 42nix)
+
+      Imp/PeOs        (PE3200  Os/32)
+      Imp/PeUnix      (PE3200  Unix Edition VII)
+
+      Imp/New         (VAX-11  VAX/VMS)
+      Imp/New/Unix    (VAX-11  UNIX 4.2BSD)
+
+      Imp/Apollo      (M68000  Aegis)
+      Imp/Sun         (M68000  Unix 4.2BSD)
+
+The extended facilities are neither available or planned for the
+following implementations, which are regarded as obsolescent and will be
+replaced with conforming implementations in due course:
+
+   Vax IMP (version 6 or 8)
+   Apollo  (Dewar compiler)
+   IBM     (old compiler)
+
+
+
+15.2 Rationale
+
+These new facilities have been introduced in order to make it easier to
+use include files for all the well-known reasons without making source
+programs system-dependent.
+
+The existing <EM>include</EM> statement has the problem that it requires a
+literal file name string.  Inevitably this string becomes
+system-dependent which means that porting the program will necessitate a
+source change.
+
+The extension to <EM>include</EM> solves this problem by using symbolic names for
+the files which are to be included.  On particular systems a small
+system-dependent module in the compiler translates these symbolic names
+into the appropriate actual file names.
+
+
+15.3 Definition
+
+IMP include statements come in three forms:
+
+   (i)      "<EM>include</EM>" string constant [ "<EM>list</EM>" ] ;
+   (ii)     "<EM>from</EM>" module id "<EM>include</EM>" item list [ "<EM>list</EM>" ] ;
+   (iii)    "<EM>include</EM>" item list [ "<EM>list</EM>" ] ;
+
+Examples:
+
+(i)   <EM>include</EM> "specs.inc" <EM>endoflist</EM>
+      <EM>include</EM> "SYS$LIBRARY:nasty.inc"
+
+(ii)  <EM>from</EM> LL   <EM>include</EM> COMMON, FIXEDRULES
+      <EM>from</EM> IMP  <EM>include</EM> ASCII, EBCDIC <EM>endoflist</EM>
+
+(iii) <EM>include</EM> FRED, JIM
+      <EM>include</EM> FORMATS, ROUTE <EM>endoflist</EM>
+
+
+Form (i) is also available in previous implementations.
+
+Forms (ii) and (iii) are new.  In (ii), "module-id" is an IMP identifier
+and "item-list" is a list of items separated by commas where each item
+is an IMP identifier.  Form (iii) is a version of (ii) where the
+module-id is a private one meaning "in the current place".  This would
+normally be taken to mean the currently selected (default) directory on
+systems which support such a concept.
+
+   Apart from their uses in the include statement the identifiers are
+ignored, in particular they will not clash with other local identifiers.
+
+
+
+15.4 Scope
+
+The new forms of <EM>include</EM> statement are considered to have a scope in the
+same way that identifiers have a scope.  This scope is used to inhibit
+the multiple inclusion of files.  An include statement, or part of it,
+will be ignored if a previous include which is still in scope caused the
+inclusion of a file identified by the same module-id and item-id.  Note
+that as the old form of <EM>include</EM> statement does not include a module-id
+or item-id, they will be included each time they are encountered in the
+source.
+
+For example assume that the files identified by A, B and C (in a manner
+as yet unspecified) have the following contents:
+
+File A:   <EM>recordformat</EM> F(<EM>integer</EM> x, y, z)
+          <EM>endoffile</EM>
+
+File B:   <EM>include</EM> A
+          <EM>externalroutinespec</EM> Print Record(<EM>record</EM> (F) <EM>name</EM> R)
+          <EM>endoffile</EM>
+
+File C:   <EM>include</EM> A
+          <EM>externalroutinespec</EM> Read Record(<EM>record</EM> (F) <EM>name</EM> R)
+          <EM>endoffile</EM>
+
+
+The following sample program is then quite valid:
+
+<EM>begin</EM>
+   <EM>routine</EM> Process
+      <EM>include</EM> B
+      <EM>include</EM> C   {this will not include A again}
+      <EM>include</EM> B   {this will do nothing}
+   <EM>end</EM>
+   <EM>routine</EM> Analyse
+      <EM>include</EM> B   {this will cause A and the spec of}
+                  {Print Record to be included}
+   <EM>end</EM>
+<EM>endofprogram</EM>
+
+
+15.5 Implementation
+
+The mapping between the pair (module-id, item-id) and the external
+object to which the pair corresponds is implementation defined (DEF0008;
+mapping of <EM>include</EM> facility).  Note that the external object need not be
+an operating system file; it may, for example, be an element in a text
+library or internal to the compiler itself.  The two module-ids IMP and
+SYSTEM are reserved over all systems to have special meaning.  The
+module-id IMP is reserved for use by the core environment standard.  The
+module-id SYSTEM is reserved for use by individual implementors, for
+example to provide interfaces to operating system facilities.
+
+
+15.6 Example
+
+On the Vax/VMS implementation the following two complete programs would
+be identical.
+
+<EM>begin</EM>                        <EM>begin</EM>
+   <EM>from</EM> IMP <EM>include</EM> MATHS,      <EM>include</EM> "IMP_INCLUDE:MATHS.INC"
+                    ASCII       <EM>include</EM> "IMP_INCLUDE:ASCII.INC"
+   &lt;text of program&gt;            &lt;text of program&gt;
+<EM>end</EM> <EM>of</EM> <EM>program</EM>               <EM>end</EM> <EM>of</EM> <EM>program</EM>
+
+
+For form (ii), the VAX/VMS implementation generates a filename of the
+
+
+form:
+
+   module-id _INCLUDE: item-id .INC
+
+For form (iii), the VAX/VMS implementation generates a filename of the
+form:
+
+   item-id .INC
+
+   The above rule for form (ii) may be overridden by means of an
+environment definition file.  The Lattice installations use this to
+separate the IMP <EM>include</EM> files for the VAX compiler from those of other
+target implementations.
+
+
+15.7 Error Conditions
+
+For implementation reasons the following two errors could be generated:
+
+        1.      Include files nested too deeply.
+                Currently the limit of nesting of include files is 5.
+                This limitation is imposed by the "old" style of
+                non-nesting OPEN in the VAX run-time system.  This
+                limitation will be lifted when no such run-time systems
+                remain available.
+
+        2.      File &lt;file-id&gt; has not been included.
+                This is caused by an include statement with a list of
+                items where after the processing of one member of the
+                list the scope (textual level) has changed from that of
+                the whole include statement.  This is caused by
+                including files which contain unmatched <EM>BEGIN</EM>, <EM>END</EM> or
+                procedure statements.  If this effect is really wanted
+                it can be achieved by splitting the include statement
+                into two or more.
+                That is, instead of writing:
+
+                       <EM>from</EM> LL <EM>include</EM> GATEBITS, ROUTEBITS, DRAWBITS
+
+                write: <EM>from</EM> LL <EM>include</EM> GATEBITS
+                       <EM>from</EM> LL <EM>include</EM> ROUTEBITS
+                       <EM>from</EM> LL <EM>include</EM> DRAWBITS
+
+</PRE></BODY></HTML>

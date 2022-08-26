@@ -1,0 +1,213 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                  Section 7: "Derived" I/O Procedures
+
+   The procedures in this section are all expressed as definitions in
+the IMP language.  In addition, all are defined in terms of procedures
+either in this or the previous sections of this document.
+
+
+*       <EM>predicate</EM> END OF INPUT
+
+           This predicate is <EM>true</EM> if and only if examining the next
+        symbol in the currently selected input stream would cause an
+        input ended event (SIG0003; Input Ended) to be signalled.  The
+        most common cause of this is that there is no next symbol
+        available, implying that the input stream is positioned after
+        the last available character of data.
+
+            <EM>predicate</EM> End Of Input
+               <EM>from</EM> IMP <EM>include</EM> Events
+               <EM>integer</EM> Dummy
+               <EM>on</EM> Input Ended <EM>start</EM>
+                  <EM>true</EM>
+               <EM>finish</EM>
+               Dummy = Next Symbol
+               <EM>false</EM>
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> READ ( <EM>name</EM> N )
+
+            <EM>routine</EM> Read ( <EM>name</EM> X )
+               <EM>from</EM> IMP <EM>include</EM> TYPES {see section 11}
+               <EM>integer</EM> T = Type Of(X)
+
+               <EM>routine</EM> Skip White Space
+                  Skip Symbol <EM>while</EM> Next Symbol &lt;= 32
+               <EM>end</EM>
+
+               <EM>if</EM> T = String Type <EM>start</EM>
+                  Skip White Space
+                  <EM>if</EM> Next Symbol = '"' <EM>start</EM>
+                     Skip Symbol
+                     {read up to next '"'}
+                  <EM>else</EM>
+                     {read up until next symbol = white space}
+                  <EM>finish</EM>
+                  {assign or give <EM>signal</EM> if result is}
+                  {too big for destination}
+               <EM>else</EM> <EM>if</EM> Its An Integer
+                  Skip White Space
+                  {parse integer value}
+                  {assign or give <EM>signal</EM> if result is}
+                  {too big for destination}
+               <EM>else</EM> <EM>if</EM> Its A Real
+
+
+                  Skip White Space
+                  {parse real value}
+                  {assign or give <EM>signal</EM> if too big for destination}
+               <EM>else</EM>
+                  {parameter error: cry for help}
+                  <EM>signal</EM> 5, 3, T {check numbers later}
+               <EM>finish</EM>
+            <EM>end</EM>
+
+        Notes on the above definition of READ:
+
+      1) skip white space AFTER check for legal parameter.
+      2) <EM>signal</EM> guaranteed if bad parameter type NOT error.
+      3) <EM>signal</EM> guaranteed if integer value valid but too big
+         for destination.
+      4) white space now excludes extended ASCII graphics set.
+
+Semi-formal grammar for <EM>string</EM> case:
+
+   string body     = """", { ?any char?-"""" }, """" |
+                           { ?any char &gt; 32? } ;
+
+   read S format   = white space, string body ;
+
+        Grammar for <EM>integer</EM> case and <EM>real</EM> case would be the S TO I
+        grammar and the S TO R grammar, with in each case the trailing
+        white space removed.
+
+
+*       <EM>routine</EM> READ LINE ( <EM>string</EM>(*) <EM>name</EM> S )
+
+           This procedure reads a text "line" from the currently
+        selected input stream, up to and including its terminating NL
+        character.  The parameter is a reference to a string which is
+        built up with this sequence of characters as they are read in,
+        implying that the parameter will contain a valid string even
+        though the READ LINE procedure fails for some reason, for
+        example because the end of the currently selected input stream
+        has been reached.  Note that the terminating NL character is <EM>not</EM>
+        included in the data assigned to the parameter.
+
+            <EM>routine</EM> Read Line ( <EM>string</EM>(*) <EM>name</EM> S )
+               <EM>integer</EM> Sym
+               S = ""
+               <EM>cycle</EM>
+                  Read Symbol(Sym)
+                  <EM>return</EM> <EM>if</EM> Sym = NL
+                  <EM>signal</EM> ... <EM>if</EM> Length(S) = Size Of(S)-1
+                  S = S . To String(Sym)
+               <EM>repeat</EM>
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> NEW LINE
+
+           As indicated in the definition below, this procedure is
+        simply a shorthand for a call on the PRINT SYMBOL procedure with
+        the predefined constant NL as parameter.  As mentioned in the
+        previous section, the effect of this operation is defined by the
+        stream facility associated with the currently selected output
+        stream.  Commonly, for example on streams created using OPEN
+        OUTPUT, this character is defined as indicating the end of a
+        "line" of text output.  Other stream facilities, for example
+        OPEN BINARY OUTPUT, will treat the character NL in the same way
+        as any other character, that is simply as an 8-bit data item of
+        a particular value.
+
+            <EM>routine</EM> New Line
+               Print Symbol(NL)
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> NEW LINES ( <EM>integer</EM> N )
+
+           This procedure causes a number 'N' of NL characters to be
+        output to the currently selected output stream.  The effect of
+        this, as with NEW LINE above, is dependent on the stream
+        facility with which the output stream was created.  Note that,
+        in the definition below, no action is taken if the value of N is
+        less than or equal to 0.
+
+            <EM>routine</EM> New Lines ( <EM>integer</EM> N )
+               <EM>while</EM> N &gt; 0 <EM>cycle</EM>
+                  N = N-1
+                  New Line
+               <EM>repeat</EM>
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> SKIP SYMBOL
+
+            <EM>routine</EM> Skip Symbol
+               <EM>integer</EM> Dummy
+               Read Symbol(Dummy)
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> SPACE
+
+            <EM>routine</EM> Space
+               Print Symbol(32)
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> SPACES ( <EM>integer</EM> N )
+
+            <EM>routine</EM> Spaces ( <EM>integer</EM> N )
+               <EM>while</EM> N &gt; 0 <EM>cycle</EM>
+                  N = N-1
+                  Space
+               <EM>repeat</EM>
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> PRINT STRING ( <EM>string</EM>(255) S )
+
+            <EM>routine</EM> Print String ( <EM>string</EM>(255) S )
+               <EM>integer</EM> I
+               <EM>for</EM> I = 1, 1, Length(S) <EM>cycle</EM>
+                  Print Symbol(Charno(S,I))
+               <EM>repeat</EM>
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> PRINT ( <EM>long</EM> <EM>real</EM> R, <EM>integer</EM> A, B )
+
+            <EM>routine</EM> Print ( <EM>long</EM> <EM>real</EM> R, <EM>integer</EM> A, B )
+               Print String(RtoS(R,A,B))
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> PRINT FLOATING ( <EM>long</EM> <EM>real</EM> R, <EM>integer</EM> A, B )
+
+            <EM>routine</EM> Print Floating ( <EM>long</EM> <EM>real</EM> R, <EM>integer</EM> A, B )
+               Print String(FtoS(R,A,B))
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> PRINT FL ( <EM>long</EM> <EM>real</EM> R, <EM>integer</EM> A )
+
+            <EM>routine</EM> Print Fl ( <EM>long</EM> <EM>real</EM> R, <EM>integer</EM> A )
+               Print Floating(R,1,A)
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> WRITE ( <EM>integer</EM> N, Places )
+
+            <EM>routine</EM> Write ( <EM>integer</EM> N, Places )
+               Print String(ItoS(N,Places))
+            <EM>end</EM>
+
+</PRE></BODY></HTML>

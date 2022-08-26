@@ -1,0 +1,280 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                        Section 1: Introduction
+
+
+
+   This document defines an environment for IMP programs in terms of
+available predefined procedures and their effects.  The existence of
+this document along with a commitment to conform to it as a standard has
+two major effects:
+
+1.      Implementors of new IMP systems can work from a formal
+        definition in order to provide programmers with a guaranteed
+        level of functionality.
+
+2.      Programmers can work from a formal definition of the level of
+        functionality which they can expect to be available on any IMP
+        system.
+
+The intent is to allow programmers to write programs which can be
+guaranteed to operate on a wide variety of computer systems without
+requiring source program modifications.
+
+
+
+
+1.1 Conventions
+
+   To make this document more consistent and readable, a number of
+conventions are held to throughout.  These conventions are described
+here in two parts.  Firstly, the textual conventions used to express
+both formal and informal concepts are described, along with the
+conventions used to represent IMP program fragments.  Secondly, a
+section is devoted to the syntactic metalanguage used to express
+grammars in the few cases where this is necessary.
+
+
+
+
+1.1.1 Textual Conventions
+
+   Several textual conventions are used within this document to make it
+more readable.  The first or defining use of a term will be underlined
+as in the following (fictitious) example about "phantom circuits":
+
+These two pairs of wire, termed the <EM>physical</EM> or <EM>side</EM> <EM>circuits</EM>, are
+effectively in parallel from the point of view of the phantom circuit.
+
+   Some other conventions are best seen by reference to the following
+example IMP program:
+
+         <EM>begin</EM>
+            <EM>integer</EM> Number Of Times = 1000, Counter
+            <EM>for</EM> Counter = 1, 1, Number Of Times <EM>cycle</EM>
+               Print String("Hello, world")
+               New Line
+            <EM>repeat</EM>
+         <EM>end</EM>
+
+
+
+From this program, we can see that the convention for representing IMP
+keywords is by the use of underlining, as in <EM>begin</EM>.  We also use this
+convention in text which discusses IMP program fragments: thus, we might
+discuss the <EM>integer</EM> data type (the one in the IMP language) as opposed
+to mathematical integers (members of a particular infinite set) with no
+ambiguity.
+
+   As can be seen, identifiers in IMP program text will be written in
+mixed case.  References to such identifers in discussions such as this
+will be given in upper case in order to make the identifier stand out
+from the surrounding text.  For example, discussions of the above
+program would always talk about the <EM>integer</EM> variables COUNTER and NUMBER
+OF TIMES.
+
+   Where this standard makes reference to some other publication, the
+reference will take the form [xxxxxx].  These references are collected
+and given in full in an appendix to this standard.
+
+
+
+
+1.1.2 Standard Syntactic Metalanguage
+
+   At certain points in this standard, it is convenient to describe the
+behaviour of a procedure by reference to the grammar of the objects it
+processes or generates.  For example, the description of a procedure
+which converts a textual (<EM>string</EM>) denotation of an integer value into
+the corresponding <EM>integer</EM> representation will be specified by defining
+the syntax of the character stream contained in the <EM>string</EM>.  Many
+syntactic metalanguages are available to describe grammars in this way,
+Backus-Naur Form (also known as Backus-Normal Form or BNF) and Van
+Wijngaarden two-level grammars being perhaps the best known.  The
+syntactic metalanguage used in this standard is that defined by the
+British Standards Institution in [BS6154].
+
+   This particular metalanguage was chosen for three reasons.  Firstly,
+it is the only syntactic metalanguage have a formal standard dedicated
+to its definition (although many others have appeared as part of other
+standards).  Secondly, it is reasonably easy to understand even by
+people with little prior experience in interpreting formal
+specifications.  Lastly, it is a representation designed for computer
+processing, so that it uses only a single typeface and no special
+characters, so that it could be included in this standard without
+problems of reproduction.
+
+   A full description of the standard syntactic metalanguage can be
+found in [BS6154] and an introductory text describing its use is
+available as [SCO83].  For those without access to these documents, a
+brief description of the more important features of the metalanguage
+will now be given.
+
+   Terminal strings of the language are given enclosed in double quotes.
+No significance is given to letter case or "white space" except within
+terminal strings.  Non-terminal identifiers follow the syntax for IMP
+identifiers, i.e. a mixture of letters and digits of any length.
+Concatenation is indicated by commas and alternatives by vertical bar
+'|'.  Definition of non-terminals is performed by the equals operator,
+with the end of a definition indicated by a semi-colon.  Optional
+sequences are enclosed by square brackets '[' and ']' while 0-or-more
+repetitions are achieved by enclosing the sequence in braces '{' and
+
+
+'}'.  A simple example of the above facilities is given in the following
+definitions:
+
+      sign         = "+" | "-" ;
+      octal digit  = "0" | "1" | "2" | "3" |
+                     "4" | "5" | "6" | "7" ;
+      octal number = "8_", octal digit, { octal digit } ;
+      signed octal = [sign], octal number;
+
+
+
+
+1.2 Terminology
+
+   For the purpose of this standard, the following words and phrases are
+taken to have the meanings indicated in this section.
+
+
+
+
+1.2.1 Implementation Defined
+
+   Operations or results which are <EM>implementation</EM> <EM>defined</EM> may vary
+between implementations, but must be defined in a document accompanying
+each implementation.  Each implementation defined item in this standard
+is flagged by a reference number of the form "DEFnnnn" which uniquely
+identifies the item.  An appendix to this standard lists all
+implementation defined reference numbers along with the operations or
+results to which they refer.  This can be used by implementors or
+validators as a checklist to an implementation's conformance with this
+standard.  Programs may only assume particular definitions of
+implementation defined items if portability is not an object, for
+example in the case of system-specific utilities.
+
+
+
+
+1.2.2 Implementation Dependent
+
+   Operations or results which are <EM>implementation</EM> <EM>dependent</EM> may vary
+between implementations and may also vary within an implementation
+depending on context.  Implementations need not define implementation
+dependent results or operations.  However, for convenience these items
+are given reference numbers in the same way as implementation defined
+items but with the form "DEPnnnn".  Again, a checklist of these items is
+included as an appendix to this standard.  Programs may never assume
+particular definitions of implementation dependent items as these may
+change during the evolution of the implementation in question, during a
+cross-system porting activity or at the discretion of the compiler in
+particular circumstances.
+
+
+
+
+1.2.3 Error
+
+   The execution of operations designated in this standard as errors
+should never be attempted during the execution of a program.  The effect
+of an error condition on a program is not defined by this standard.
+Reference numbers for error conditions take the form "ERRnnnn" and a
+
+
+checklist of all error conditions appears as an appendix to this
+standard.
+
+
+
+
+1.3 Conformance
+
+   As stated above, the aim of the IMP Core Environment Standard is to
+allow a programmer to ensure that a program can be freely ported from
+one IMP system to another without source modifications.  Clearly, this
+can be achieved only if both the program concerned and the proposed
+target systems are compatible; this will be guaranteed if program and
+systems conform to this definition.
+
+
+
+
+1.3.1 Program Conformance
+
+   A particular program may be said to conform to this standard if all
+of the following conditions are met:
+
+1.      The program assumes as predefined only those procedures which
+        are defined as being mandatory by this standard.
+
+2.      The program assumes the functionality of predefined procedures
+        to be as defined in this standard, in particular avoiding any
+        operation which is defined to be an error by this standard.
+
+3.      The program assumes the definitions of implementation defined
+        items only within the minimum definitions required by the
+        appropriate checklist appendix to this standard.
+
+4.      The program does not assume a particular definition of any of
+        the implementation dependent items listed in the appropriate
+        checklist appendix to this standard.
+
+
+
+
+1.3.2 Implementation Conformance
+
+   An implementation may be said to conform to this standard if all of
+the following conditions are met:
+
+1.      All identifiers designated by this standard as pre-defined are
+        available as pre-defined in the implementation, with the source
+        language semantics and behaviours under non-error conditions
+        defined for them in this standard.  This behaviour must hold
+        both for the default use of the implementation and for any
+        "optimising" or "non-checking" modes of use, although the
+        behaviour of the implementation under error conditions may vary.
+
+2.      All identifiers designated by this standard as being defined
+        through the use of specific <EM>from</EM> IMP <EM>include</EM> File statements
+        must become available if such a statement is contained in the
+        program, and if so the identifiers must become available with
+        the source language semantics and behaviours under non-error
+        conditions defined for them in this standard.  This behaviour
+
+
+        must hold both for the default use of the implementation and for
+        any "optimising" or "non-checking" modes of use, although the
+        behaviour of the implementation under error conditions may vary.
+
+3.      Identifiers not covered by items 1. or 2. above must not be
+        available as pre-defined in the implementation without a method
+        being available to have the implementation reject use of such
+        identifiers as non-standard.
+
+4.      The implementation must be accompanied by a document which
+        describes the effect of each error condition listed in the
+        appropriate checklist appendix to this standard.  It is
+        permissable for the document to state that any particular error
+        condition will cause effects which are implementation dependent.
+
+5.      The implementation must be accompanied by a document which
+        describes the particular definitions used by the implementation
+        for each implementation defined item listed in the appropriate
+        checklist appendix to this standard.
+
+   As well as the documents mentioned above, an implementation may (as a
+matter of courtesy) be accompanied by a document which describes some or
+all of the definitions used by the implementation for each
+implementation dependent item as listed in the appropriate checklist
+appendix to this standard.  It should be stressed that this document is
+not required as a part of an implementation's conformance but simply as
+a convenience to the more inquisitive or demanding of its users.
+
+</PRE></BODY></HTML>

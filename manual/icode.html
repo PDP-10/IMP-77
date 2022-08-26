@@ -1,0 +1,2118 @@
+<HTML>
+<HEAD>
+<TITLE>I-code V1.3 Working-Notes</TITLE>
+</HEAD>
+<BODY>
+<CENTER>
+                             I-code V1.3 Working-Notes<BR>
+                                 Peter S. Robertson<BR>
+                                   1 October 1984<BR>
+</CENTER>
+<UL>
+                   <LI>1   Philosophy
+                   <LI>2   Definitions
+                   <LI>3   Conventions
+                   <LI>4   Instructions
+</UL>
+<UL>
+          <LI>Appendix 1  Encodings
+          <LI>Appendix 2  Instructions which set the condition-code
+          <LI>Appendix 3  Instructions which test the condition-code
+</UL>
+              Note:  This document in not intended to be a
+                     complete formal description of I-code
+<P><P>
+<CENTER>
+                                 Copyright (c) 1984<BR>
+                                Lattice Logic Limited<BR>
+                                   9, Wemyss Place<BR>
+                                  Edinburgh EH3 6DH<BR>
+                                      Scotland<BR>
+</CENTER>
+
+                                   <H2>1   Philosophy</H2>
+
+        I-code is an intermediate code used to provide an interface  between
+        the   machine-independent   and   machine-dependent  sections  of  a
+        compiler.
+
+        Most intermediate codes in use today describe the  execution  of  an
+        abstract  machine  which  performs  the  desired  computation.   For
+        example, the intermediate code for a statement of the form:  X = Y+Z
+        would  describe  the  operations of the abstract machine which would
+        compute the value of Y+Z and assign it to X.   Using  this  sort  of
+        code  the  machine-dependent  section of the compiler has to map the
+        abstract machine onto the real target machine.
+
+        I-code uses a  fundamentally  different  model.   It  describes  the
+        execution  of  an  abstract  compiler which generates target code to
+        perform the desired computation; it does not  describe  an  abstract
+        machine  which  will  perform  that  computation.   It  is  vital to
+        understand that it does not describe the  function  of  the  program
+        directly but describes it indirectly via the abstract compiler.   It
+        is  this  indirection  which  gives   I-code   the   power   to   be
+        machine-independent without sacrificing efficiency in the executable
+        programs which it can be used to generate.
+
+        There are two important corollaries of this.  Firstly the structures
+        and  operations  associated  with the abstract compiler need have no
+        counterparts in the object program.   For example the target machine
+        need  have  no hardware or software stack and neither need it have a
+        true condition code.   Secondly the code assumes that the operations
+        it describes will be performed by the abstract compiler in the order
+        specified  with  no  omissions.   In particular the control transfer
+        instructions do not transfer control in the  abstract  compiler  but
+        indicate  changes  of  control  flow  in  the program which is being
+        compiled.   This also does not mean that any of the operations  need
+        have  counterparts  in  the object program nor that the order of the
+        generated code need correspond to the order of the I-code.
+
+        For example the Algol-60 statement: <TT>A := if B then C else  D;</TT>  could
+        not be encoded in the seemingly obvious way:
+<PRE>
+           Stack A
+           Stack B;  Test-Boolean;  BF 1
+           Stack C;  Forward 2
+           Label 1
+           Stack D
+           Label 2
+           Assign-Value
+</PRE>
+        as  this  would assign D to C, the last two objects stacked prior to
+        the Assign-Value instruction, and leave A on the stack.
+<HR>
+
+<H2>2   Definitions</H2>
+<PRE>
+         byte-order    All  multi-byte  values  are   specified   with   the
+                       least-significant byte first.
+
+         unsigned      a natural binary number.
+
+         signed        a 2's complement binary number.
+
+         &lt;b&gt;           A one-byte unsigned number.
+
+         &lt;integer&gt;     A four-byte signed integer number.
+
+         &lt;label&gt;       An  unsigned  16-bit  value used to identify a simple
+                       label.
+
+         &lt;n&gt;           An unsigned 16-bit number.
+
+         &lt;string&gt;      A byte-counted string constant.
+
+         &lt;real&gt;        A real constant in a textual encoding.
+
+         &lt;tag&gt;         An unsigned 16-bit  value  used  to  identify  a  tag
+                       (descriptor).
+
+         condition-code
+                       A  conceptual  flag  which  is set at run-time by the
+                       instructions listed in Appendix 2.   This  flag  need
+                       not  exist  in  the target machine must is defined in
+                       order  to  simplify  the   definitions   of   certain
+                       instructions.   The  values  which this flag may take
+                       are:
+                          equal, less than, greater than, true, false
+                       This setting only remains valid for the  duration  of
+                       the  next  instruction  which  must  be  one  of  the
+                       instructions listed in Appendix 3.
+
+         integer       A  general  integer  value,  including  subranges  of
+                       integers.
+
+         labels        I-code distinguishes two sorts of label.
+
+                       1.   Simple  labels  have  the property that they are
+                       only  jumped  to  in  one  direction,  that  is,  all
+                       references  to  an  instance  of  a  simple label are
+                       either all forward or all backward.   This means that
+                       the  same  denotation  may  be  used  for many simple
+                       labels.  For example the following is valid:
+                          Forward 1   &gt;-----+
+                          ...                |
+                          Label 1     &lt;-----+
+                          ...
+                          Forward 1   &gt;-----+
+                          ...                |
+                          Label 1     &lt;-----+
+                          ...
+                          Label 1     &lt;-----+
+                          ...                |
+                          Backward 1  &gt;-----+
+
+                       All uses of a particular simple label must be in  the
+                       same block as the definition of that label.
+
+                       Simple   labels  are  encoded  as  two-byte  unsigned
+                       integers although  code  generators  may  assume  the
+                       their  values  are within a fairly small range; 1..50
+                       is common.
+
+                       2.   General labels have none of the restrictions  of
+                       simple labels.   They are identified by tags and will
+                       be defined automatically if necessary when  they  are
+                       first  used.   General  labels  are referenced by the
+                       instructions:
+                          Jump &lt;tag&gt;
+                          Locate &lt;tag&gt;
+                          Stack &lt;tag&gt;
+
+         real          A  floating-point  value,  either  single  or  double
+                       precision.
+
+         SOS           The second-top item on the stack.
+
+         stack         A  first-in,  last-out  structure  used  to imply the
+                       operands required  by  various  I-code  instructions.
+                       The first item which can be removed from the stack is
+                       called  TOS  and  the item which can be removed after
+                       TOS is called SOS.
+
+         tags          Tags are definitions  of  objects  which  are  to  be
+                       manipulated  by the compiler.   These definitions are
+                       created in a nested fashion; all tags  defined  in  a
+                       block  are  deleted  when  the  end  of that block is
+                       reached.    On  definition  the   machine-independent
+                       description  of  the  object  is  converted  into the
+                       appropriate  machine-dependent  description  of   the
+                       actual  object to be used.   Within this document the
+                       term 'tag' is used to describe both  this  descriptor
+                       and the unsigned sixteen-bit integer used as an index
+                       value  to  select it from the collection of all tags.
+                       With the  exception  of  the  resolution  of  forward
+                       references  to  procedures,  tags  are never altered.
+                       When a copy of a tag value is pushed onto  the  stack
+                       the value becomes known as a descriptor.  Descriptors
+                       may be modified.
+
+         tag list      is  an  ordered  sequence  of tag definitions used to
+                       describe  either  the  parameters   required   by   a
+                       procedure or the fields of a record.  Components of a
+                       tag  list  are referred to either explicitly by their
+                       position in the list (see SELECT)  or  implicitly  by
+                       sequence starting with the first to be specified (see
+                       Assign-Parameter).
+
+         TOS           The top item on the stack.
+
+         list flag     An  internal  flag which is set during the processing
+                       of explicit  lists  of  tag  definitions.   Its  only
+                       purpose is to prevent certain nested list structures.
+</PRE>
+<HR>
+
+                                   <H2>3 Conventions</H2>
+<UL>
+         <LI>1.    It  is  assumed  that  the  reader  is  familiar with the IMP
+               language and its terminology.
+
+         <LI>2.    Whenever a pointer-variable is used in the context of a value
+               the value of the data item pointed to will be used.
+
+         <LI>3.    In  general,  diagnostic  checks  are  implied  rather   than
+               explicitly specified.
+
+         <LI>4.    Items  on the stack are intended to be 'rules for generating'
+               values or references rather than  the  values  or  references
+               themselves.   For simplicity the descriptions of instructions
+               will often refer to items as if they actually contain  values
+               or references.
+
+         <LI>5.    By  convention  tag  index  values  will often be replaced in
+               examples by the identifier which  is  assumed  to  have  been
+               associated with the tag in question.
+
+               For  example,  given  '<TT>DEFINE 57,Fred</TT>......'  then '<TT>Stack 57</TT>'
+               could be written '<TT>Stack Fred</TT>'
+
+         <LI>6.    The term 'error' is used to indicate a  condition  discovered
+               by  the code-generator which should terminate the compilation
+               with a suitable error message.
+</UL>
+<HR>
+<H2>4   Instructions</H2>
+
+<PRE>
+         Instruction: <font color=#ff0000> Absolute</font>
+
+         Effect:       TOS is replaced by the absolute value of TOS.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is not integer or real.
+
+         Example:      X = |Y+Z|
+                       Stack X;   Stack Y;  Stack Z;  Add
+                       Absolute;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Access</font>
+
+         Effect:       TOS is used as the final  index  into  SOS.   TOS  is
+                       removed from the stack leaving SOS as the new TOS.
+
+         Notes:        This   instruction  is  used  to  process  the  final
+                       dimension of an N dimensional array.   See Index  for
+                       the previous dimensions.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS is not an integer value.
+                       3. SOS does not describe an array.
+
+         Example:      A(j) = 0
+                       Stack A;  Stack j;  Access
+                       Byte 0;   Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Add</font>
+
+         Effect:       TOS and SOS are removed from the stack and a new item
+                       describing the sum of the their values, SOS + TOS, is
+                       stacked.   Integer  values  will  be  converted  into
+                       floating-point if one  operand  is  integer  and  the
+                       other is real.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS (or SOS) is neither integer nor real type.
+
+         Example:      A = B + C
+                       Stack A;  Stack B;  Stack C;  Add;  Assign-Value
+
+
+<HR>
+         Instruction: <font color=#ff0000> Address</font>
+
+         Effect:       TOS  is  replaced  by  the  address  of the object it
+                       describes.
+
+         Notes:        Commonly   the   type   of   an   address   will   be
+                       indistinguishable from integer.
+
+         Errors:       1. The stack is empty.
+                       2. TOS does not have an address.
+
+         Example:      P = Addr(Q)
+                       Stack P;  Stack Q;  Address;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Adjust</font>
+
+         Effect:       The  address of SOS is adjusted forwards or backwards
+                       by TOS items of the same size as SOS.   This  may  be
+                       thought  of  as  an array accessing instruction where
+                       SOS defines the zero'th element.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS is not an integer.
+                       3. SOS does not reference a data object.
+
+         Example:      N == N[X]
+                       Stack N;  Stack N;  Stack X
+                       Adjust;  Assign-Reference
+
+<HR>
+         Instruction: <font color=#ff0000> Alias &lt;string&gt;</font>
+
+         Effect:       &lt;string&gt; is noted as the current alias.
+
+         Note:         See 'Begin' and 'Define'
+
+         Errors:       None
+
+         Example:      <B>external</B> <B>integer</B> Thing <B>alias</B> "SS$THING"
+                       Alias "SS$THING"
+                       Define THING..........
+
+<HR>
+         Instruction: <font color=#ff0000> Alt-Start</font>
+
+         Effect:       This instruction marks the start  of  an  alternative
+                       sequence of tag definitions.
+
+         Note:         The   instructions   Alt-Start   and  Alt-Finish  are
+                       brackets and must be properly nested.
+
+         Error:        1. List flag is not set.
+
+         Example:
+
+
+                       <B>recordformat</B> F(<B>integer</B> X, (<B>integer</B> Y <B>or</B> <B>real</B> Z))
+                       Define F.......
+                       Start
+                          Define X.....
+                          Alt-Start
+                             Define Y.....
+                          Next-Alt
+                             Define Z.....
+                          Alt-Finish
+                       Finish
+
+<HR>
+         Instruction: <font color=#ff0000> Alt-Finish</font>
+
+         Effect:       This  instruction  marks  the  end  of  a   list   of
+                       alternatives.
+
+         Notes:        Alt-Start and Alt-Finish must be properly nested.
+
+         Errors:       1. List flag is not set.
+                       2. There has been no unmatched Alt-Start instruction.
+
+         Example:
+                       <B>recordformat</B> F(<B>integer</B> X, (<B>integer</B> Y <B>or</B> <B>real</B> Z))
+                       Define F.......
+                       Start
+                          Define X.....
+                          Alt-Start
+                             Define Y.....
+                          Next-Alt
+                             Define Z.....
+                          Alt-Finish
+                       Finish
+
+<HR>
+         Instruction: <font color=#ff0000> And</font>
+
+         Effect:       TOS  and  SOS  are  removed  from  the  stack and the
+                       logical AND of their values, SOS &amp; TOS, is stacked.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS are not both integer values.
+
+         Example:      A = B &amp; C
+                       Stack A;  Stack B;  Stack C;  And;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Assign-Parameter</font>
+
+         Effect:       TOS is passed as the next parameter to SOS.   TOS  is
+                       removed from the stack leaving SOS as the new TOS.
+
+         Note:         Parameters  must  be  specified  in  the order of the
+                       definition of the parameter list.   If the  parameter
+                       list  is  empty  the  occurence  of  this instruction
+                       implies that the procedure has a variable  number  of
+                       parameters  and so the parameters are to be passed in
+                       a  C-like  manner;  this  also  requires   that   the
+                       procedure   be   called   using   the   Variable-Call
+                       instruction.
+
+         Errors:       1. The stack contains less than two items.
+                       2. SOS is not a procedure descriptor.
+                       3. TOS is unsuitable for this parameter.
+
+         Example:      J = Calc(1, K)
+                       Stack J;  Stack Calc
+                       Byte 1;   Assign-Parameter
+                       Stack K;  Assign-Parameter
+                       Call
+
+<HR>
+         Instruction: <font color=#ff0000> Assign-Value</font>
+
+         Effect:       The value  of  TOS  is  assigned  to  the  data  item
+                       referenced by SOS.  Both TOS and SOS are removed from
+                       the stack.
+
+         Notes:        Integer   values   will   be  converted  to  real  if
+                       necessary.
+
+         Error:        1. The stack contains less than two items.
+
+         Example:      A = B+C
+                       Stack A;  Stack B;  Stack C;  Add;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Assign-Reference</font>
+
+         Effect:       The pointer variable referenced by  SOS  is  made  to
+                       point  at  the variable referenced by TOS.   Both TOS
+                       and SOS are removed from the stack.
+
+         Errors:       1. The stack contains less than two items.
+                       2. SOS is not a reference to a pointer variable.
+                       3. TOS is not a reference to a variable.
+                       4. The types of TOS and SOS are different.
+
+         Example:      P == Q
+                       Stack P;  Stack Q;  Assign-Reference
+
+<HR>
+         Instruction: <font color=#ff0000> Backward &lt;label&gt;</font>
+
+         Effect:       Control  is  to  be  transferred  unconditionally  to
+                       &lt;label&gt; at run-time.
+
+         Errors:       &lt;label&gt; is currently undefined.
+
+         Example:      X=X+1 <B>while</B> A(X) = 0
+                       Label 16
+                       Stack A;  Stack X;  Access
+                       Byte 0;  Compare-Values;  BNE 17
+                       Stack X;  Stack X;  Byte 1;  Add;  Assign-Value
+                       Backward 16
+                       Label 17
+
+<HR>
+         Instruction: <font color=#ff0000> Begin</font>
+
+         Effect:       An  anonymous  procedure  is  defined here and called
+                       once.  A new block is entered.   If an alias has been
+                       noted  (see  Alias)  that  string  will  be  used for
+                       identifying  the  block  in  diagnostic   information
+                       leaving no alias noted.
+
+         Notes:        The   sequence   "Begin ...... End"   may  always  be
+                       replaced by a sequence of the form:
+                       Define X...... Start Finish ...... End;  Stack X;  Call
+                       where X is a suitable unique tag.
+
+         Errors:       None
+
+         Example:      <B>begin</B>; Newline; <B>end</B>
+                       Begin
+                          Stack Newline;  Call
+                       End
+
+<HR>
+         Instruction: <font color=#ff0000> BEQ &lt;label&gt;</font>
+
+         Effect:       When execution of the  object  program  reaches  this
+                       point  control  is  to  be  transferred  to the given
+                       simple label if the condition code  is  set  'equal',
+                       otherwise   control   is   to   pass  onto  the  next
+                       instruction.
+
+         Errors:       1. The  previous  instruction   did   not   set   the
+                          condition-code.
+                       2. &lt;label&gt;   does   not   get   defined  by  a  LABEL
+                          instruction before the end of the current block.
+
+         Note:         &lt;label&gt; must refer to a simple label  which  must  be
+                       defined  somewhere after the BEQ instruction, that is
+                       BEQ can only specify a  forward  jump  (although  the
+                       object program may use a backward jump).
+
+         Example:      IF x &lt;&gt; y THEN p = q;
+
+
+                       Stack x;  Stack y;  Compare-Values
+                       BEQ 12
+                       Stack p;  Stack q;  Assign-Value
+                       Label 12
+
+<HR>
+         Instruction: <font color=#ff0000> BF &lt;label&gt;</font>
+
+         Effect:       When  execution  of  the  object program reaches this
+                       point control is  to  be  transferred  to  the  given
+                       simple  label  if  the condition code is set 'false',
+                       otherwise  control  is  to   pass   onto   the   next
+                       instruction.
+
+         Errors:       1. The   previous   instruction   did   not  set  the
+                          condition-code.
+                       2. &lt;label&gt;  does  not  get   defined   by   a   LABEL
+                          instruction before the end of the current block.
+
+         Note:         &lt;label&gt;  must  refer  to a simple label which must be
+                       defined somewhere after the BF instruction,  that  is
+                       BF  can  only  specify  a  forward jump (although the
+                       object program may use a backward jump).
+
+         Example:      if B then P := Q;
+                       Stack B;  Test-Boolean
+                       BF 12
+                       Stack P;  Stack Q;  Assign-Value
+                       Label 12
+
+<HR>
+         Instruction: <font color=#ff0000> BGE &lt;label&gt;</font>
+
+         Effect:       When execution of the  object  program  reaches  this
+                       point  control  is  to  be  transferred  to the given
+                       simple label if the condition code  is  set  'greater
+                       than'  or 'equal' , otherwise control is to pass onto
+                       the next instruction.
+
+         Errors:       1. The  previous  instruction   did   not   set   the
+                          condition-code.
+                       2. &lt;label&gt;   does   not   get   defined  by  a  LABEL
+                          instruction before the end of the current block.
+
+         Note:         &lt;label&gt; must refer to a simple label  which  must  be
+                       defined  somewhere after the BGE instruction, that is
+                       BGE can only specify a  forward  jump  (although  the
+                       object program may use a backward jump).
+
+         Example:      <B>if</B> X &lt; Y <B>then</B> P = Q
+                       Stack X;  Stack Y;  Compare-Values
+                       BGE 12
+                       Stack P;  Stack Q;  Assign-Value
+                       Label 12
+
+
+<HR>
+         Instruction: <font color=#ff0000> BGT &lt;label&gt;</font>
+
+         Effect:       When  execution  of  the  object program reaches this
+                       point control is  to  be  transferred  to  the  given
+                       simple  label  if  the condition code is set 'greater
+                       than', otherwise control is to  pass  onto  the  next
+                       instruction.
+
+         Errors:       1. The   previous   instruction   did   not  set  the
+                          condition-code.
+                       2. &lt;label&gt;  does  not  get   defined   by   a   LABEL
+                          instruction before the end of the current block.
+
+         Note:         &lt;label&gt;  must  refer  to a simple label which must be
+                       defined somewhere after the BGT instruction, that  is
+                       BGT  can  only  specify  a forward jump (although the
+                       object program may use a backward jump).
+
+         Example:      <B>if</B> X &lt;= Y <B>then</B> P = Q
+                       Stack X;  Stack Y;  Compare-Values
+                       BGT 12
+                       Stack P;  Stack Q;  Assign-Value
+                       Label 12
+
+<HR>
+         Instruction: <font color=#ff0000> BLE &lt;label&gt;</font>
+
+         Effect:       When execution of the  object  program  reaches  this
+                       point  control  is  to  be  transferred  to the given
+                       simple label if the condition code is set 'less than'
+                       or 'equal' , otherwise control is to  pass  onto  the
+                       next instruction.
+
+         Errors:       1. The   previous   instruction   did   not  set  the
+                          condition-code.
+                       2. &lt;label&gt;  does  not  get   defined   by   a   LABEL
+                          instruction before the end of the current block.
+
+         Note:         &lt;label&gt;  must  refer  to a simple label which must be
+                       defined somewhere after the BLE instruction, that  is
+                       BLE  can  only  specify  a forward jump (although the
+                       object program may use a backward jump).
+
+         Example:      <B>if</B> X &gt; Y <B>then</B> P = Q
+                       Stack X;  Stack Y;  Compare-Values
+                       BLE 12
+                       Stack P;  Stack Q;  Assign-Value
+                       Label 12
+
+<HR>
+         Instruction: <font color=#ff0000> BLT &lt;label&gt;</font>
+
+         Effect:       When execution of the  object  program  reaches  this
+                       point  control  is  to  be  transferred  to the given
+                       simple  label  if  the  condition  code  is  not  set
+                       'equal',  otherwise  control is to pass onto the next
+                       instruction.
+
+         Errors:       1. The  previous  instruction   did   not   set   the
+                          condition-code.
+                       2. &lt;label&gt;   does   not   get   defined  by  a  LABEL
+                          instruction before the end of the current block.
+
+         Note:         &lt;label&gt; must refer to a simple label  which  must  be
+                       defined  somewhere after the BLT instruction, that is
+                       BLT can only specify a  forward  jump  (although  the
+                       object program may use a backward jump).
+
+         Example:      <B>if</B> X &gt;= Y <B>then</B> P = Q
+                       Stack X;  Stack Y;  Compare-Values
+                       BLT 12
+                       Stack P;  Stack Q;  Assign-Value
+                       Label 12
+
+<HR>
+         Instruction: <font color=#ff0000> BNE &lt;label&gt;</font>
+
+         Effect:       When  execution  of  the  object program reaches this
+                       point control is  to  be  transferred  to  the  given
+                       simple  label  if  the  condition  code  is  not  set
+                       'equal', otherwise control is to pass onto  the  next
+                       instruction.
+
+         Errors:       1. The   previous   instruction   did   not  set  the
+                          condition-code.
+                       2. &lt;label&gt;  does  not  get   defined   by   a   LABEL
+                          instruction before the end of the current block.
+
+         Note:         &lt;label&gt;  must  refer  to a simple label which must be
+                       defined somewhere after the BNE instruction, that  is
+                       BNE  can  only  specify  a forward jump (although the
+                       object program may use a backward jump).
+
+         Example:      <B>if</B> X = Y <B>then</B> P = Q
+                       Stack X;  Stack Y;  Compare-Values
+                       BNE 12
+                       Stack P;  Stack Q;  Assign-Value
+                       Label 12
+
+<HR>
+         Instruction: <font color=#ff0000> Bounds</font>
+
+         Effect:       The value of TOS is noted as  'upper-bound'  and  the
+                       value of SOS is noted as 'lower-bound'.   TOS and SOS
+                       are removed from the stack.
+
+         Notes:        This instruction is used as a preliminary to defining
+                       <B>switch</B> vectors and <B>own</B>, <B>const</B> and <B>external</B> arrays.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS are not both integer values.
+                       3. The value of TOS is less than the value of SOS.
+
+         Example:      <B>switch</B> Sw(-3:3)
+                       Byte 3;  Negate
+                       Byte 3;  Bounds
+                       Define Sw.......
+
+<HR>
+         Instruction: <font color=#ff0000> BT &lt;label&gt;</font>
+
+         Effect:       When execution of the  object  program  reaches  this
+                       point  control  is  to  be  transferred  to the given
+                       simple label if the condition code  is  set  'false',
+                       otherwise   control   is   to   pass  onto  the  next
+                       instruction.
+
+         Errors:       1. The  previous  instruction   did   not   set   the
+                          condition-code.
+                       2. &lt;label&gt;   does   not   get   defined  by  a  LABEL
+                          instruction before the end of the current block.
+
+         Note:         &lt;label&gt; must refer to a simple label  which  must  be
+                       defined  somewhere  after the BT instruction, that is
+                       BT can only specify  a  forward  jump  (although  the
+                       object program may use a backward jump).
+
+         Example:      if not B then P := Q
+                       Stack B;  Test-Boolean
+                       BT 12
+                       Stack P;  Stack Q;  Assign-Value
+                       Label 12
+
+<HR>
+         Instruction: <font color=#ff0000> Byte &lt;b&gt;</font>
+
+         Effect:       The unsigned byte value &lt;b&gt; is stacked.
+
+         Notes:        This  is  a  compact form for the Integer instruction
+                       when small values are to be stacked.
+
+         Errors:       None
+
+         Example:      X = 200
+                       Stack X;  Byte 200;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Call</font>
+
+         Effect:       The procedure described by TOS is called.   If TOS is
+                       a procedure which returns a result TOS is replaced by
+                       that result, otherwise TOS is removed from the stack.
+
+         Notes:        Predicates  do  not  return  a  result  but  set  the
+                       condition-code.
+
+         Errors:       1. The stack is empty.
+                       2. TOS does not describe a procedure.
+                       3. There has not been the same number  of  parameters
+                          assigned using Assign-Parameter as is specified by
+                          the parameter list.
+
+         Example:      Newline
+                       Stack Newlines;  Byte 4;  Assign-Parameter;  Call
+
+<HR>
+         Instruction: <font color=#ff0000> Compare-References</font>
+
+         Effect:       The  address of SOS is compared to the address of TOS
+                       and the condition-code is set appropriately.  TOS and
+                       SOS are then removed from the stack.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS or SOS is not a reference for a data object.
+
+         Example:      <B>integername</B> M; <B>integer</B> N
+                       <B>if</B> N == M <B>then</B> Newline
+
+                       Stack N;  Stack M;  Compare-References
+                       BNE 14
+                       Stack Newline;  Call
+                       Label 14
+
+
+<HR>
+         Instruction: <font color=#ff0000> Compare-Repeated-Values</font>
+
+         Effect:       SOS is compared to TOS and the condition-code is  set
+                       appropriately.   SOS  is  then removed from the stack
+                       leaving TOS.
+
+         Notes:        The types of both TOS and SOS  must  be  one  of  the
+                       following four:
+                          Integer or Real
+                          String
+                          Record
+                          Set
+                       Integer  values  will  be  converted  to  real if one
+                       operand is real.
+
+         Errors:       1. The stack contains less than two items.
+                       2. The types of TOS and SOS are incompatible.
+
+         Example:      <B>if</B> 1 &lt;= X &lt;= 12 <B>then</B> X = 0
+                       Byte 1;  Stack X;  Compare-Repeated-Values
+                       BGT 15
+                       Byte 12;  Compare-Values
+                       BGT 15
+                       Stack X;  Byte 0;  Assign-Values
+                       Label 15
+
+<HR>
+         Instruction: <font color=#ff0000> Compare-Unsigned-Values</font>
+
+         Effect:       SOS is compared against TOS  with  the  values  being
+                       interpreted  as unsigned values.   The condition-code
+                       is set accordingly and TOS and SOS are  removed  from
+                       the stack
+
+         Errors:       1. The stack contains less than two items.
+                       2.  TOS and SOS are not both integer values.
+
+         Example:      <B>if</B> U1 &lt; U2 <B>then</B> U2 = 0
+                       Stack U1;  Stack U2;  Compare-Unsigned-Values
+                       Bge 31
+                       Stack U2;  Byte 0;  Assign-Value
+                       Label 31
+
+<HR>
+         Instruction: <font color=#ff0000> Compare-Values</font>
+
+         Effect:       SOS  is compared to TOS and the condition-code is set
+                       appropriately.  TOS and SOS are then removed from the
+                       stack.
+
+         Notes:        The types of both TOS and SOS  must  be  one  of  the
+                       following four:
+                          Integer or Real
+                          String
+                          Record
+                          Set
+                       Integer   values   will   be  converted  to  real  if
+                       necessary.
+                       The comparison is signed  where  integer  values  are
+                       concerned.
+
+         Errors:       1. The stack contains less than two items.
+                       2. The types of TOS and SOS are incompatible.
+
+         Example:      <B>if</B> S &lt; "123" <B>then</B> X = 0
+                       Stack S;  String "123";  Compare-Values
+                       BGE 13
+                       Stack X;  Byte 0;  Assign-Values
+                       Label 13
+
+<HR>
+         Instruction: <font color=#ff0000> Complement</font>
+
+         Effect:       TOS is replaced by the ones-complement of TOS.
+
+         Errors:       1. The stack is empty
+                       2. TOS is not an integer value.
+
+         Example:      P = \Q
+                       Stack P;  Stack Q;  Complement;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Concat</font>
+
+         Effect:       TOS  and  SOS  are  removed  from  the  stack and the
+                       concatenation of their values, SOS.TOS, is stacked.
+
+         Errors:       1. The stack contains less than two values.
+                       2. TOS and SOS are not both string values.
+
+         Example:      S = T.U.V
+                       Stack S
+                       Stack T;  Stack U;  Concat
+                       Stack V;  Concat
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Control &lt;n&gt;</font>
+
+         Effect:       The value  &lt;n&gt;  is  considered  to  be  of  the  form
+                       p&lt;&lt;14+q.   The value q is to be used by the p'th pass
+                       of the compiler in an implementation-specific manner.
+
+         Errors:       None
+
+<HR>
+<A NAME="define">
+         Instruction: <font color=#ff0000> Define &lt;tag&gt; [id] &lt;a&gt; &lt;b&gt; &lt;c&gt;</font>
+
+         Effect:       A new tag value is created.
+
+                       &lt;tag&gt; defines the tag index which  will  be  used  to
+                             select the value.
+
+                       [id]  specifies the actual identifier associated with
+                             the described object.  It is a sequence of zero
+                             or more characters terminated by a comma.  This
+                             identifier will be used for external linkage if
+                             necessary  unless  overridden by an Alias. [id]
+                             will  also  be  used  for  run-time  diagnostic
+                             information.
+
+                       &lt;a&gt;   A two-byte value: &lt;a&gt; = T&lt;&lt;4+F where:
+                             T = 0 : void
+                                 1 : integer            {qualified by &lt;b&gt;}
+                                 2 : real               {qualified by &lt;b&gt;}
+                                 3 : string             {maximum length &lt;b&gt;}
+                                 4 : record             {format &lt;b&gt;}
+                                 5 : boolean
+                                 6 : set
+                                 7 : 8-bit-enumerated   {format &lt;b&gt;}
+                                 8 : 16-bit-enumerated  {format &lt;b&gt;}
+                                 9 : pointer
+                                10 : char
+                             11-15 : undefined          {error}
+
+                             F = 0 : void
+                                 1 : simple                  {byte}
+                                 2 : indirect                {bytename}
+                                 3 : general label
+                                 4 : recordformat
+                                 5 : undefined               {error}
+                                 6 : switch
+                                 7 : routine
+                                 8 : function
+                                 9 : map
+                                10 : predicate
+                                11 : array                   {array}
+                                12 : array indirect          {arrayname}
+                                13 : indirect array          {namearray}
+                                14 : indirect array indirect {namearrayname}
+                                15 : undefined               {error}
+
+                       &lt;b&gt;   If   T  is  INTEGER  &lt;b&gt;  takes  the  following
+                             meanings:
+
+                             &lt;b&gt; =       1, full range
+                                         2, range 0..255
+                                         3, range -32768..32767
+
+                             If T is REAL &lt;b&gt; takes the following meanings:
+
+                             &lt;b&gt; =       1, normal precision
+                                         4, double precision
+
+                             If T is STRING &lt;b&gt; gives the maximum length  of
+                             the string.
+                             If  T  is  RECORD  &lt;b&gt;  gives  the  tag  of the
+                             corresponding recordformat.
+                             If T is enumerated &lt;b&gt; gives  the  tag  of  the
+                             dummy  format  used  to identify the enumerated
+                             value identifiers.
+
+                       &lt;c&gt;   is a two-byte value: U&lt;&lt;5+I&lt;&lt;4+S&lt;&lt;3+X where:
+                                U is 1 check the object for unassigned
+                                     0 otherwise
+                                I is 1 if the object is an indirect object,
+                                     0 otherwise
+                                S is 1 if this is a <B>spec</B>,
+                                     0 otherwise
+                                X  = 0 :: automatic (stack) allocation
+                                     1 :: <B>own</B>
+                                     2 :: <B>constant</B>
+                                     3 :: <B>external</B>
+                                     4 :: <B>system</B>
+                                     5 :: <B>dynamic</B>
+                                     6 :: <B>primitive</B>
+                                     7 :: <B>permanent</B>
+
+                             An indirect object (I=1) differs  from  F=2  in
+                             that F=2 implies that the actual object created
+                             will  be  a  pointer  and  will be dereferenced
+                             whenever used unless explicit action  is  taken
+                             (e.g.  use  of  Assign-Reference).   If  I=1  a
+                             pointer will be created (usually as an integer)
+                             and will be treated as an integer (or  address)
+                             with no automatic dereferencing taking place.
+
+         Notes:        The  tag  values  within  a block should be dense and
+                       preferably consecutive.   All  tag  values  within  a
+                       block  must  have values greater than the maximum tag
+                       value yet defined within the enclosing block.
+                       Tag definitions remain valid until  the  end  of  the
+                       enclosing block.
+                       The  tag values used within a recordformat definition
+                       must all be zero; the fields of a record are selected
+                       by their position in the  format,  numbered  starting
+                       from one.
+
+                               x = illegal combination
+
+                                                 1 1 1 1 1
+                         F = 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4
+                            *-----------------------------*
+                    T = 0   | |x| | |x|x| | |x| | |x| |x| |
+                            |-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+                        1   |x| | |x|x|x|x|x| | |x| | | | |
+                            |-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+                        2   |x| | |x|x|x|x|x| | |x| | | | |
+                            |-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+                        3   |x| | |x|x|x|x|x| | |x| | | | |
+                            |-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+                        4   |x| | |x| |x|x|x| | |x| | | | |
+                            |-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+                        5   |x| | |x|x|x|x|x| | |x| | | | |
+                            |-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+                        6   |x| | |x|x|x|x|x| | |x| | | | |
+                            |-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+                        7   |x| | |x|x|x|x|x| | |x| | | | |
+                            |-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+                        8   |x| | |x|x|x|x|x| | |x| | | | |
+                            |-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+                        9   |x| | |x|x|x|x|x| | |x| | | | |
+                            |-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+                       10   |x| | |x|x|x|x|x| | |x| | | | |
+                            *-----------------------------*
+
+
+<HR>
+         Instruction: <font color=#ff0000> Define-Range &lt;tag&gt;</font>
+
+         Effect:       The  given  tag  is  defined  to be the integer range
+                       defined by lower-bound and upper-bound.
+
+         Error:        1. The two bounds have not been defined.
+
+         Example:      Var x:1..10; ...... x := i;
+
+                       Byte 1;  Byte 10;  Bounds
+                       Define-Range 99.......
+                       Define x........
+                       Stack x;  Stack i;  Test-Range 99;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Diagnose &lt;n&gt;</font>
+
+         Effect:       The value  &lt;n&gt;  is  considered  to  be  of  the  form
+                       p&lt;&lt;14+q.   The value q is to be used by the p'th pass
+                       of the compiler in an implementation-specific manner.
+
+         Errors:       None
+
+
+<HR>
+         Instruction: <font color=#ff0000> Dimension &lt;n&gt;&lt;d&gt;</font>
+
+         Effect:       &lt;d&gt; pairs of integer values on the stack are used  to
+                       define the bounds of the last &lt;n&gt; arrays to have been
+                       defined.    Code   is  generated,  if  necessary,  to
+                       allocate the arrays and the definitions are  adjusted
+                       to reference the appropriate storage.
+
+         Notes:        The  pairs  of  values  are  stacked  in order of the
+                       declaration, that is, first dimension first.
+                       In each pair of values the  lower  bound  is  stacked
+                       before the upper bound.
+                       The  last  &lt;n&gt;  tags  must have had consecutive index
+                       values.
+
+         Errors:       1. The stack contains less than 2*&lt;d&gt; items.
+                       2. The last &lt;n&gt; definitions were not all arrays.
+
+         Example:      <B>integerarray</B> A, B, C(1:2, Low:4)
+                       Define A......
+                       Define B......
+                       Define C......
+                       Byte 1;     Byte 2
+                       Stack Low;  Byte 4
+                       Dimension 3 2
+
+<HR>
+         Instruction: <font color=#ff0000> Div</font>
+
+         Effect:       TOS and SOS are removed from the stack and  the  real
+                       quotient, SOS / TOS, is stacked.  Integer values will
+                       be  converted into floating-point before the division
+                       is attempted.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS (or SOS) is neither integer nor real type.
+
+         Example:      A = B / C
+                       Stack A;  Stack B;  Stack C;  Div;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Duplicate</font>
+
+         Effect:       A copy of TOS is pushed onto the stack.
+
+         Note:         After this instruction TOS and SOS are identical.
+
+         Error:        1. The stack is empty.
+
+         Example:      int A[10],x;
+                       A[x]++;
+
+                       Stack A;  Stack x;  Adjust
+                       Duplicate
+                       Byte 1;  Add;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> End</font>
+
+         Effect:       This instruction marks the end of a block.   All tags
+                       defined within the block are deleted (made undefined)
+                       and  become available for re-use.   If the block is a
+                       <B>routine</B> this  instruction  also  implies  a  'Return'
+                       instruction.
+
+         Error:        1. The stack is not empty.
+
+
+<HR>
+         Instruction: <font color=#ff0000> End-Of-File</font>
+
+         Effect:       The  compilation  is  to  be  abandoned with an error
+                       message.
+
+         Notes:        This instruction is required at the end of an  I-code
+                       file even though in correct programs it will never be
+                       executed.   It  is  there  to  provide a check on the
+                       operation of the code-generator  and  to  permit  the
+                       code-generator to use a one-character look-ahead.
+
+         Errors:       None
+
+
+<HR>
+         Instruction: <font color=#ff0000> Eval</font>
+
+         Effect:       The value described by TOS is protected against being
+                       altered  as  the  side-effect  of  alterations to any
+                       variables which make up that value.
+
+         Notes:        Commonly this instruction loads the value of TOS into
+                       a machine register.
+
+         Error:        1. The stack is empty.
+
+         Example:      a = b + c++
+                       Stack a;  Stack b;  Stack c;  Add
+                       Eval
+                       Stack c;  Stack c;  Byte 1;  Add;  Assign-Value
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Eval-Addr</font>
+
+         Effect:       The  address  of  the  object  described  by  TOS  is
+                       protected against alteration.
+
+         Notes:        Commonly  this  instruction  loads the address of the
+                       object refered to be TOS into a machine register.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is not a reference.
+
+         Example:      int *p;
+                       *p++ = 10;
+
+                       Stack p;  Eval-Addr;  Stack p;  Duplicate
+                       Byte 1;  Adjust;  Assign-Value
+                       Byte 10;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Finish</font>
+
+         Effect:       This instruction marks the  end  of  a  list  of  tag
+                       definitions  corresponding to either a parameter list
+                       or a recordformat definition.   List flag is  cleared
+                       and  the tag list is processed in any ways necessary.
+                       If the tag list is associated with a  procedure  spec
+                       or  a  recordformat  this  instruction also marks the
+                       'end' of the associated 'block'.
+
+         Note:         The list of definitions may be empty.
+
+         Errors:       1. List flag is clear.
+                       2. There has been an unmatched Alt-Start.
+
+         Examples:     <B>routine</B> Test(<B>integer</B> j,k)
+                       Define Test.........
+                       Start
+                          Define j......
+                          Define k......
+                       Finish
+
+                       <B>recordformat</B> F(<B>integer</B> P <B>or</B> <B>real</B> R)
+
+                       Define F..........
+                       Start
+                          Define P......
+                          Next-Alt
+                          Define R......
+                       Finish
+
+
+<HR>
+         Instruction: <font color=#ff0000> Float</font>
+
+         Effect:       The value described by TOS is converted into  a  real
+                       value if necessary.
+
+         Notes:        If TOS is already a real this operation is a no-op.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is neither integer nor real.
+
+<HR>
+         Instruction: <font color=#ff0000> For &lt;label&gt;</font>
+
+         Effect:       This  instruction marks the start of a FOR statement.
+                       &lt;label&gt; is the label to be jumped to  on  <B>repeat</B>  and
+                       &lt;label+1&gt; is the label to be jumped to on an <B>exit</B>.
+
+         Notes:        The corresponding <B>repeat</B> will be the next instruction
+                       of the form: Backward &lt;label&gt;.
+                       &lt;label+1&gt;  should  only  be defined explicitly if the
+                       loop contains an explicit <B>exit</B> instruction.
+
+         Errors:       1. The stack contains less than four items.
+                       2. The top three items on the stack are  not  integer
+                          values.
+                       3. The fourth item on the stack is not a reference to
+                          an integer variable.
+                       4. No  Backward &lt;label&gt; instruction occurs before the
+                          end of the current block.
+
+         Example:      A(j) = 0 <B>for</B> J = 1, 1, N
+                       Stack J;  Byte 1;  Byte 1;  Stack N
+                       For 40
+                       Stack A;  Stack J;  Access
+                       Byte 0;  Assign-Value
+                       Backward 40
+
+<HR>
+         Instruction: <font color=#ff0000> Forward &lt;label&gt;</font>
+
+         Effect:       Control is  transferred  forward  unconditionally  to
+                       &lt;label&gt;
+
+         Error:        1. &lt;label&gt;   does   not   get   defined  by  a  Label
+                          instruction before the end of the current block.
+
+         Example:      <B>if</B> X=0 <B>then</B> Y=1 <B>else</B> Y=2
+                       Stack X;  Byte 0;  Compare-Values;  Bne 20
+                       Stack Y;  Byte 1;  Assign-Value
+                       Forward 21
+                       Label 20
+                       Stack Y;  Byte 2;  Assign-Value
+                       Label 21
+
+<HR>
+         Instruction: <font color=#ff0000> Include &lt;string&gt;</font>
+
+         Effect:       This instruction marks the start (or end) of the code
+                       generated from source contained in an  include  file.
+                       If  &lt;string&gt;  is  null it marks the end of an include
+                       file.
+
+         Errors:       None
+
+
+<HR>
+         Instruction: <font color=#ff0000> Index</font>
+
+         Effect:       TOS is used as the  next  index  into  SOS.   TOS  is
+                       removed from the stack leaving SOS as the new TOS.
+
+         Notes:        This  instruction  is  used  to process the first N-1
+                       dimensions of an N dimensional array.  See Access for
+                       the final dimension.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS is not an intger value.
+                       3. SOS is not an array descriptor.
+
+
+<HR>
+         Instruction: <font color=#ff0000> Init &lt;n&gt;</font>
+
+         Effect:       &lt;n&gt; copies of the init-value are added to the list of
+                       values  associated  with  the   init-variable.    The
+                       init-value  is  either the default value (unassigned)
+                       if the stack is empty, the  value  of  TOS  (possibly
+                       converted  to  real)  if  TOS  is  a constant, or the
+                       address  of  TOS  if  TOS   is   a   variable.    The
+                       init-variable  is the last static object to have been
+                       defined using Define.
+
+         Error:        1. TOS, if it exists, is not of the same type as  the
+                          init-variable.
+
+         Examples:     <B>ownintegerarray</B> A(1:5) = 1(3), 4, 99
+                       Byte 1;  Byte 5;  Bounds
+                       Define A.......
+                       Byte 1;  Init 3
+                       Byte 4;  Init 1
+                       Byte 99; Init 1
+
+                       <B>owninteger</B> P = -1
+                       Byte 1;  Negate
+                       Define P......
+                       Init 1
+
+<HR>
+         Instruction: <font color=#ff0000> Init-Type &lt;n&gt;</font>
+
+         Effect:       The   type   of   the  init-variable  (see  Init)  is
+                       considered to be &lt;n&gt; for the purposes  of  subsequent
+                       'Init'  instructions.  &lt;n&gt; encodes the type as in the
+                       type field of 'Define'.
+
+         Errors:       1. &lt;n&gt; does not correspond to a valid type.
+
+
+<HR>
+         Instruction: <font color=#ff0000> Int</font>
+
+         Effect:       TOS is replaced by Int(TOS),  that  is,  the  nearest
+                       integer to the value of TOS.  The type of the new TOS
+                       is integer.
+
+         Notes:        See  the  IMP  Library Definition for a discussion of
+                       the details of the INT function.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is neither integer nor real.
+
+         Example:      I = Int(R+0.3)
+                       Stack I;  Stack R;  Real &lt;0.3&gt;;  Add
+                       Int
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Intpt</font>
+
+         Effect:       TOS is replaced by Intpt(TOS), that is,  the  integer
+                       part of TOS.  The type of the new TOS is integer.
+
+         Notes:        See  the  IMP  Library Definition for a discussion of
+                       the details of the INTPT function.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is neither integer nor real value.
+
+         Example:      I = Intpt(R-S)
+                       Stack I;  Stack R;  Stack S;  Sub
+                       Intpt
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Integer &lt;integer&gt;</font>
+
+         Effect:       The integer value &lt;integer&gt; is pushed into the  stack
+                       and becomes the new TOS.
+
+         Notes:        The  instruction  'Byte'  is an abbreviation for this
+                       instruction when the value is in the range 0..255.
+
+         Errors:       None
+
+         Example:      X = 2500
+                       Stack X;  Integer 2500;  Assign-value
+
+<HR>
+         Instruction: <font color=#ff0000> Integer-Power</font>
+
+         Effect:       TOS and SOS are removed from the stack and the  value
+                       of  SOS  raised  to the integer power of the value of
+                       TOS, SOS^^TOS, is stacked.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS are not integer values.
+
+         Example:      J = K^^3
+                       Stack J;  Stack K;  Byte 3;  Integer-Power
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Jump &lt;tag&gt;</font>
+
+         Effect:       Control is transferred unconditionally to the general
+                       label &lt;tag&gt;.
+
+         Notes:        This control transfer may pass over block boundaries.
+
+         Errors:       1. &lt;tag&gt; is defined but is not a general label.
+                       2. &lt;tag&gt; is undefined but does not become defined  in
+                          a suitable block before the end of the program.  A
+                          suitable  block  is  one  which is either the same
+                          block as the Jump instruction or is a block  which
+                          properly contains that instruction.
+
+         Example:            X = 1
+                       Pos:  Y = Y+1
+                             -&gt;Pos <B>if</B> Y < 0
+
+                          Stack X;  Byte 1;  Assign-Value
+                          Locate Pos
+                          Stack Y;  Stack Y;  Byte 1;  Add;  Assign-Value
+                          Stack Y;  Byte 0;  Compare-Values
+                          Bge 18
+                          Jump Pos
+                          Label 18
+
+<HR>
+         Instruction: <font color=#ff0000> Label &lt;label&gt;</font>
+
+         Effect:       The  simple label &lt;label&gt; is defined to be here.   If
+                       outstanding references to the label  exist  they  are
+                       satisfied  and the label ceases to be defined.   This
+                       ensures that all references to this label are in  the
+                       same direction.
+
+         Errors:       None
+
+         Example:      S = "**" <B>if</B> S = ""
+                       Stack S;  String "**";  Compare-Values
+                       Bne 26
+                       Stack S;  String "";  Assign-Value
+                       Label 26
+
+<HR>
+         Instruction: <font color=#ff0000> Left</font>
+
+         Effect:       TOS  and SOS are removed from the stack and the value
+                       of SOS logically shifted left by the  value  of  TOS,
+                       SOS &lt;&lt; TOS, is stacked.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS are not both integer values.
+                       3. The  value  of  TOS is negative or greater than or
+                          equal to the number of bits in an integer.
+
+         Example:      A = B &lt;&lt; C
+                       Stack A;  Stack B;  Stack C;  Left;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Line &lt;n&gt;</font>
+
+         Effect:       The current position is associated with the start  of
+                       the code for source line &lt;n&gt;.
+
+         Error:        1. The stack is not empty.
+
+         Example:      
+                         X = 1
+                         Y = 3;  Z = 4
+
+                          Line 5;  Stack X;  Byte 1;  Assign-Value
+                          Line 6;  Stack Y;  Byte 3;  Assign-Value
+                          Line 6;  Stack Z;  Byte 4;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Localise</font>
+
+         Effect:       The  area  pointed at be &lt;a&gt; is copied into the local
+                       stack frame and &lt;a&gt; is updated to point  at  the  new
+                       area.
+
+         Notes:        If  the  first  byte  of the new area is at X, &lt;a&gt; is
+                       updated to the address X-&lt;c&gt;.
+
+         Errors:       1. The stack contains less than three items.
+                       2. &lt;a&gt; is not a reference.
+                       3. &lt;b&gt; and &lt;c&gt; are not integer values.
+
+
+<HR>
+         Instruction: <font color=#ff0000> Locate &lt;tag&gt;</font>
+
+         Effect:       The tag is defined as a general  label  if  necessary
+                       and  made  to  reference  the current position in the
+                       program.
+
+         Error:        1. &lt;tag&gt; is already defined.
+
+         Example:            X = 1
+                       Pos:  Y = Y+1
+                             -&gt;Pos <B>if</B> Y < 0
+
+                          Stack X;  Byte 1;  Assign-Value
+                          Locate Pos
+                          Stack Y;  Stack Y;  Byte 1;  Add;  Assign-Value
+                          Stack Y;  Byte 0;  Compare-Values
+                          Bge 18
+                          Jump Pos
+                          Label 18
+
+<HR>
+         Instruction: <font color=#ff0000> Mod</font>
+
+         Effect:       TOS and SOS  are  removed  from  the  stack  and  are
+                       replaced  by  the value 'SOS MOD TOS' where MOD is as
+                       defined in section 6.7.2.2 of the Pascal standard  BS
+                       6192:1982.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS are not both integer values.
+
+         Example:      m := p MOD q;
+                       Stack m;  Stack p;  Stack q;  Mod
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Mul</font>
+
+         Effect:       TOS  and SOS are removed from the stack and the value
+                       of SOS multiplied by the value of TOS, SOS * TOS,  is
+                       stacked.   Integer  values  will  be  converted  into
+                       floating-point if one  operand  is  integer  and  the
+                       other is real.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS (or SOS) is neither integer nor real type.
+
+         Example:      A = B * C
+                       Stack A;  Stack B;  Stack C;  Mul;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Negate</font>
+
+         Effect:       The value in TOS is negated and left as TOS.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is not an integer or real value.
+
+         Example:      A = -B
+                       Stack A;  Stack B
+                       Negate;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Next-Alt</font>
+
+         Effect:       This instruction marks the end of one alternative and
+                       the start of the next
+
+         Error:        1. List flag is not set.
+
+         Example:
+                       <B>recordformat</B> F(<B>integer</B> X, (<B>integer</B> Y <B>or</B> <B>real</B> Z))
+                       Define F.......
+                       Start
+                          Define X.....
+                          Alt-Start
+                             Define Y.....
+                          Next-Alt
+                             Define Z.....
+                          Alt-Finish
+                       Finish
+
+<HR>
+         Instruction: <font color=#ff0000> Null-Set</font>
+
+         Effect:       A descriptor of a null set is stacked.
+
+         Errors:       None
+
+         Example:      SetA := [];
+                       Stack SetA;  Null-Set;  Assign-Value
+
+
+<HR>
+         Instruction: <font color=#ff0000> On &lt;n&gt; &lt;label&gt;</font>
+
+         Effect:       This  instruction  marks  the  start  of  an <B>on</B> <B>event</B>
+                       block. &lt;n&gt; is a sixteen-bit set of flags  where  each
+                       trapped  event  is  represented  by a 1-bit, with the
+                       least-significant bit corresponding to  event  0  and
+                       the most-significant bit event 15.
+
+         Notes:        &lt;label&gt;  is  the  simple label which marks the end of
+                       the event block.
+
+         Errors:       1. &lt;n&gt; does not have any bits set.
+                       2. &lt;label&gt; is not  defined  before  the  end  of  the
+                          current block.
+
+         Example:      <B>on</B> 9 <B>start</B>; <B>return</B>; <B>finish</B>
+                       On 512 17
+                       Return
+                       Label 17
+
+<HR>
+         Instruction: <font color=#ff0000> Or</font>
+
+         Effect:       TOS  and SOS are removed from the stack and the value
+                       of  SOS  logically  ORed  with  the  value  of   TOS,
+                       SOS ! TOS, is stacked.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS are not both integer values.
+
+         Example:      A = B !  C
+                       Stack A;  Stack B;  Stack C;  Or;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Pop</font>
+
+         Effect:       TOS is removed from the stack.
+
+         Errors:       The stack is empty.
+
+         Example:      X := Y := 0
+                       Stack X;  Duplicate
+                       Stack Y;  Duplicate
+                       Byte 0;  Assign-Value;  Assign-Value
+                       Pop
+
+<HR>
+         Instruction: <font color=#ff0000> Quotient</font>
+
+         Effect:       TOS  and SOS are removed from the stack and the value
+                       of  SOS  integer-divided  by  the   value   of   TOS,
+                       SOS // TOS, is stacked.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS (or SOS) is not an integer.
+
+         Example:      A = B // C
+                       Stack A;  Stack B;  Stack C;  Quotient;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Real &lt;real&gt;</font>
+
+         Effect:       The real constant &lt;real&gt; is pushed onto the stack.
+
+         Errors:       None
+
+         Example:      Z = -1.23
+                       Stack Z;  Real &lt;1.23&gt;;  Negate
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Real-Power</font>
+
+         Effect:       TOS  and SOS are removed from the stack and the value
+                       of SOS raised to the integer power TOS,  SOS^TOS,  is
+                       stacked.  The type of this value is real.
+
+         Errors:       1. The stack contains less than two items.
+                       2. SOS is neither an integer nor a real value.
+                       3. TOS is not an integer value.
+
+         Example:      R = 12^X
+                       Stack R;  Byte 12;  Stack X;  Real-Power
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Reference &lt;n&gt;</font>
+
+         Effect:       TOS  is  replaced by a reference to an object of type
+                       &lt;n&gt; at the address given by  the  original  TOS.  the
+                       value  of  &lt;n&gt; is encoded in the same way as the type
+                       information, &lt;a&gt;, in the Define instruction.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is not an integer (address) value.
+
+         Example:      P = Integer(Q)
+                       Stack P;  Stack Q;  Reference 1
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Remainder</font>
+
+         Effect:       TOS and SOS  are  removed  from  the  stack  and  are
+                       replaced  by  the  value  REM(SOS,  TOS).   The exact
+                       definition  of  REM  is  given  in  the  IMP  Library
+                       Definition.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS are not both integer values.
+
+         Example:      Digit = Rem(N, 10)
+                       Stack Digit;  Stack N;  Byte 10;  Remainder
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Return</font>
+
+         Effect:       A return sequence is generated to return control from
+                       the current block.
+
+         Errors:       None
+
+         Example:      <B>return</B> <B>if</B> X # 0
+                       Stack X;  Byte 0;  Compare-Values
+                       Beq 19
+                       Return
+                       Label 19
+
+<HR>
+         Instruction: <font color=#ff0000> Return-False</font>
+
+         Effect:       The current block returns false.
+
+         Notes:        This  is  usually  accomplished  by  setting the true
+                       condition-code appropriately.
+
+         Error:        1. The current block is not a predicate.
+
+         Example:      <B>false</B> <B>if</B> Flag = 0
+                       Stack Flag;  Byte 0;  Compare-values
+                       Bne 42
+                       Return-False
+                       Label 42
+
+<HR>
+         Instruction: <font color=#ff0000> Return-Reference</font>
+
+         Effect:       The address  of  the  object  referenced  by  TOS  is
+                       returned as the result of the map.
+
+         Errors:       1. The current block is not a map.
+                       2. The stack is empty.
+                       3. TOS is not a reference to a data object.
+
+         Example:      <B>result</B> == X
+                       Stack X;  Return-Reference
+
+<HR>
+         Instruction: <font color=#ff0000> Return-True</font>
+
+         Effect:       The current block returns true.
+
+         Notes:        This  is  usually  accomplished  by  setting the true
+                       condition-code appropriately.
+
+         Error:        1. The current block is not a predicate.
+
+         Example:      <B>true</B> <B>if</B> Flag = 0
+                       Stack Flag;  Byte 0;  Compare-values
+                       Bne 42
+                       Return-True
+                       Label 42
+
+<HR>
+         Instruction: <font color=#ff0000> Return-Value</font>
+
+         Effect:       TOS is removed from the stack  and  returned  as  the
+                       result of the function defined by the current block.
+
+         Notes:        Integer   values   will   be  converted  to  real  if
+                       necessary.
+
+         Errors:       1. The stack is empty.
+                       2. The current block is not a function.
+
+         Example:      <B>result</B> = "Hello"
+                       String "Hello"
+                       Return-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Right</font>
+
+         Effect:       TOS and SOS are removed from the stack and the  value
+                       of  SOS  logically  left shifted by the value of TOS,
+                       SOS &gt;&gt; TOS, is stacked.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS are not both integer values.
+                       3. The value of TOS is negative or  greater  then  or
+                          equal to the number of bits in an integer.
+
+         Example:      A = B &gt;&gt; C
+                       Stack A;  Stack B;  Stack C;  Right;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Round</font>
+
+         Effect:       TOS  is  replaced by the value ROUND(TOS) where ROUND
+                       is as  defined  in  section  6.6.6.3  of  the  Pascal
+                       standard  BS 6192:1982, with the extension that ROUND
+                       returns the value of its parameter if that  value  is
+                       already an integer.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is neither integer nor real.
+
+         Example:      i := Round(r+0.1);
+                       Stack i;  Stack r;  Real &lt;0.1&gt;; Add
+                       Round;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Select &lt;n&gt;</font>
+
+         Effect:       TOS  is  replaced by the &lt;n&gt;'th item in the format of
+                       TOS.   Fields within records  are  numbered  from  1;
+                       alternative markers have no effect on the numbering.
+
+         Errors:       1. The stack is empty
+                       2. TOS is not a record.
+                       3. The  format  of  TOS does not contain at least &lt;n&gt;
+                          items.
+
+         Example:      <B>recordformat</B> F(<B>integer</B> P <B>or</B> <B>record</B> (F)<B>name</B> Q)
+                       <B>record</B> (F) R
+                       R_Q_P = 0
+
+                       Stack R;  Select 2;  Select 1
+                       Byte 0;  Assign-Value
+
+
+<HR>
+         Instruction: <font color=#ff0000> Set-Format &lt;tag&gt;</font>
+
+         Effect:       TOS is converted to be  a  record  of  format  &lt;tag&gt;.
+                       This  never  involves any instructions being executed
+                       in the object program.
+
+         Errors:       1. &lt;tag&gt; is not a recordformat.
+                       2. The stack is empty.
+                       3. TOS is not a reference to a variable.
+
+
+<HR>
+         Instruction: <font color=#ff0000> Signal &lt;n&gt;</font>
+
+         Effect:       The event &lt;n&gt;,SOS,TOS is signalled.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS are not both integer values.
+
+         Example:      <B>signal</B> 1,2,3
+                       Byte 3;  Byte 2;  Signal 1
+
+<HR>
+         Instruction: <font color=#ff0000> Size-Of</font>
+
+         Effect:       TOS is replaced  by  the  integer  value  giving  the
+                       number  of  bytes  in  the  object  referenced by the
+                       original TOS.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is not a reference to a data object.
+
+         Example:      P = Sizeof(R)
+                       Stack P;  Stack R;  Size-Of;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Stack &lt;tag&gt;</font>
+
+         Effect:       The tag with index value &lt;tag&gt;  is  pushed  onto  the
+                       stack.
+
+         Error:        1. &lt;tag&gt; has not been defined.
+
+         Example:      A = B
+                       Stack A;  Stack B;  Assign-Value
+
+
+<HR>
+         Instruction: <font color=#ff0000> Stack-Condition &lt;b&gt;</font>
+
+         Effect:       The  values  of  SOS  and  TOS  are  compared  as  in
+                       Compare-Values  but  instead  of  the  condition-code
+                       being set, TOS and SOS are replaced by the constant 1
+                       (true)   or   0  (false)  depending  on  whether  the
+                       condition specified by &lt;b&gt; is  true  or  false.   The
+                       values of &lt;b&gt; are the encodings of the instructions:
+                       BEQ, BNE, BLT, BLE, BGT, BGE, BT, BF
+
+         Notes:        The comparison is signed when integers are concerned.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS cannot be compared.
+                       3. &lt;b&gt; is not a valid condition.
+
+         Example:      B := (X=Y);
+                       Stack B
+                       Stack X;  Stack Y;  Stack-Condition BEQ
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Stack-In</font>
+
+         Effect:       TOS  and  SOS  are  removed  from  the  stack and are
+                       replaced by an integer value which is 1 (true) if SOS
+                       is IN the set TOS or 0 (false) if SOS is not  IN  the
+                       set TOS.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS is not a set or SOS is not an integer.
+
+         Example:      B := (x IN s);
+                       Stack B
+                       Stack x;  Stack s;  Stack-In
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Stack-Unsigned-Condition &lt;b&gt;</font>
+
+         Effect:       The  values  of  SOS  and  TOS  are  compared  as  in
+                       Compare-Unsigned-Values   but    instead    of    the
+                       condition-code  being set TOS and SOS are replaced by
+                       the constant 1  (true)  or  0  (false)  depending  on
+                       whether  the  condition  specified  by &lt;b&gt; is true or
+                       false.   The values of &lt;b&gt; are the encodings  of  the
+                       instructions:
+                       BEQ, BNE, BLT, BLE, BGT, BGE, BT, BF
+
+         Notes:        The   comparison   is   unsigned  when  integers  are
+                       concerned.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS cannot be compared.
+                       3. &lt;b&gt; is not a valid condition.
+
+         Example:      B := (Ux &lt; Uy);
+                       Stack B
+                       Stack Ux;  Stack Uy;  Stack-Unsigned-Condition BLT
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Start</font>
+
+         Effect:       This instruction marks the start of a  list  of  tags
+                       defining   the  parameters  to  a  procedure  or  the
+                       components of a record.  List flag is set.
+
+         Notes:        This instruction must always follow the definition of
+                       a procedure or recordformat tag.   There  must  be  a
+                       matching 'Finish' before the end of the block.
+
+         Errors:       1. List flag is set.
+                       2. The  last  instruction  was  not  a 'Define' which
+                          introduced a procedure or recordformat.
+
+         Example:      <B>routine</B> Newline; ....; <B>end</B>
+                       Define Newline.........
+                       Start
+                       Finish
+                       ......
+                       End
+
+<HR>
+         Instruction: <font color=#ff0000> String &lt;string&gt;</font>
+
+         Effect:       The string  constant  &lt;string&gt;  is  pushed  onto  the
+                       stack.
+
+         Errors:       None
+
+         Example:      S = "Hello"
+                       Stack S;  String "Hello";  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Sub</font>
+
+         Effect:       TOS  and SOS are removed from the stack and the value
+                       of SOS minus the value of TOS, SOS - TOS, is stacked.
+                       Integer values will be converted into  floating-point
+                       if one operand is integer and the other is real.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS (or SOS) is neither integer nor real type.
+
+         Example:      A = B - C
+                       Stack A;  Stack B;  Stack C;  Sub;  Assign-Value
+
+
+<HR>
+         Instruction: <font color=#ff0000> Switch-Jump &lt;tag&gt;</font>
+
+         Effect:       TOS  is  used  to  index  into  the switch vector and
+                       control is then transferred to  the  selected  label.
+                       TOS is removed from the stack.
+
+         Errors:       1. The stack is empty.
+                       2. &lt;tag&gt; is not a switch.
+
+         Example:      -&gt;Sw(J)
+                       Stack J;  Switch-Jump Sw
+
+<HR>
+         Instruction: <font color=#ff0000> Switch-Label &lt;tag&gt;</font>
+
+         Effect:       The  label selected from the switch vector is defined
+                       the be here.  TOS is removed from the stack.
+
+         Errors:       1. The stack is empty.
+                       2. &lt;tag&gt; is not a switch in the current block.
+                       3. TOS is not an integer value within the  bounds  of
+                          &lt;tag&gt;.
+
+         Example:      Sw(12):
+                       Byte 12;  Switch-Label Sw
+
+<HR>
+         Instruction: <font color=#ff0000> Swop</font>
+
+         Effect:       The  top  two items on the stack are reversed.   That
+                       is, TOS becomes the new SOS, and SOS becomes the  new
+                       TOS.
+
+         Error:        1. The stack contains less than two items.
+
+         Example:      X = Y
+                       Stack Y;  Stack X;  Swop;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Test-Boolean</font>
+
+         Effect:       The  condition-code  is  set  to  'false'  or  'true'
+                       depending on whether TOS is 0 (false)  or  1  (true).
+                       TOS is removed from the stack.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is not a boolean value.
+
+         Example:      If B Then DoIt;
+                       Stack B;  Test-Boolean;  BF 43
+                       Stack DoIt;  Call
+                       Label 43
+
+<HR>
+         Instruction: <font color=#ff0000> Test-In defined by TOS.</font>
+
+         Effect:       The  value  of SOS is tested for inclusion within the
+                       set TOS.  The condition-code is set 'true' or 'false'
+                       accordingly.   Both TOS and SOS are removed from  the
+                       stack.
+
+         Errors:       1. The stack contains less than two items.
+                       2. SOS is not an integer value.
+                       3. TOS is not a set value.
+
+         Example:      If NOT x IN s Then x := 0;
+                       Stack x;  Stack s;  Test-In
+                       Bt 31
+                       Stack x;  Byte 0;  Assign-Value
+                       Label 31
+
+<HR>
+         Instruction: <font color=#ff0000> Test-Nil</font>
+
+         Effect:       A  check  is performed to ensure that TOS is not NIL.
+                       An event is signalled if it is, or if TOS points to a
+                       heap  item  which  has  been  returned  to  the  heap
+                       (disposed).
+
+         Notes:        This  test  can  also  perform an unassigned variable
+                       check.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is not a pointer variable.
+
+         Example:      P^ := 0;
+                       Stack P;  Test-Nil
+                       Reference &lt;1&gt;
+                       Byte 0;  Assign-Value
+
+
+<HR>
+         Instruction: <font color=#ff0000> Test-Range &lt;tag&gt;</font>
+
+         Effect:       The value of TOS is checked to be  within  the  range
+                       defined by the tag.  If the value is not in the range
+                       an event is signalled.
+
+         Notes:        The event is signalled at run-time.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is not an integer value.
+                       3. &lt;tag&gt; does not define a range.
+
+         Example:      Byteval := Bigval;
+                       Stack Byteval
+                       Stack Bigval;  Test-Range Byterange
+                       Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Trunc</font>
+
+         Effect:       TOS  is  replaced by the value TRUNC(TOS) where TRUNC
+                       is as  defined  in  section  6.6.6.3  of  the  Pascal
+                       standard  BS 6192:1982, with the extension that Trunc
+                       returns the value of its parameter if that  value  is
+                       already an integer.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is neither integer nor real.
+
+         Example:      i := Trunc(r+0.1);
+                       Stack i;  Stack r;  Real &lt;0.1&gt;; Add
+                       Trunc;  Assign-Value
+
+<HR>
+         Instruction: <font color=#ff0000> Variable-Call</font>
+
+         Effect:       The  procedure  described  by  TOS  is called.   This
+                       differs from 'Call' in that the procedure may have  a
+                       variable number of parameters.
+
+         Notes:        This  instruction  is used to call 'C' procedures and
+                       its definition is as wooly as the definition of  that
+                       language.
+
+         Errors:       1. The stack is empty.
+                       2. TOS is not a procedure descriptor.
+
+         Example:      try(1); try(1,2);
+                       Stack try;  Byte 1;  Assign-Parameter
+                       Variable-Call
+                       Stack try;  Byte 1;  Assign-Parameter
+                       Byte 2;  Assign-Parameter
+                       Variable-Call
+
+<HR>
+         Instruction: <font color=#ff0000> Xor</font>
+
+         Effect:       TOS  and SOS are removed from the stack and the value
+                       of SOS  exclusively  ORed  with  the  value  of  TOS,
+                       SOS !! TOS, is stacked.
+
+         Errors:       1. The stack contains less than two items.
+                       2. TOS and SOS are not both integer values.
+
+         Example:      A = B !!  C
+                       Stack A;  Stack B;  Stack C;  Xor;  Assign-Value
+
+</PRE>
+<HR>
+<H2>Appendix 2  Instructions which set the condition-code</H2>
+<PRE>
+
+                       Call {predicate}
+                       Compare-Values         Compare-Unsigned-Values
+                       Compare-References     Compare-Repeated-Values
+                       Test-Boolean           Test-In
+
+</PRE>
+<HR>
+<H2>Appendix 3  Instructions which test the condition-code</H2>
+<PRE>
+
+                       BEQ       BF
+                       BGE       BGT
+                       BLE       BLT
+                       BNE       BT
+</PRE>
+<HR>
+</BODY>
+</HTML>

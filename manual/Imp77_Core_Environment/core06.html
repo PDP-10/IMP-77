@@ -1,0 +1,351 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                    Section 6: Basic I/O Procedures
+
+
+*       <EM>routine</EM> ABANDON INPUT
+*       <EM>routine</EM> ABANDON OUTPUT
+
+           These procedures close the route associated with the
+        currently selected input or output stream, at the same time
+        notifying the accessor associated with the route that an ABANDON
+        operation has been performed on one of its routes.  If the route
+        being closed is the last route to the accessor, the accessor is
+        also closed.
+
+           When an accessor is closed, it performs an overall ABANDON on
+        its connection to the associated object if any of the routes to
+        the accessor were ABANDONed.  Only if all routes were closed
+        normally (using CLOSE procedures) will the accessor perform a
+        normal close on its connection to the object.  On termination of
+        the program, any remaining routes are CLOSEd.
+
+           The effect of ABANDONing a connection to an object is
+        implementation defined for each stream facility.  Implementors
+        would normally aim for an ABANDON to be interpreted as the
+        programmer specifying that he would rather not have performed
+        the initial OPEN on the object.  For input streams, ABANDON will
+        thus usually be identical in effect to CLOSE.  For output
+        streams, ABANDON should attempt to leave the environment in as
+        close to its original state as possible, for example by deleting
+        new versions of files leaving the originals in place.  On some
+        systems, stream facilities may be unable to perform this kind of
+        operation and it is always permissable for ABANDON to be defined
+        as equivalent to CLOSE.  Note that this implies that programmers
+        cannot assume that, for example, the environment will be
+        unaffected by an OPEN-ABANDON pair.
+
+
+*       <EM>routine</EM> CLOSE INPUT
+*       <EM>routine</EM> CLOSE OUTPUT
+
+           These procedures close the route associated with the
+        currently selected input or output stream, at the same time
+        notifying the accessor associated with the route that an CLOSE
+        operation has been performed on one of its routes.  If the route
+        being closed is the last route to the accessor, the accessor is
+        also closed.
+
+           When an accessor is closed, it performs a normal close on its
+        connection to the associated object only if all previous routes
+        to the accessor were closed normally, i.e. with one of the CLOSE
+        procedures.  If any of the routes were closed using an ABANDON
+        procedure, the connection is ABANDONed as described in the
+        section on the ABANDON procedures above.
+
+           Note that, on normal termination of the program, any
+        remaining routes will be CLOSEd, causing the connections to
+        their associated objects to be closed normally unless an ABANDON
+        call has closed some other route to the accessor at an earlier
+        point in the program.  The effect on routes, accessors and
+        objects of abnormal termination of the program (for example
+        through a run-time error condition) is implementation dependent.
+
+		     
+*       <EM>routine</EM> COMPLETE INPUT
+*       <EM>routine</EM> COMPLETE OUTPUT
+
+           {informal &amp; provisional} These procedures 'kick' the accessor
+        associated with the currently selected input or output stream.
+        The effect of these procedures is implementation defined for
+        each stream facility.  COMPLETE OUTPUT can be likened to a
+        transport service 'push' operation, that is it ensures that any
+        data being held locally for optimisation purposes is issued to
+        the associated object.  In some cases such as on record-based
+        file systems, this necessitates the output of a complete line of
+        text.
+
+
+*       <EM>string</EM>(255) <EM>function</EM> INPUT NAME
+
+           This function returns a textual description of the object
+        associated with the currently selected input stream.
+
+
+*       <EM>string</EM>(255) <EM>function</EM> OUTPUT NAME
+
+           This function returns a textual description of the object
+        associated with the currently selected output stream.
+
+
+*       <EM>integer</EM> <EM>function</EM> INPUT STREAM
+
+           This function returns the stream number of the currently
+        selected input stream.
+
+
+*       <EM>integer</EM> <EM>function</EM> OUTPUT STREAM
+
+           This function returns the stream number of the currently
+        selected output stream.
+
+
+*       <EM>byte</EM> <EM>function</EM> NEXT SYMBOL
+
+           {informal &amp; provisional} This function returns the next
+        symbol from the currectly selected input stream.  If the
+        currently selected input stream is ended then an event (9,1,0)
+        will be signalled.
+
+
+*       <EM>constant</EM> <EM>integer</EM> NL
+
+           This important constant represents the character which
+        terminates lines of text in streams opened by the standard text
+        file stream facility, i.e. OPEN INPUT and OPEN OUTPUT.  It is
+        defined according to the ISO/ASCII code on which the IMP
+        language is based as follows:
+
+            <EM>constant</EM> <EM>integer</EM> NL = 10
+
+        Many stream facilities regard this character value as being no
+        different in its properties to any others in the <EM>byte</EM> character
+        range.  However, the pre-defined "standard" text file stream
+        facility defined by OPEN INPUT and OPEN OUTPUT distinguishes NL
+        from all other characters.  Any accessor created by OPEN OUTPUT
+        recognises the character value NL as indicating a line break and
+        performs the appropriate system-dependent operations to achieve
+        this effect in the output file.  Similarly, input accessors
+        created by OPEN INPUT perform the system-dependent operations
+        required to extract lines of text from the input file, and
+        provide the program with a NL character when that position in
+        the file is reached.
+
+
+*       <EM>routine</EM> OPEN INPUT  ( <EM>integer</EM> Stream, <EM>string</EM>(255) S )
+*       <EM>routine</EM> OPEN OUTPUT ( <EM>integer</EM> Stream, <EM>string</EM>(255) S )
+
+           These two procedures constitute the TEXT stream facility,
+        which allows an IMP program access to a class of external
+        objects which contain lines of textual data.  Note that the
+        exact relationship between the TEXT stream facility and the
+        underlying filing system is implementation defined (DEF0009;
+        TEXT stream facility).  Most implementors will choose to use a
+        file organisation provided by the operating system if that is
+        possible, but no fixed relationship is guaranteed.  In
+        particular, there is no guarantee that files created by this
+        stream facility can be interpreted by anything other than
+        OPEN INPUT.  This applies as much to operating system commands
+        and programs as it does to IMP programs attempting to access the
+        object using other stream facilities.  However, the TEXT stream
+        facility should be arranged if at all possible to create files
+        processable by the host operating system's standard text
+        manipulation tools, for example editors, file listing commands
+        and so forth.  To allow the IMP system to interface with the
+        host operating system's conventions, certain characteristics of
+        the data are not guaranteed to be preserved on re-reading the
+        file:
+
+        1.      Line Length.  Under some operating systems, the
+                convention for text files is that they are organised as
+                a series of fixed-length records.  Variable-size text
+                lines generated by an IMP program will usually have to
+                be padded with trailing blanks to fit into such a
+                scheme.  Conversely, trailing blanks at the end of a
+                text line (i.e. immediately preceeding the newline) may
+                be stripped off before the contents of the line are
+                presented to the IMP program.  Finally, the TEXT stream
+                facility may be forced to break a very long line
+                generated by an IMP program into several smaller lines
+                in order to fit into the record size specified by the
+                operating system.
+
+        2.      Trailing NL Character.  Operating systems on which text
+                files are organised as a sequence of records (whether of
+                a fixed size as in item 1 above or of variable size) by
+                their nature imply that any text file will have some
+                number of complete lines, i.e. that it is impossible to
+                have a file on which the last line is not terminated in
+                the same way as were previous lines.  This manifests
+                itself in IMP programs on such systems when the last
+                line in an output file is not terminated by a NL
+                character: on re-reading the file, it will be found to
+                have had the NL inserted anyway.
+
+        3.      Exact Character Values.  Internally, IMP programs use a
+                full 8-bit extended ISO/ASCII character set, and any of
+                these 256 values may be presented to the TEXT stream
+                facility for output into a text file.  Each of these
+                values has a meaning to the IMP program in terms of its
+                graphical representation; for example, the value 65
+                represents the capital letter 'A'.  However, many
+                operating systems use a different character code to the
+                ISO/ASCII one used by IMP.  The most common example of
+                this in modern operating systems is IBM's Extended
+                Binary Coded Decimal Interchange Code (EBCDIC), an 8-bit
+                binary code which contains most (but not all) of the
+                graphical characters used by the ISO/ASCII code as well
+                as adding a few of its own.  On systems using a
+                character code different from that used internally by
+                IMP, the TEXT stream facility is required to perform the
+                translation between the IMP character code and that of
+                the host operating system: on an EBCDIC system, this
+                will usually mean a simple 1-1 mapping from one
+                character code to the other.  However, where
+                shortcomings are present in one code relative to the
+                other then some information will be lost: for example,
+                certain regional variants of EBCDIC lack such characters
+                as '[' and ']'.  This problem of loss of information may
+                be arbitrarily severe: as an extreme example, many older
+                operating systems use 6-bit character codes in which the
+                customary control characters and lower-case letters are
+                omitted, which require any lower-case characters to be
+                converted to their upper-case equivalents on output.
+
+
+           In summary, the purpose of the TEXT stream facility is to
+        process and generate files of textual data which are in a
+        human-readable form.  Examples of this kind of file would be a
+        high-level language source file and the corresponding compiler
+        listing file.  This stream facility is therefore required to
+        interface to the host operating system's text file facilities,
+        which in turn implies that very little can be guaranteed about
+        the contents of files manipulated by the TEXT stream facility
+        other than that a "best effort" will be made to communicate
+        textual data with the (human) user of the file.  For all
+        purposes which require reliable exchange of data between
+        programs (i.e. excluding the human element) it is recommended
+        that the BINARY stream facility described below be used instead.
+
+
+*       <EM>routine</EM> OPEN BINARY INPUT  ( <EM>integer</EM> Stream, <EM>string</EM>(255) S )
+*       <EM>routine</EM> OPEN BINARY OUTPUT ( <EM>integer</EM> Stream, <EM>string</EM>(255) S )
+
+           These two procedures constitute the BINARY stream facility,
+        which allows an IMP program access to a class of external
+        objects through which <EM>byte</EM> values are guaranteed to be
+        transmitted unchanged.  In addition, the number of <EM>byte</EM> values
+        placed into the stream must match the number read out before
+        end-of-file.  This is in contrast to the TEXT facility described
+        above, where only certain values are guaranteed to be stored
+        unchanged and certain other characteristics of the data (such as
+        preserving the length of files and lines) are not guaranteed to
+        be preserved.  Note that the exact relationship between the
+        BINARY stream facility and the underlying filing system is
+        implementation defined (DEF0006; BINARY stream facility).  Most
+        implementors will choose to use a file organisation provided by
+        the operating system if that is possible, but no fixed
+        relationship is guaranteed.  In particular, there is no
+        guarantee that files created by this stream facility can be
+        interpreted by anything other than OPEN BINARY INPUT.  This
+        applies as much to operating system commands and programs as it
+        does to IMP programs attempting to access the object using other
+        stream facilities.
+
+
+*       <EM>routine</EM> POSITION INPUT  ( <EM>integer</EM> P )
+*       <EM>routine</EM> POSITION OUTPUT ( <EM>integer</EM> P )
+
+           {informal &amp; provisional} Guaranteed to be applicable to the
+        (as yet not defined) positionable file stream facility, although
+        some systems may permit these to be applied to other stream
+        facilities if convenient to the implementor without sacrificing
+        efficiency.  Positioning operations are ignored by stream
+        facilities to which they are inapplicable.
+
+           Position 0 is the position of the first character in the
+        stream, if any.
+
+
+*       <EM>integer</EM> <EM>function</EM> INPUT  POSITION
+*       <EM>integer</EM> <EM>function</EM> OUTPUT POSITION
+
+           {informal &amp; provisional} Guaranteed to be applicable to the
+        (as yet undefined) positionable file stream facility, although
+        some systems may permit these to be applied to other stream
+        facilities if convenient to the implementor without sacrificing
+        efficiency.
+
+           Position 0 is the position of the first character in the
+        stream, if any.  INPUT POSITION will always return 0 on a
+        newly-opened file even if it is empty.  The value 0 will also be
+        returned by stream facilities which are not positionable.
+
+
+*       <EM>routine</EM> PRINT SYMBOL ( <EM>byte</EM> S )
+
+           Presents the 8-bit value S to the currently selected output
+        stream for handling.  The precise effect of PRINT SYMBOL will
+        depend on the stream facility associated with the currently
+        selected output stream.  For example, the BINARY stream facility
+        treats all values in the 8-bit range identically, while OPEN
+        OUTPUT treats the NL characters specially as a text line
+        terminator.
+
+	    
+*       <EM>routine</EM> PROMPT ( <EM>string</EM>(255) S )
+
+           Indicates a message which should be communicated to an
+        interactive terminal user on future occasions when input is
+        requested from the interactive terminal, if such a device
+        exists.  This message remains in effect until the end of program
+        execution or until it is replaced through another call on
+        PROMPT.  The initial PROMPT string is implementation defined
+        (DEF0007; initial prompt string).  The method of presentation of
+        the PROMPT string to the user, and the precise times at which
+        the PROMPT string is communicated, are both implementation
+        defined (DEF0014; operation of PROMPT facility).
+
+           One some systems, the underlying system may have a prompt
+        facility sufficiently close to the IMP one for the
+        implementation to use it to
+
+
+*       <EM>routine</EM> READ SYMBOL ( <EM>name</EM> N )
+
+*       <EM>routine</EM> RESET INPUT
+*       <EM>routine</EM> RESET OUTPUT
+
+           Reset the accessor associated with the currently selected
+        input or output stream to a state as close as possible to that
+        in effect immediately after the initial OPEN call which created
+        the accessor.
+
+           For input streams, this means rewinding the stream to its
+        start so that the first character in the stream will be the next
+        to be read.  For streams associated with terminals or other
+        non-rewindable objects, this operation is typically ignored.
+
+           For output streams, a RESET operation should attempt to
+        discard any output which has already been generated.  Note that
+        in this respect it differs from POSITION OUTPUT(0) which merely
+        resets the writing pointer to the beginning of the stream
+        without discarding the already generated data.  For streams
+        associated with terminals or other non-rewindable objects, this
+        operation is typically ignored.
+
+
+*       <EM>routine</EM> SELECT INPUT  ( <EM>integer</EM> S )
+*       <EM>routine</EM> SELECT OUTPUT ( <EM>integer</EM> S )
+
+           Make the input or output stream numbered S the currently
+        selected input or output stream, as appropriate.  It is an error
+        (ERR0006; illegal stream number) if the value of S is less than
+        0 or greater than the implementation defined maximum stream
+        number (DEF0001; maximum stream number).
+
+</PRE></BODY></HTML>

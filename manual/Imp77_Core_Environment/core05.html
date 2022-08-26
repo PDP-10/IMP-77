@@ -1,0 +1,194 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                 Section 5: Stream I/O System Overview
+
+   The primary input/output (I/O) mechanism provided to the IMP
+programmer is the stream I/O system, which allows the programmer to
+access objects which may be seen as an ordered collection of <EM>byte</EM> values
+(commonly characters).  This section attempts to give an overview of the
+stream I/O system prior to its formal definition in the two following
+sections.
+
+   The explanation of the stream I/O system given here may seem more
+complex than the previous informal definitions which have been
+understood by IMP programmers in the past.  The reason for this is
+twofold.  Firstly, the stream I/O system described here is somewhat more
+complex than the original IMP-77 system in that 'nested' opening of
+streams is permitted.  This implies that the original concept of a
+stream as a direct connection to an object is no longer sufficient.
+Secondly, the Imp Core Environment Standard must be able to define the
+precise semantics of any combination of OPEN, CLOSE and other
+operations.  The detailed description of the function of the stream I/O
+system given here is intended to make it possible to resolve any
+questions about an implementation's conformance to this standard without
+relying on any informal understanding of the mechanism of stream
+manipulations which may be biased by exposure to particular classes of
+operating system.
+
+   Note that, although the description below is given in terms of named
+abstractions like <EM>object</EM>, <EM>route</EM> and <EM>stream</EM>, this does not imply that an
+implementor is required by this standard to implement such entities.  An
+implementor is left free to implement the semantics of the system
+described here in any way which is convenient as long as that system
+appears to the IMP programmer as described below.
+
+
+5.1 Objects and Accessors
+
+   The term <EM>object</EM> will be used throughout this definition to indicate
+an ordered collection of <EM>byte</EM> values.  Some possible objects are: the
+<EM>null</EM> object (which contains an empty sequence of bytes), an IMP <EM>string</EM>
+value or an arbitrary sequence of <EM>byte</EM>s in memory.  One interesting
+possibility for an object would be one which had no physical counterpart
+at all, such as a process generating a sequence of values such as
+"1, 2, 3, 4".  More common classes of object accessed through the stream
+I/O system are those of operating system files and interactive terminal
+devices.
+
+   Any object which is being used by a program is said to be <EM>accessed</EM>.
+An object might be accessed more than once simultaneously; each such
+access is thought of as being owned by an entity which we will refer to
+here as an <EM>accessor</EM>.  The accessor for a particular object access might
+hold information such as the object's name, the current character
+position within the object and more esoteric information such as the
+appropriate operating system control blocks for the object if it is an
+operating system file.
+
+   Thus, the accessor "wraps up" the bare object so that it can be
+usefully manipulated by adding notions such as the current position in
+the object and the class of access to the object.  Most accessors are
+either <EM>generators</EM> or <EM>acceptors</EM> of sequences of byte values.  For
+example, an accessor used to read from a data file would be a generator
+returning each character value from the file in turn.  Conversely, an
+example of an acceptor would be an accessor being used to write to a
+similar data file; each byte value presented to the accessor would be
+appended to the data in the file.
+
+
+5.2 Routes
+
+   We have seen that at any particular time in the execution of a
+program, there will be in existence a number of accessors, some of which
+might be acceptors and some generators.  We have not yet seen how these
+accessors are made visible to the programmer.
+
+   The IMP stream I/O system allows reference to accessors only through
+entities known as <EM>routes</EM>.  Each accessor is connected to a number of
+routes, any of which may be used indistinguishably to refer to the
+accessor.  The accessor is said to have these routes <EM>open</EM> to it: when
+the last route open to an accessor is <EM>closed</EM>, the accessor is also
+discarded.  This all implies that the original creation of an accessor
+(i.e. the accessing of an object) also results in the creation of the
+first route to that accessor.  In many cases this initial route will be
+the only route ever opened to the accessor.
+
+
+5.3 Streams and Selection
+
+   So far, a system has been described in which the I/O environment of a
+program at any time consists of a possibly large number of routes which
+connect to accessors which access objects.  The IMP programmer
+manipulates this system through an interface which we will now describe.
+
+   At any given time, input operations performed by a program are
+performed via an object known as the <EM>currently</EM> <EM>selected</EM> <EM>input</EM> <EM>stream</EM> and
+similarly any output operations are performed via the <EM>currently</EM> <EM>selected</EM>
+<EM>output</EM> <EM>stream</EM>.  These two entities are examples of <EM>streams</EM>, which are
+simply last-in/first-out collections of routes.  The most recently
+entered route in any stream is distinguished as the <EM>current</EM> <EM>route</EM> for
+that stream.  Any I/O operations performed on a stream are performed on
+the accessor connected to the stream's current route.  This accessor is
+referred to as the accessor <EM>associated</EM> with the stream.
+
+   Only a small number of streams exists in the stream I/O system; this
+number is defined by each particular implementation.  These streams are
+divided equally into two groups, input and output, with one of each
+distinguished as the currently selected stream of that group.  Each
+stream (input or output) is referenced by the IMP programmer using its
+<EM>stream</EM> <EM>number</EM>, which is a small non-negative integer.  This number is
+used to change the currently selected stream (a SELECT operation) or to
+change the definition of a stream by adding a new route to it (an OPEN
+operation).  As has been mentioned, all other operations refer to the
+currently selected streams.
+
+
+   There is always a currently selected input stream and a currently
+selected output stream, even before the program has performed any SELECT
+operations.  Prior to any select being performed by the program, input
+stream 1 is the currently selected input stream and output stream 1 is
+the currently selected output stream.
+
+
+5.4 Initial State of Stream System
+
+   Every IMP program which performs any useful work requires access to
+the environment outside itself, to read input data, output results and
+so forth.  Rather than require that every program explicitly perform an
+OPEN operation before performing any input or output, the two lowest
+numbered input and output streams (numbers 0 and 1) are defined to be
+opened on the programs behalf as described below.  The higher numbered
+streams (2..MAXSTREAM) are simply opened to the null object, with the
+effect that any output written to output streams 2..MAXSTREAM is
+discarded and all input streams 2..MAXSTREAM are always empty.
+
+   The low-numbered streams are defined to be opened on the closest
+equivalent in the host operating system to the following:
+
+         0 in   "command input"
+         0 out  "error output"
+         1 in   "standard input"
+         1 out  "standard output"
+
+This arrangement provides a simple program with all that it needs to
+operate: a stream of input data to process, a stream on which to place
+the results, one to indicate error conditions and finally one on which
+to accept commands or options.  More complex programs usually disregard
+the standard input and standard output streams in favour of explicit
+OPEN operations.
+
+   Although most operating systems provide a set of facilities which map
+reasonably well onto the above scheme, very few provide the whole set of
+four standard streams and as a result most implementations must
+compromise with, for example, command input and standard input being
+mapped onto the same operating system facility.  Each implementation
+must define (DEF0010; default stream mapping) the way in which the IMP
+default streams map onto the underlying operating system's facilities.
+
+   One well-known example of an operating system which the above scheme
+maps very well onto is UNIX, where every program is provided with three
+operating system streams "stdin", "stdout" and "stderr" corresponding to
+"standard input", "standard output" and "error output" in the above
+list.  An IMP program which processes input stream 1 giving results on
+output stream 1 and errors on output stream 0 can be used under UNIX as
+a "filter" program as the three operating system streams can be
+redirected at each invocation of the program.  For example, consider the
+following simple IMP program "uc.imp":
+
+         <EM>begin</EM>
+            <EM>integer</EM> Sym
+            <EM>while</EM> <EM>not</EM> End Of Input <EM>cycle</EM>
+               Read Symbol(Sym)
+               Sym = Sym-'a'+'A' <EM>if</EM> 'a' &lt;= Sym &lt;= 'z'
+               Print Symbol(Sym)
+            <EM>repeat</EM>
+         <EM>end</EM>
+
+This program reads from its standard input stream, converts each
+character in turn into upper case and puts the result onto its standard
+output stream.  The program terminates when there is no more data to
+convert.  On a UNIX system, this program could be invoked as part of a
+"pipeline" of commands as follows:
+
+         % cat fred | uc | lpr
+
+Here, the output of the command "cat fred" becomes the standard input
+stream for our example program, whose output is in turn fed into the
+"lpr" command.
+
+                      [still lots more to follow]
+
+</PRE></BODY></HTML>

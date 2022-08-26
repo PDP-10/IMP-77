@@ -1,0 +1,384 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                   Section 3: Mathematical Procedures
+
+
+
+   The procedures described in this section give the IMP programmer
+access to a range of basic mathematical functions.  This range is not
+intended to be as complete as, for example, the FORTRAN intrinsic
+library or one of the major mathematical libraries such as NAGLIB.
+Instead, it is hoped that the needs of the majority of portable
+applications will be met here without placing an undue burden on the
+implementor.
+
+
+   At present, this standard does not prescribe a level of accuracy
+which the procedures described here must attain in order for an
+implementation to conform to the standard.  Implementors are instead
+referred to [CODY80] for an indication of the level of accuracy which
+can be obtained with some care in implementation.
+
+
+   In an ideal world, all mathematical functions would return results
+which were precisely correct in all cases.  In practice, the results of
+IMP procedures are constrained to be of at most the precision of a <EM>long</EM>
+<EM>real</EM> variable, which means that they will differ from the ideal in some
+measure for almost all arguments.  The accumulation of similar errors
+during the passing of arguments and computation of results also adds to
+the overall deviation from the ideal.  The procedures here are described
+for clarity in terms of the ideal: a floating-point system of infinite
+precision and near-infinite range, and any mathematical relationships or
+example results given should be interpreted under this model.  However,
+it should always be borne in mind that, unless otherwise stated in the
+text, any procedure involving real numbers either as arguments,
+intermediate values or results will be subject to errors of precision
+for certain argument and result values.
+
+
+
+3.1 <EM>real</EM> to <EM>integer</EM> Conversion
+
+   For <EM>real</EM> to <EM>integer</EM> conversions, there are two basic operations which
+are commonly performed.  Firstly, the most common is to round a <EM>real</EM>
+value to the nearest <EM>integer</EM> value: this facility is provided by the
+functions ROUND and INT.  Secondly, the programmer may wish to truncate
+the <EM>real</EM> value: this operation is embodied in TRUNC and INTPT as
+described below.
+
+   The reason for defining a pair of procedures for each of these
+operations is to cater for the two common definitions of the terms
+"round" and "truncate": the procedures ROUND and TRUNC are defined in
+the sense of the national and international standards [BS6192, ISO7185]
+for the programming language PASCAL, i.e. with truncation being towards
+zero.  These functions are to be preferred for most programs as their
+operation is easily understood textually, for example ROUND and TRUNC of
+"-3.6" are "-4" and "-3" respectively.  These procedures are referred to
+below as the "textual" versions of the conversion functions.
+
+   The procedures INT and INTPT are based on an alternative definition
+of truncation used in certain mathematical contexts.  Here, INTPT
+corresponds to TRUNC except that any truncation required is guaranteed
+to make the number less positive, i.e. INTPT(X)&lt;=X.  This is in contrast
+to TRUNC's definition which implies that TRUNC(X) will become closer to
+zero if X is not already integer.  Use of INT and INTPT is only
+recommended after careful consideration of a program's requirements: the
+results from INTPT in particular can sometimes be unexpected.  For
+example, INTPT(-3.4)=-4 but INTPT(3.4)=3.  These procedures are most
+useful when some mathematical statement is to be made about a program:
+their effect of modifying all numbers in the same direction on the
+number line makes them easier to include in such statements.  INT and
+INTPT are referred to as the "monotonic" versions of the conversion
+functions.
+
+   In order to give the reader an overall idea of the intent of the
+procedures defined formally in the two sub-sections which follow, their
+effect on a range of key values are summarised in the following table.
+Note that the effects on these key values are duplicated as examples in
+the definitions of each individual procedure.
+
+            'X'    Int(X)   Int Pt(X)   Round(X)   Trunc(X)
+
+          -11.7     -12       -12        -12        -11
+           -1.2      -1        -2         -1         -1
+           -0.5       0        -1         -1          0
+            0.5       1         0          1          0
+            1.2       1         1          1          1
+           11.7      12        11         12         11
+
+
+
+
+3.1.1 Textual Versions
+
+
+*       <EM>integer</EM> <EM>function</EM> TRUNC ( <EM>long</EM> <EM>real</EM> X )
+
+           This function converts the given <EM>long</EM> <EM>real</EM> value into an
+        integer, with any truncation being towards zero (compare with
+        INTPT where the truncation is towards minus infinity).  It is
+        identical to the TRUNC function defined in [BS6192] section
+        6.6.6.3.  The TRUNC function obeys the following relationships:
+
+                    X-1 &lt;  TRUNC(X) &lt;= X       {if X &gt;= 0}
+                    X   &lt;= TRUNC(X) &lt;  X+1     {if X &lt;  0}
+
+        Examples:   TRUNC(-11.7) = -11
+                    TRUNC( -1.2) =  -1
+                    TRUNC( -0.5) =   0
+                    TRUNC(  0.5) =   0
+                    TRUNC(  1.2) =   1
+                    TRUNC( 11.7) =  11
+
+        It is an error (ERR0007; <EM>integer</EM> range exceeded) if the value of
+        TRUNC(X) exceeds the implementation defined range for the
+
+
+        <EM>integer</EM> data type (DEF0005; range of <EM>integer</EM> variables).
+
+
+
+*       <EM>integer</EM> <EM>function</EM> ROUND ( <EM>long</EM> <EM>real</EM> X )
+
+           This function returns the integer closest to a given <EM>long</EM>
+        <EM>real</EM> value.  In the case where the value is exactly halfway
+        between two integer values the value furthest from zero will be
+        returned.  It is identical to the ROUND function defined in
+        [BS6192] section 6.6.6.3.  The ROUND function obeys the
+        following relations:
+
+                    X-1/2 &lt;  ROUND(X) &lt;= X+1/2      {if X &gt;= 0}
+                    X-1/2 &lt;= ROUND(X) &lt;  X+1/2      {if X &lt;  0}
+
+        It may also be defined in terms of the TRUNC function by means
+        of the following relationships:
+
+                    ROUND(X) = TRUNC(X+1/2)        {if X &gt;= 0}
+                    ROUND(X) = TRUNC(X-1/2)        {if X &lt;  0}
+
+        Examples:   ROUND(-11.7) = -12
+                    ROUND( -1.2) =  -1
+                    ROUND( -0.5) =  -1
+                    ROUND(  0.5) =   1
+                    ROUND(  1.2) =   1
+                    ROUND( 11.7) =  12
+
+        It is an error (ERR0007; <EM>integer</EM> range exceeded) if the value of
+        ROUND(X) exceeds the implementation defined range for the
+        <EM>integer</EM> data type (DEF0005; range of <EM>integer</EM> variables).
+
+
+
+
+3.1.2 Monotonic Versions
+
+
+*       <EM>integer</EM> <EM>function</EM> INTPT ( <EM>long</EM> <EM>real</EM> X )
+
+           This function converts the given <EM>long</EM> <EM>real</EM> value into an
+        integer, with any truncation being towards minus infinity
+        (compare with TRUNC where the truncation is towards zero).  The
+        INTPT function obeys the following relation:
+
+                    X-1 &lt; INTPT(X) &lt;= X
+
+        Examples:   INTPT(-11.7) = -12
+                    INTPT( -1.2) =  -2
+                    INTPT( -0.5) =  -1
+                    INTPT(  0.5) =   0
+                    INTPT(  1.2) =   1
+                    INTPT( 11.7) =  11
+
+        It is an error (ERR0007; <EM>integer</EM> range exceeded) if the value of
+        INTPT(X) exceeds the implementation defined range for the
+
+
+        <EM>integer</EM> data type (DEF0005; range of <EM>integer</EM> variables).
+
+
+*       <EM>integer</EM> <EM>function</EM> INT ( <EM>long</EM> <EM>real</EM> X )
+
+           This function returns the integer closest to a given <EM>long</EM>
+        <EM>real</EM> value.  In the case where the argument lies exactly halfway
+        between two integer values the more positive integer value will
+        be returned.  The INT function obeys the following relation:
+
+                    X-1/2 &lt; INT(X) &lt;= X+1/2
+
+        Alternatively, INT may be related to INTPT as follows:
+
+                    INT(X) = INTPT(X+1/2)
+
+        Examples:   INT(-11.7) = -12
+                    INT( -1.2) =  -1
+                    INT( -0.5) =   0
+                    INT(  0.5) =   1
+                    INT(  1.2) =   1
+                    INT( 11.7) =  12
+
+        It is an error (ERR0007; <EM>integer</EM> range exceeded) if the value of
+        INT(X) exceeds the implementation defined range for the <EM>integer</EM>
+        data type (DEF0005; range of <EM>integer</EM> variables).
+
+
+
+3.2 Trigonometric Functions
+
+           All angles are in radians.  For SIN, COS and TAN, X is <EM>not</EM>
+        restricted to be less than 2*PI.
+
+
+*       <EM>constant</EM> <EM>long</EM> <EM>real</EM> PI
+
+           The value of the mathematical constant 'pi' expressed to the
+        maximum accuracy of a <EM>long</EM> <EM>real</EM>.
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> SIN ( <EM>long</EM> <EM>real</EM> X )
+
+           Sine of X
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> COS ( <EM>long</EM> <EM>real</EM> X )
+
+           Cosine of X
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> TAN ( <EM>long</EM> <EM>real</EM> X )
+
+           Tangent of X
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> ARC SIN ( <EM>long</EM> <EM>real</EM> X )
+
+           Arc Sine of X.  It is an error unless |X| &lt;= 1.  The range of
+        the result is -PI/2 &lt;= result &lt;= PI/2.
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> ARC COS ( <EM>long</EM> <EM>real</EM> X )
+
+           Arc Cosine of X.  It is an error unless |X| &lt;= 1.  The range
+        of the result is 0 &lt;= result &lt;= PI.
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> ARC TAN 1 ( <EM>long</EM> <EM>real</EM> X )
+
+           Arc Tangent of X.  Mathematically, the result range should be
+        -PI/2 &lt; result &lt; PI/2, but the limited precision of machine
+        arithmetic may cause the range to increase to include the two
+        end-points.  This is because, at the limits of the argument
+        range (positive and negative numbers approaching the limits of
+        the machine's floating-point range) the mathematically correct
+        result is indistinguishable from +/- PI/2, and is in addition
+        closer to +/- PI/2 than it is to the machine representation of
+        any other number within the exclusive range.  In practice, then,
+        the result range of ARC TAN is -PI/2 &lt;= result &lt;= PI/2.
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> ARC TAN ( <EM>long</EM> <EM>real</EM> X, Y )
+
+           Arctangent of (Y/X).  If Y is positive, the result is
+        positive.  If Y is zero, the result is zero if X is positive and
+        PI if X is negative.  If Y is negative, the result is negative.
+        If X is zero, the absolute value of the result is PI/2.  It is
+        an error if X=Y=0.  The range of the result for ARC TAN is: -PI
+        &lt; result &lt;= PI.
+
+
+
+
+3.3 Miscellaneous
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> FRACTION ( <EM>long</EM> <EM>real</EM> X )
+
+           This function returns the remainder after the parameter has
+        been converted to an <EM>integer</EM> with truncation towards zero.  It
+        obeys the following relation:
+
+                     FRACTION(X) = X-TRUNC(X)
+        so that      X = TRUNC(X)+FRACTION(X)
+
+        Examples:    FRACTION(-11.7) = -0.7
+                     FRACTION( -1.2) = -0.2
+                     FRACTION( -0.5) = -0.5
+                     FRACTION(  0.5) =  0.5
+                     FRACTION(  1.2) =  0.2
+                     FRACTION( 11.7) =  0.7
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> FRACPT ( <EM>long</EM> <EM>real</EM> X )
+
+           This function returns the remainder after the parameter has
+        been converted to an <EM>integer</EM> with truncation towards minus
+        infinity.  It obeys the following relation:
+
+                     FRACPT(X) = X-INTPT(X)
+        so that      X = INTPT(X)+FRACPT(X)
+
+        Examples:    FRACPT(-11.7) = 0.3
+                     FRACPT( -1.2) = 0.8
+                     FRACPT( -0.5) = 0.5
+                     FRACPT(  0.5) = 0.5
+                     FRACPT(  1.2) = 0.2
+                     FRACPT( 11.7) = 0.7
+
+        Note that, because of this definition, FRACPT(X) will always be
+        positive.
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> FLOAT ( <EM>long</EM> <EM>real</EM> X )
+
+           This function simply returns its <EM>long</EM> <EM>real</EM> parameter as
+        result.  Its principal use is in forcing calculations to be
+        performed as real where the compiler might otherwise perform
+        them as integer and risk an integer overflow condition.
+
+        Example:     <EM>integer</EM> I, J ; <EM>real</EM> R
+                     I = 1000000 ; J = 1000000
+
+                     R = I*J                   {may overflow}
+        can become   R = FLOAT(I)*FLOAT(J)     {usually larger range}
+
+        FLOAT may also be used to ensure that a particularly critical
+        computation is performed at the higher level of precision
+        offered by <EM>long</EM> <EM>real</EM> values.
+
+        Example:     <EM>real</EM> R, A, B, C
+                     A = 1@10 ; B = 1@10 ; C = 1
+
+
+
+        Example:     R = (A+C)-B               {may lose precision}
+        can become   R = (FLOAT(A)+C)-FLOAT(B) {usually more precision}
+
+
+*       <EM>integer</EM> <EM>function</EM> REM ( <EM>integer</EM> A, B )
+
+           This function gives the remainder after A is divided by B in
+        integer arithmetic.  It obeys the following relation:
+
+         REM(A, B) = A - TRUNC(A/B) * B
+
+        This may alternatively be specified using IMP <EM>integer</EM> arithmetic
+        as follows:
+
+         REM(A, B) = A - A//B * B
+
+        It can be shown that the sign of the result is the same as the
+        sign of the dividend (A).  It is an error (ERR0002; Division by
+        zero) if B is zero.
+
+        Examples:    REM(10,10) =  0
+                     REM(10,3)  =  1
+                     REM(10,-3) =  1
+                     REM(-10,3) = -1
+
+
+*       <EM>integer</EM> <EM>function</EM> MUL DIV ( <EM>integer</EM> A, B, C )
+
+           {informal &amp; provisional} Result is ROUND(A*B/C) to infinite
+        precision and range.
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> LOG ( <EM>long</EM> <EM>real</EM> X )
+
+           {informal &amp; provisional} Natural Logarithm of X; Log[base
+        e](X).  Error if (X&lt;=0).
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> EXP ( <EM>long</EM> <EM>real</EM> X )
+
+           {informal &amp; provisional} Exponential function; e^X.
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> SQRT ( <EM>long</EM> <EM>real</EM> X )
+
+           {informal &amp; provisional} Square root; X^(1/2).  Error if
+        (X&lt;0).
+
+</PRE></BODY></HTML>

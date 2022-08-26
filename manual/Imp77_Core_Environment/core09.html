@@ -1,0 +1,66 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                 Section 9: Asynchronous Communication
+
+   Two procedures are provided so that a program can communicate
+asynchronously with its environment (i.e. out of step with its normal
+flow of execution).  Because IMP is essentially a synchronous language,
+these facilities are provided as normal procedure calls which the
+program can issue when convenient; the asynchronous communication takes
+place at the instigation of the external environment.  This normally
+takes the form of an explicit request by an interactive terminal user:
+many operating systems include standard 'commands' in the form of
+special control characters for the purposes of asynchronous
+communication with a running program.  The two procedures provided
+correspond to two kinds of asynchronous request which are commonly
+provided by operating systems: a status-requesting communication to
+which programs conventionally respond with a message describing their
+current operational state and an attention-requesting communication
+which programs conventionally interpret as meaning that an interactive
+user wishes to interrupt their processing in favour of some direct
+communication.
+
+   Under operating systems which do not provide facilities sophisticated
+enough to support the procedures described here, the procedures are
+defined to act as if no communication had taken place.
+
+
+*       <EM>routine</EM> DOING ( <EM>string</EM>(255) What )
+
+           The parameter WHAT is a statement by the program of its
+        current activity.  For example, a compiler might issue a call to
+        DOING at the beginning of each of its major phases.  When a
+        status-requesting asynchronous communication is made with the
+        program, the string supplied to the most recent call on DOING is
+        made available in response.
+
+           Under operating systems which do not support this form of
+        asynchronous communication, the procedure DOING is defined to
+        have no effect.  Some operating systems provide only a limited
+        capability in this respect, a common limitation being on the
+        length of the WHAT string.  On these systems, the string
+        supplied to DOING is truncated to a number of characters
+        acceptable to the system environment.
+
+           An implementation is required to define (DEF0011; DOING
+        facility) whether or not this facility is available and if so
+        how to invoke it and the form of response to expect.
+
+		     
+*       <EM>predicate</EM> INTERRUPTED
+
+           This predicate is <EM>true</EM> if an attention-requesting
+        communication has occurred since the last call on INTERRUPTED.
+        Note that this implies that INTERRUPTED will be <EM>true</EM> at most
+        once for each attention-requesting communication.
+
+
+           An implementation is required to define (DEF0012; INTERRUPTED
+        facility) whether or not this facility is available and if so
+        how to invoke it.
+
+</PRE></BODY></HTML>

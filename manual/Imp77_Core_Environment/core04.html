@@ -1,0 +1,526 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                     Section 4: String Manipulation
+
+   This section of the Core Environment standard describes the
+facilities which are available for the manipulation of IMP <EM>string</EM>
+values.
+
+
+
+
+4.1 Basic String Operations
+
+   This section covers procedures which apply to all <EM>string</EM> values
+irrespective of the kind of data which is being held in the <EM>string</EM>.
+
+
+*       <EM>byte</EM> <EM>map</EM> CHARNO ( <EM>string</EM>(*) <EM>name</EM> S, <EM>integer</EM> Pos )
+
+           Returns a reference to the character at position POS within
+        the string S.  The parameter POS must be within the current size
+        of the string, that is:
+
+                      1 &lt;= POS &lt;= LENGTH(S)
+
+        It is an error (ERR0001; CHARNO argument out of range) if this
+        condition does not hold.
+
+
+*       <EM>byte</EM> <EM>function</EM> LENGTH ( <EM>string</EM>(255) S )
+
+           This function returns the current length of the string value
+        passed as parameter, i.e. the number of characters which it
+        contains.
+
+
+*       <EM>string</EM>(255) <EM>function</EM> SUB STRING ( <EM>string</EM>(255) S,
+                                          <EM>integer</EM> From, To )
+
+           This function is used to extract a contiguous sequence of
+        characters from a string value and return that sequence as
+        result.  The subsequence to be extracted is located by its first
+        and last character positions within the string value.
+        SUB STRING is defined by the following IMP code fragment:
+
+            <EM>string</EM>(255) <EM>function</EM> Sub String ( <EM>string</EM>(255) S,
+                                              <EM>integer</EM> From, To )
+               <EM>string</EM>(255) Temp = ""
+               <EM>integer</EM> P
+               <EM>for</EM> P = From, 1, To <EM>cycle</EM>
+                  Temp = Temp . To String(Charno(S,P))
+               <EM>repeat</EM>
+               <EM>result</EM> = Temp
+            <EM>end</EM>
+
+        It is an error (ERR0003; string inside-out) if the implied
+        length of the resultant string is less than zero characters,
+        that is if TO-FROM+1 is negative.  Note that the code fragment
+        given above instead involves a different error (ERR0004; <EM>for</EM>
+        loop cannot terminate) in this circumstance.  This standard
+        separates ERR0003 so that it can be reported separately if the
+        implementation is able to do so.
+
+           It is an error (ERR0005; SUB STRING bounds) if either the
+        FROM or TO parameters exceed the bounds of the string argument S
+        and at the same time the implied resultant string is not null.
+        More formally, it is an error if:
+
+            1) TO&lt;0 or FROM&lt;0 or TO&gt;LENGTH(S) or FROM&gt;LENGTH(S)
+        and 2) TO-FROM+1 &gt;= 0
+
+        Note that the code fragment given above instead involves a
+        different error (ERR0001; CHARNO argument out of range) in this
+        circumstance.  This standard separates ERR0005 so that it can be
+        reported separately if the implementation is able to do so.
+
+
+*       <EM>string</EM>(1) <EM>function</EM> TO STRING ( <EM>byte</EM> N )
+
+           This function performs the same operation as the IMP
+        language's integer to string coercion feature, but is preferred
+        by some programmers as being easier to read.  TO STRING is used
+        in this standard in place of the newer coercion feature for
+        readability, for example.  A definition of TO STRING in terms of
+        the more primitive CHARNO is as follows:
+
+             <EM>string</EM>(1) <EM>function</EM> To String ( <EM>byte</EM> N )
+                <EM>string</EM>(1) S = "*"
+                Charno(S,1) = N
+                <EM>result</EM> = S
+             <EM>end</EM>
+
+
+*       <EM>string</EM>(255) <EM>function</EM> TRIM ( <EM>string</EM>(255) S, <EM>integer</EM> Maximum )
+
+           Like SUB STRING, the TRIM function returns a sub-string of
+        its string value argument for use as a string value within a
+        string expression.  As can be seen from the IMP definition
+        below, TRIM is in fact defined in terms of SUB STRING:
+
+             <EM>string</EM>(255) <EM>function</EM> TRIM ( <EM>string</EM>(255) S,
+                                         <EM>integer</EM> Maximum )
+                <EM>result</EM> = S <EM>if</EM> Length(S) &lt;= Maximum
+                <EM>result</EM> = Sub String(S, 1, Maximum)
+             <EM>end</EM>
+
+        The effect of TRIM is to return its string value argument if its
+        length is less than or equal to the provided MAXIMUM, or the
+        first MAXIMUM characters of it if it is longer.  For example:
+
+             TRIM("ABC",  4) = "ABC"
+         but TRIM("ABCDE",4) = "ABCD"
+
+           TRIM provides a similar effect to the IMP language's
+        obsolescent "jam transfer" assignment operator "&lt;-" with two
+        additional advantages.  Firstly, while jam transfer may only be
+        used in the context of an assignment, TRIM may be used in any
+        string expression.  For example, TRIM can be used to truncate
+        the string value parameters for a procedure.  Secondly, the jam
+        transfer operator determines the maximum size of the resultant
+        value from the declared (i.e. statically determined) size of the
+        destination of the assignment, while TRIM may be used to
+        truncate a value to a size determined during the execution of a
+        program.
+
+	     
+4.2 Numeric to String Conversions
+
+   Three <EM>string</EM>(255) <EM>function</EM>s are available to perform conversions
+between numeric values and textual representations of those values.  The
+procedure I TO S provides a textual representation of an <EM>integer</EM> value
+in a fixed-point format without decimal point.  For <EM>real</EM> and <EM>long</EM> <EM>real</EM>
+values, a choice is provided of a fixed-point textual representation
+from R TO S or a floating-point representation using the procedure
+F TO S.
+
+   Each of the three procedures described in this section is used as the
+basis of one of the "derived I/O" procedures in section 7.
+
+
+*       <EM>string</EM>(255) <EM>function</EM> I TO S ( <EM>integer</EM> N, Places )
+
+           This function returns a <EM>string</EM> which contains a decimal
+        representation of the integer parameter N.  The parameter PLACES
+        controls the format of the output string.  A definition of the
+        I TO S function is given as an IMP program fragment below:
+
+            <EM>string</EM>(255) <EM>function</EM> I TO S ( <EM>integer</EM> N, Places )
+
+               <EM>string</EM>(255) <EM>function</EM> Digits ( <EM>integer</EM> X )
+                  <EM>integer</EM> I = X//10
+                  <EM>string</EM>(255) S = "" ; S = Digits(I) <EM>if</EM> I # 0
+                  <EM>result</EM> = S . To String(X-I*10+'0')
+               <EM>end</EM>
+
+               <EM>string</EM>(255) S = Digits(|N|)
+               <EM>if</EM> N &lt; 0 <EM>start</EM>
+                  S = "-" . S
+               <EM>else</EM> <EM>if</EM> Places &gt; 0
+                  S = " " . S
+               <EM>finish</EM>
+               <EM>if</EM> Places &lt;= 0 <EM>then</EM> Places = -Places -
+                              <EM>else</EM> Places = Places+1
+               S = " " . S <EM>while</EM> Length(S) &lt; Places
+               <EM>result</EM> = S
+            <EM>end</EM>
+
+        Values of PLACES greater than zero are taken as a number of
+        character positions to be allocated to the number, to which is
+        added one more character position for a sign.  The sign will be
+        '-' for negative N and a space character for positive N.
+        Negative or zero values of PLACES imply that the use of a space
+        for a positive sign character is to be suppressed, and the
+        absolute value of PLACES is used to determine the total field
+        width.  After conversion to a decimal representation with sign,
+        the number is padded out to the required field size, if
+        necessary, by leading space characters.  Note that this implies
+        that numbers which do not fit into the field specified are
+        represented in the shortest form available.  This is in contrast
+        to FORTRAN formatted output, where numbers too large for the
+        specified field are omitted and replaced by a field full of
+        asterisks.
+
+           The following table gives the textual representations
+        returned by I TO S for the numbers +100 and -100 under a wide
+        range of PLACES values.  The results are enclosed in string
+        quotes (") to indicate the presence of space characters, if any.
+        The string quotes do not appear in genuine results from I TO S.
+
+          PLACES    N=+100       N=-100
+
+            -5      "  100"      " -100"
+            -4      " 100"       "-100"
+            -3      "100"        "-100"
+            -2      "100"        "-100"
+            -1      "100"        "-100"
+             0      "100"        "-100"
+             1      " 100"       "-100"
+             2      " 100"       "-100"
+             3      " 100"       "-100"
+             4      "  100"      " -100"
+             5      "   100"     "  -100"
+
+
+*       <EM>string</EM>(255) <EM>function</EM> R TO S ( <EM>long</EM> <EM>real</EM> R,
+                                 <EM>integer</EM> Before, After )
+
+           This function returns a fixed-point textual representation of
+        the parameter R.  The truncated integer part of R is expressed
+        as if it had been generated by I TO S with BEFORE places, except
+        that R TO S must handle a larget range of numbers correctly.
+        This I TO S-like portion is followed by a decimal point and
+        AFTER digits of fractional part.
+
+        In general, the following grammar describes the syntax of the
+        string generated by R TO S:
+
+   dec digit       = "0" | "1" | "2" | "3" | "4" |
+                     "5" | "6" | "7" | "8" | "9" ;
+
+   dec digits      = dec digit, { dec digit } ;
+
+   R TO S format   = { " " }, [ "-" ], dec digits,
+                                ".", { dec digit } ;
+
+        Examples:   R TO S(1.5, 5, 2)  =  "     1.50"
+                    R TO S(0.0, 5, 2)  =  "     0.00"
+                    R TO S(1.2,-5, 0)  =  "    1."
+
+
+*       <EM>string</EM>(255) <EM>function</EM> F TO S ( <EM>long</EM> <EM>real</EM> F,
+                                 <EM>integer</EM> Before, After )
+
+           This function returns a textual representation of the
+        parameter R in exponential format.  The leading digit of the
+        value is printed as if by I TO S in BEFORE places.  This is
+        followed by a decimal point and AFTER places of fraction.
+        Finally, this is followed by an exponent composed of an '@'
+        character, a sign character for the exponent ('+' or '-') and
+        then an implementation defined fixed width exponent field
+        including leading zeros as necessary.  The size of the exponent
+        field will be large enough to hold the maximum possible exponent
+        value for the <EM>long</EM> <EM>real</EM> data type.
+
+        In general, the following grammar describes the syntax of the
+        string generated by F TO S:
+
+   dec digit       = "0" | "1" | "2" | "3" | "4" |
+                     "5" | "6" | "7" | "8" | "9" ;
+
+   dec digits      = dec digit, { dec digit } ;
+
+   sign            = "+" | "-" ;
+
+   F TO S format   = { " " }, [ "-" ], dec digit,
+                                ".", { dec digit },
+                            "@", sign, dec digits ;
+
+        Examples:   F TO S(1.5, 5, 2)  =  "     1.50@+00"
+                    F TO S(0.0, 5, 2)  =  "     0.00@+00"
+                    F TO S(1.2,-5, 0)  =  "    1.@+00"
+
+
+
+4.3 String to Numeric Conversions
+
+   This section describes functions which are provided to allow textual
+representations of numbers (i.e. numbers represented as IMP <EM>string</EM>
+values containing text like "-3") to be converted to the equivalent
+numerical representation as integer or floating-point values.
+
+
+*       <EM>integer</EM> <EM>function</EM> S TO I ( <EM>string</EM>(255) S )
+
+           This function can be seen as an inverse to the function
+        I TO S described above, that is it takes as parameter a textual
+        representation of an integer value and returns the corresponding
+        <EM>integer</EM> value.  Thus for any integer values of I and X, the
+        following relation will always hold:
+
+            S To I ( IToS(I,X) ) = I
+
+        Further to the above requirement, S TO I must always be able to
+        ignore leading and trailing white space in its argument.  Thus,
+        for example:
+
+            S To I ( S." " ) = S To I ( S )
+      and   S To I ( " ".S ) = S To I ( S )
+
+        In addition to the textual form returned by I TO S, S TO I will
+        return the numerical equivalent of numbers represented in the
+        "based constant" form used in the IMP language, for example
+        "16_11" being equivalent to "17" in decimal notation.
+
+           S TO I will signal events (yet to be assigned) in the cases
+        when the argument provided does not correspond to a legal
+        integer constant.  Particular important examples of illegal
+        parameters to S TO I are the null string (""), any string
+        consisting solely of white space, or a string containing a
+        character such as "." which cannot form part of an integer
+        constant.
+
+           The following grammar describes the <EM>string</EM> values which are
+        acceptable as input to the S TO I procedure.  Any other <EM>string</EM>
+        value will cause an event (yet to be allocated) to be signalled.
+
+   white char      = ? any single ASCII character whose value
+                       is strictly less than 33 ? ;
+
+   white space     = { white char } ;
+
+   UC letter       = "A" | "B" | "C" | "D" | "E" | "F" |
+                     "G" | "H" | "I" | "J" | "K" | "L" |
+                     "M" | "N" | "O" | "P" | "Q" | "R" |
+                     "S" | "T" | "U" | "V" | "W" | "X" |
+                     "Y" | "Z" ;
+
+   LC letter       = "a" | "b" | "c" | "d" | "e" | "f" |
+                     "g" | "h" | "i" | "j" | "k" | "l" |
+                     "m" | "n" | "o" | "p" | "q" | "r" |
+                     "s" | "t" | "u" | "v" | "w" | "x" |
+                     "y" | "z" ;
+
+
+   NC letter       = UC letter | LC letter ;
+                     (* in NC letter, an LC letter has the same
+                        semantics as the corresponding UC letter *)
+
+   dec digit       = "0" | "1" | "2" | "3" | "4" |
+                     "5" | "6" | "7" | "8" | "9" ;
+
+   pos dec const   = dec digit, { dec digit } ;
+
+   based digit     = dec digit | NC letter ;
+                     (* a based digit takes the integer values
+                           0  .. 9  for the decimal digits,
+                           10 .. 35 for the alphabet.
+                        This value may not equal or exceed the
+                        base constant preceeding the '_' character. *)
+
+   based digits    = based digit, { based digit } ;
+
+   base constant   = pos dec const (* 2 &lt;= X &lt;= 36 *) ;
+
+   unsigned const  = base constant, "_", based digits |
+                     pos dec const ;
+
+   sign            = "+" (* no effect *)               |
+                     "-" (* entire value is negated *) ;
+
+   int const       = [ sign ], unsigned const ;
+
+   STOI format     = white space, int const, white space ;
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> S TO R ( <EM>string</EM>(255) S )
+
+           The following grammar describes the <EM>string</EM> values which are
+        acceptable as input to the S TO R procedure.  Any other <EM>string</EM>
+        value will cause an event (yet to be allocated) to be signalled.
+
+   white char      = ? any single ASCII character whose value
+                       is strictly less than 33 ? ;
+
+   white space     = { white char } ;
+
+   UC letter       = "A" | "B" | "C" | "D" | "E" | "F" |
+                     "G" | "H" | "I" | "J" | "K" | "L" |
+                     "M" | "N" | "O" | "P" | "Q" | "R" |
+                     "S" | "T" | "U" | "V" | "W" | "X" |
+                     "Y" | "Z" ;
+
+   LC letter       = "a" | "b" | "c" | "d" | "e" | "f" |
+                     "g" | "h" | "i" | "j" | "k" | "l" |
+                     "m" | "n" | "o" | "p" | "q" | "r" |
+                     "s" | "t" | "u" | "v" | "w" | "x" |
+                     "y" | "z" ;
+
+   NC letter       = UC letter | LC letter ;
+                     (* in NC letter, an LC letter has the same
+                        semantics as the corresponding UC letter *)
+
+
+
+   dec digit       = "0" | "1" | "2" | "3" | "4" |
+                     "5" | "6" | "7" | "8" | "9" ;
+
+   dec digits      = dec digit, { dec digit } ;
+
+   pos dec const   = dec digits;
+
+   sign            = "+" (* no effect *)               |
+                     "-" (* entire value is negated *) ;
+
+   exponent        = "@", [ sign ], pos dec const ;
+                     (* note exponent is always in decimal *)
+
+   based digit     = dec digit | NC letter ;
+                     (* a based digit takes the integer values
+                           0  .. 9  for the decimal digits,
+                           10 .. 35 for the alphabet.
+                        This value may not equal or exceed the
+                        base constant preceeding the '_' character. *)
+
+   based digits    = based digit, { based digit } ;
+
+   base constant   = pos dec const (* 2 &lt;= X &lt;= 36 *) ;
+
+   dec mantissa    = dec digits, [ ".", [ dec digits ] ] |
+                                   ".",   dec digits ;
+
+   based mantissa  = based digits, [ ".", [ based digits ] ] |
+                                     ".",   based digits ;
+
+
+   mantissa        = dec mantissa |
+                     base constant, "_", based mantissa ;
+
+   unsigned real   = mantissa, [ exponent ] ;
+
+   real const      = [ sign ], unsigned real ;
+
+   STOR format     = white space, real const, white space ;
+
+
+
+4.4 Text Manipulation
+
+   This section describes a number of procedures designed to operate on
+<EM>string</EM> values which contain text.  In particular, these procedures allow
+the case of a string value or variable to be converted to a standard
+form, for example to be used during later comparisons.
+
+*       <EM>routine</EM> TO LOWER ( <EM>string</EM>(*) <EM>name</EM> S )
+
+           This procedure converts each upper case letter ('A' to 'Z'
+        inclusive, ASCII values 65 to 90) in the string variable passed
+        as parameter to the lower case equivalent ('a' to 'z', ASCII
+        values 97 to 122).  All other characters in the string variable
+        are left unchanged.
+
+
+            <EM>routine</EM> To Lower ( <EM>string</EM>(*) <EM>name</EM> S )
+               <EM>integer</EM> I
+               <EM>byte</EM> <EM>name</EM> P
+               <EM>for</EM> I = 1, 1, Length(S) <EM>cycle</EM>
+                  P == Charno(S, I)
+                  <EM>if</EM> 'A' &lt;= P &lt;= 'Z' <EM>then</EM> P = P-'A'+'a'
+               <EM>repeat</EM>
+            <EM>end</EM>
+
+
+*       <EM>routine</EM> TO UPPER ( <EM>string</EM>(*) <EM>name</EM> S )
+
+           This procedure converts each lower case letter ('a' to 'z'
+        inclusive, ASCII values 97 to 122) in the string variable passed
+        as parameter to the upper case equivalent ('A' to 'Z', ASCII
+        values 65 to 90).  All other characters in the string variable
+        are left unchanged.
+
+            <EM>routine</EM> To Upper ( <EM>string</EM>(*) <EM>name</EM> S )
+               <EM>integer</EM> I
+               <EM>byte</EM> <EM>name</EM> P
+               <EM>for</EM> I = 1, 1, Length(S) <EM>cycle</EM>
+                  P == Charno(S, I)
+                  <EM>if</EM> 'a' &lt;= P &lt;= 'z' <EM>then</EM> P = P-'a'+'A'
+               <EM>repeat</EM>
+            <EM>end</EM>
+
+        An example of a program fragment using this procedure might be
+        the following:
+
+            <EM>string</EM>(255) Word
+            Prompt("Yes or No:")
+            Read(Word)
+            To Upper(Word)
+            <EM>if</EM> Word = "YES" <EM>then</EM> ...  {accepts any case "yes"}
+
+
+*       <EM>string</EM>(255) <EM>function</EM> LOWER CASE ( <EM>string</EM>(255) S )
+
+           This function returns a string value which is identical to
+        its argument except for any upper case letters ('A' to 'Z'
+        inclusive, ASCII values 65 to 90), which are converted to their
+        lower case equivalents ('a' to 'z', values 97 to 122).  This
+        function can be defined in terms of the TO LOWER procedure as
+        follows:
+
+            <EM>string</EM>(255) <EM>function</EM> Lower Case ( <EM>string</EM>(255) S )
+               To Lower(S)
+               <EM>result</EM> = S
+            <EM>end</EM>
+
+
+*       <EM>string</EM>(255) <EM>function</EM> UPPER CASE ( <EM>string</EM>(255) S )
+
+           This function performs the opposite case standardisation
+        operation to LOWER CASE, i.e. it returns a string value which is
+        identical to its argument except for any instances of the lower
+        case letters ('a' to 'z' inclusive, ASCII values 97 to 122).
+        These characters are converted to their upper case equivalents
+        ('A' to 'Z', ASCII values 65 to 90).  This function can be
+        defined in terms of the TO UPPER procedure as follows:
+
+            <EM>string</EM>(255) <EM>function</EM> Upper Case ( <EM>string</EM>(255) S )
+               To Upper(S)
+               <EM>result</EM> = S
+            <EM>end</EM>
+
+        An example of an (extremely unlikely) program fragment using
+        both the UPPER CASE and LOWER CASE functions might be the
+        following:
+
+            <EM>string</EM>(255) Word
+            Prompt("Word:")
+            Read(Word)
+            <EM>if</EM> Upper Case(Word) = Lower Case(Word) <EM>start</EM>
+               Print String("string contained no letters")
+               New Line
+            <EM>finish</EM>
+
+</PRE></BODY></HTML>

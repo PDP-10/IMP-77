@@ -1,0 +1,29 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                    Section 13: Reserved Identifiers
+       *** WILL BE SHIFTED OUT OF STANDARD AS OF NEXT EDITION ***
+
+   In the fullness of time, this section will be removed from the "Core"
+standard to become a document in its own right.  Its purpose is to
+identify common "useful" procedures to implementers in terms of a
+definition and an identifier, so that if an implementer chooses to add
+such a facility to an implementation it will normally have the same
+identifier as on other implementations.  This allows programmers to
+avoid any "false friend" effect when coding outside the bounds of the
+Core standard proper.  An example of a possible problem area might be in
+moving from a system in which a WAIT procedure was available with
+parameter <EM>integer</EM> Millisecs to one where WAIT was defined to have
+parameter <EM>long</EM> <EM>real</EM> Seconds.
+
+   Procedures defined in this section of the standard must never be
+predefined.  Instead, they must be introduced into the program by means
+of an implementation defined <EM>include</EM> or <EM>spec</EM> statement.  An
+implementation is free to implement these same functions with other
+identifiers, but must not implement these identifiers with alternate
+definitions.
+
+</PRE></BODY></HTML>

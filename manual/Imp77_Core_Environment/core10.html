@@ -1,0 +1,49 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                     Section 10: Enquiry Functions
+
+
+
+
+*       <EM>long</EM> <EM>real</EM> <EM>function</EM> CPU TIME
+
+           Returns the number of seconds of Central Processing Unit time
+        used so far by the present program, offset by an arbitrary value
+        X&gt;=0 which will be the same for all invocations of CPU TIME
+        during the execution of a program.  The offset X might for
+        example represent the CPU time between the initiation of a job
+        or process and the invocation of the current program.
+        Successive calls on CPU TIME through the execution of a program
+        will always return results equal to or larger than their
+        predecessors.  Where the host operating system does not support
+        the retrieval of this information, CPU TIME will return a value
+        of zero.  Note that the times returned by CPU TIME may or may
+        not include processing performed by the operating system and
+        charged for some reason to the present program, but that where
+        the host operating system provides access to CPU TIME including
+        and excluding system overhead, the preferred result is that
+        excluding system overhead.
+
+
+*       <EM>string</EM>(255) <EM>function</EM> DATE
+
+           This function returns the current date in the host operating
+        system's textual representation.  Programs should make no
+        assumption about the length or internal structure of this
+        string.  Where the host operating system does not support the
+        retrieval of this information, DATE will return the null string.
+
+
+*       <EM>string</EM>(255) <EM>function</EM> TIME
+
+           This function returns the current time of day in the host
+        operating system's textual representation.  Programs should make
+        no assumption about the length or internal structure of this
+        string.  Where the host operating system does not support the
+        retrieval of this information, TIME will return the null string.
+
+</PRE></BODY></HTML>

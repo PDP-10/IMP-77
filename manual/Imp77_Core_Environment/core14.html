@@ -1,0 +1,107 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                   Section 14: Language Implications
+       *** WILL BE SHIFTED OUT OF STANDARD AS OF NEXT EDITION ***
+
+   Much of this library definition is given in terms of fragments of IMP
+code, commonly procedure definitions.  The precise definition of
+procedures in the library is therefore dependent on the definition of
+IMP itself: this section attempts to pinpoint some of the more important
+assumptions being made.
+
+
+*       language character set
+
+           The language character set is assumed to be the 7-bit
+        ISO/ASCII character set, with all non-graphic characters except
+        "new line" (NL, value 10) treated as "white space".
+        Reconsideration of some parts of the document may have to be
+        made if/when IMP moves to the new ISO 8-bit character set {is
+        this desirable anyway?}.
+
+
+*       floating point
+
+           The presence in this definition of procedures with <EM>real</EM>
+        parameters or results implies that any conforming IMP system
+        must include <EM>real</EM> data types.  No assumption is made about a
+        difference between <EM>real</EM> and <EM>long</EM> <EM>real</EM>, however, so they may turn
+        out to be the same in some implementations.  The <EM>long</EM> <EM>real</EM>
+        declarator must still be accepted even in single-precision
+        systems.
+
+
+*       basic <EM>signal</EM> mechanism
+
+           The I/O definitions here use an <EM>event</EM> trap to define <EM>end</EM> <EM>of</EM>
+        <EM>input</EM>.  For this code to work, the <EM>signal</EM> mechanism must be
+        present on any conforming IMP system.  In addition, the <EM>signal</EM>
+        number used for end of input must be the same on all
+        implementations.
+
+
+*       definition of <EM>string</EM> data types
+
+           It might be good to define these as &lt;byte&gt;&lt;byte*N&gt; contiguous
+        in store.  Examples solicited of when it would be useful to
+        guarantee this? (PSR: file mapping) We could define a record
+        format with a <EM>byte</EM> <EM>array</EM> (0:N) in it to get the effect we
+        currently assume.
+
+
+*       General <EM>name</EM>s
+
+           It would be nice if the following were accepted, for example
+        meaning that READ would not have to be defined in terms of
+        INTEGER(ADDR(N)) and so on:
+
+            <EM>name</EM> X
+            <EM>byte</EM> <EM>name</EM> B
+            B == X
+
+
+*       RECORD=0
+
+           The definition of NIL is such that if RECORD=0 is defined as
+        a bit-by-bit clear of the storage area occupied by RECORD, any
+        pointers in the record will point to NIL.  This means that
+        everyone's programs (which assume this) are guaranteed to work.
+        It may mean that the compilers have to know about NIL as a
+        special on some machines to prevent a valid pointer to address 0
+        being used rather than a true zero pointer.
+
+
+*       fancy <EM>include</EM> statement
+
+        Places already assumed to exist in this standard are all in IMP:
+        they are EVENTS, TYPES and ARCHAISMS.  The definition of this
+        feature is at present contained in section 15 of this standard.
+
+
+* range of <EM>integer</EM> values
+
+           This definition now assumes a guaranteed minimum <EM>integer</EM>,
+        <EM>short</EM> and <EM>byte</EM> range as follows:
+
+      <EM>byte</EM>     [0 .. 255]                   {see DEF0003}
+      <EM>short</EM>    [-32767 .. 32767]            {see DEF0004}
+      <EM>integer</EM>  [-2147483647 .. 2147483647]  {see DEF0005}
+
+        This is what is assumed by programs at present.  A detailed
+        definition of the implications of all this will follow in a
+        later edition.  For information, the reason for excluding in the
+        GUARANTEED ranges of the other value (-verybig, hex pattern
+        16_80000000) which we expect in practice is to leave our options
+        open on 1's complement machines for now (they don't have the
+        extra value as they have a -0) until we have worked out whether
+        such machines are really completely incompatible with this
+        standard or not.  For now, we are playing safe.
+
+
+* general <EM>map</EM> used in section 8 for NEW
+
+</PRE></BODY></HTML>

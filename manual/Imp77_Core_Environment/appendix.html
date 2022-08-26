@@ -1,0 +1,361 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     IMP Core Environment Standard
+
+
+                          Collected References
+
+[BS6154]  "Method of Defining Syntactic Metalanguage"
+          British Standards Institution
+          British Standard BS6154:1981
+          ISBN 0-580-12530-0
+
+[BS6192]  "Specification for Programming Language Pascal"
+          British Standards Institution
+          British Standard BS6192:1982
+          ISBN 0-580-12531-9
+
+[CODY80]  "Software Manual for the Elementary Functions"
+          W. J. Cody, Jr. and W. Waite
+          Prentice-Hall, 1981
+          ISBN 0-13-822064-6
+
+[ISO7185] International Equivalent of [BS6192]
+          International Organisation for Standardisation (ISO)
+
+[SCO83]   "An Introduction and Handbook for the
+          Standard Syntactic Metalanguage"
+          R. S. Scowen
+          National Physical Laboratory
+          NPL Report DITC 19/83
+          February 1983
+
+
+<hr>
+
+
+                     IMP Core Environment Standard
+
+
+                        Collected ERRnnnn Items
+
+ERR0001 CHARNO argument out of range
+        It is an error if the position argument provided to the CHARNO
+        procedure does not refer to one of the characters currently
+        present in the string.  The recommended action for this
+        condition is to fire the appropriate signal (SIG0001; CHARNO
+        argument out of range).
+
+ERR0002 division by zero
+        It is an error if an attempt is made to divide any number,
+        integer or real, including zero itself, by zero.  The
+        recommended action for this condition is to fire the appropriate
+        signal (SIG0002; Division by zero).
+
+ERR0003 string inside-out
+        It is an error if, on invoking the SUB STRING function, the
+        value of TO-FROM+1 is negative, that is if the implied length of
+        the resultant string is less than zero characters.  The
+        recommended action for this condition is to fire the appropriate
+        signal (SIG0005; SUB STRING bounds or string inside-out).
+
+ERR0004 <EM>for</EM> loop cannot terminate
+        It is an error to construct a <EM>for</EM> loop which would not, if the
+        statements enclosed by the loop were removed, terminate in a
+        finite number of iterations.  This is equivalent to saying that
+        the difference between the initial and final values of the
+        control variable is not a non-negative integer multiple of the
+        increment value.  A <EM>for</EM> loop construct is therefore valid if
+
+     1) INC=0, FINAL=INIT or
+
+     2) INC#0, (FINAL-(INIT-INC))//INC&gt;=0 and
+               REM(FINAL-INIT,INC)=0
+
+        <EM>for</EM> loop constructs are in error under all other circumstances.
+        The recommended action for this condition is to fire the
+        appropriate signal (SIG0004; <EM>for</EM> loop cannot terminate).
+
+ERR0005 SUB STRING bounds
+        It is an error if, on invoking the SUB STRING function, the
+        implied length of the resultant string is greater than or equal
+        to zero characters at the same time either the FROM or TO
+        parameters exceed the bounds of the string argument S.  More
+        formally, it is an error if:
+
+     1) TO-FROM+1&gt;=0 and
+     2) (TO&lt;0 or FROM&lt;0 or TO&gt;LENGTH(S) or FROM&gt;LENGTH(S))
+
+        The recommended action for this condition is to fire the
+        appropriate signal (SIG0005; SUB STRING bounds or string
+        inside-out).
+
+ERR0006 illegal stream number
+        It is an error to pass to any of the core environment procedures
+        which accept a stream number parameter, as that stream
+        parameter, any integer value outwith the valid range of streams
+        for the implementation.  The minimum valid stream number is
+        zero; the maximum valid stream number is implementation defined
+        (DEF0001; MAXSTREAM: maximum stream number).  The recommended
+        action for this condition is to fire the appropriate signal
+        (SIG0006; illegal stream number).
+
+ERR0007 <EM>integer</EM> range exceeded
+        It is an error to attempt to compute an integer value which
+        exceeds the implementation defined range for the <EM>integer</EM> data
+        type (DEF0005; range of <EM>integer</EM> variables).  The recommended
+        action for this condition is to fire the appropriate signal
+        (SIG0007; <EM>integer</EM> overflow).
+
+<hr>
+
+
+                     IMP Core Environment Standard
+
+
+                        Collected DEPnnnn Items
+
+   This section collects together all the items which represent cases in
+which implementation dependent effects may be obtained from a conforming
+implementation.  An implementation may choose to define the particular
+definition used for any of these items, but it is an error for a program
+to make use of a particular implementation's definition of one of these
+items.
+
+DEP0001 order of evaluation of expressions
+
+DEP0002 order of evaluation of parameters
+
+<hr>
+
+
+                     IMP Core Environment Standard
+
+
+                        Collected DEFnnnn Items
+
+   This section collects together all the items which must be defined
+and documented for an implementation to claim conformance with this
+standard.  In addition, this section gives mandatory specifications of
+which definitions the implementation is permitted to choose for each
+item.  For example, an implementation which chose a maximum stream
+number for DEF0001 of 3 would not be able to claim conformance with this
+standard, as the specification of DEF0001 states that the minimum value
+for this which may be chosen by a conforming implementation is 15.
+
+   Where necessary, individual items in this section also attempt to
+make clear the opposite to the above: that is, it attempts to give the
+potential implementor an idea of which definitions it is specifically
+permissable to choose.  In some cases, items below also attempt to give
+guidance to the implementor of what is expected rather than required of
+an implementation.  This enables the implementor to choose the
+definition which will be least surprising to the target user population
+for a proposed implementation, when that choice has been left open by
+the underlying operating system environment.
+
+DEF0001 MAXSTREAM: maximum stream number
+        The maximum stream number is the largest integer which may be
+        presented to a SELECT or OPEN procedure to indicate the number
+        of the stream to be selected or opened.  This number must be at
+        least 15.
+
+DEF0002 definition of EVENT FM
+        The precise definition of the record format EVENT FM must be
+        defined by the implementation.  This definition must contain, as
+        a minimum, the following fields:
+
+              <EM>integer</EM>     Event
+              <EM>integer</EM>     Sub
+              <EM>integer</EM>     Extra
+              <EM>string</EM>(255) Message
+
+        This standard does not specify any particular ordering of the
+        fields within this record format.  Other fields may be defined
+        at an implementation's discretion as long as it is possible for
+        a programmer to request that uses of such additional fields be
+        rejected as non-standard.  The implementation's definition of
+        this record format should take the form of an IMP program
+        fragment such as the following:
+
+              <EM>record</EM> <EM>format</EM> Event Fm ( -
+                     <EM>string</EM>(255) Message,
+                     <EM>integer</EM>     Event,
+                     <EM>integer</EM>     Sub,
+                     <EM>integer</EM>     Extra,
+                     <EM>integer</EM>     PC,
+                     <EM>short</EM>       Module )
+
+        This requirement ensures that both any extra fields and the
+        order of the fields within the record are made apparent.
+
+DEF0003 range of <EM>byte</EM> variables
+        An implementation must define the range of integer values which
+        can be assigned to a <EM>byte</EM> variable without error with the
+        following wording:
+
+        The range of values which may be assigned to a <EM>byte</EM> variable
+        without error is from &lt;A&gt; to &lt;B&gt;, where both values are
+        inclusive.
+
+        Here, &lt;A&gt; represents the most negative value which may be
+        assigned to a <EM>byte</EM> variable without error and &lt;B&gt; represents the
+        most positive, both of which should be replaced in the statement
+        above with the appropriate values for the implementation, stated
+        in decimal.  Note that the range described for DEF0003 must
+        include the range from 0 to 255 inclusive as a (not necessarily
+        proper) subset and must in turn be a (not necessarily proper)
+        subset of the range defined in DEF0004 below for the range of
+        <EM>short</EM> variables.
+
+DEF0004 range of <EM>short</EM> variables
+        An implementation must define the range of integer values which
+        can be assigned to a <EM>short</EM> variable without error with the
+        following wording:
+
+        The range of values which may be assigned to a <EM>short</EM> variable
+        without error is from &lt;A&gt; to &lt;B&gt;, where both values are
+        inclusive.
+
+        Here, &lt;A&gt; represents the most negative value which may be
+        assigned to a <EM>short</EM> variable without error and &lt;B&gt; represents
+        the most positive, both of which should be replaced in the
+        statement above with the appropriate values for the
+        implementation, stated in decimal.  Note that the range
+        described for DEF0004 must include the range from -32767 to
+        32767 inclusive as a (not necessarily proper) subset and must in
+        turn be a (not necessarily proper) subset of the range defined
+        in DEF0005 below for the range of <EM>integer</EM> variables.
+
+DEF0005 range of <EM>integer</EM> variables
+        An implementation must define the range of integer values which
+        can be assigned to an <EM>integer</EM> variable without error with the
+        following wording:
+
+        The range of values which may be assigned to an <EM>integer</EM> variable
+        without error is from &lt;A&gt; to &lt;B&gt;, where both values are
+        inclusive.
+
+        Here, &lt;A&gt; represents the most negative value which may be
+        assigned to an <EM>integer</EM> variable without error and &lt;B&gt; represents
+        the largest, both of which should be replaced in the statement
+        above with the appropriate values for the implementation, stated
+        in decimal.  Note that the range described for DEF0005 must
+        include the range from -2147483647 to 2147483647 inclusive as a
+        (not necessarily proper) subset.
+
+DEF0006 BINARY stream facility
+        An implementation must define the relationship between external
+        objects created using the BINARY stream facility (composed of
+        OPEN BINARY INPUT and OPEN BINARY OUTPUT) and the underlying
+        operating system file structure.
+
+
+DEF0007 initial prompt string
+        An implementation must define the initial prompt string, i.e.
+        the prompt string which is in effect before any call to the
+        procedure PROMPT by the user program.  This is commonly defined
+        to be the null string ("") or a string suggesting that data
+        should be typed ("Data:" or similar).
+
+DEF0008 mapping of <EM>include</EM> facility
+        An implementation must define the mapping between symbolic
+        <EM>include</EM> facility (module-id, item-id) pairs and external
+        objects.
+
+DEF0009 TEXT stream facility
+        An implementation must define the relationship between external
+        objects created using the TEXT stream facility (composed of
+        OPEN INPUT and OPEN OUTPUT) and the underlying operating system
+        file structure.
+
+DEF0010 default stream mapping
+        An implementation must define the mapping between input and
+        output streams 0 and 1 and the underlying operating system
+        environment.
+
+DEF0011 DOING facility
+        An implementation must define whether or not the DOING facility
+        is available.  If the DOING facility is available, the
+        implementation must define the method by which the interactive
+        user invokes the facility and the form of response to be
+        expected.  It is permissable for the implementation to specify
+        that the DOING facility is limited in certain ways.  For
+        example, it is permissable to define that the asynchronous
+        status-requesting communication will be ignored during the
+        execution of "critical" parts of the run-time system or at other
+        specified times.  In cases where the underlying operating system
+        places a limit on the length of response message, it may also be
+        defined that the parameter string will be truncated if its
+        length exceeds some defined limit.
+
+DEF0012 INTERRUPTED facility
+        An implementation must define whether or not the INTERRUPTED
+        facility is available.  If the INTERRUPTED facility is
+        available, the implementation must define the method by which
+        the interactive user invokes the facility.  It is permissable
+        for the implementation to specify that the asynchronous
+        attention-requesting communication will be ignored during the
+        execution of "critical" parts of the run-time system or at other
+        specified times.
+
+DEF0013 effective length of PROMPT
+        An implementation must define the maximum length of parameter to
+        PROMPT which will be communicated without truncation to the
+        interactive terminal user.  On most systems, this will be the
+        maximum length of the parameter to the PROMPT procedure, that is
+        255 characters.  If the host operating system provides a
+        prompting facility but limits the length of the prompt string
+        then the implementation may specify that this characteristic is
+        visible to the user program by defining the effective length of
+        PROMPT to be less than 255 characters.  Note that it is not
+        acceptable for an implementation to define the effective length
+        of PROMPT as less than 15 characters: operating systems whose
+        built-in prompt facility is restricted to strings shorter than
+        15 characters must be regarded as having no built-in prompt
+        facility and implementations based on them should communicate
+        the prompt string in some other fashion.
+
+DEF0014 operation of PROMPT facility
+        As implementation must define the method by which the prompt
+        string is communicated to an interactive terminal user.  In
+        addition, if the implementation does not guarantee to
+        communicate the current prompt string on each and every request
+        for input data, the implementation must define those
+        circumstances in which the prompt string will not be
+        communicated.
+
+
+<hr>
+
+
+                     IMP Core Environment Standard
+
+
+                        Collected SIGnnnn Items
+
+SIG0001 CHARNO argument out of range
+        <EM>signal</EM> 6,5,POS where POS is the value of the argument which is
+        out of range.
+
+SIG0002 division by zero
+        <EM>signal</EM> 1,4,0
+
+SIG0003 input ended
+        <EM>signal</EM> 9,1,0
+
+SIG0004 <EM>for</EM> loop cannot terminate
+        <EM>signal</EM> 5,1,0
+
+SIG0005 SUB STRING bounds or string inside-out
+        <EM>signal</EM> 5,4,0
+
+SIG0006 illegal stream number
+        <EM>signal</EM> 9,2,ARG where ARG is the value of the argument which is
+        out of range.
+
+SIG0007 <EM>integer</EM> overflow
+        <EM>signal</EM> 1,1,0
+
+
+</PRE></BODY></HTML>

@@ -1,0 +1,59 @@
+<HTML><HEAD></HEAD><BODY><PRE>
+
+
+                     Imp Core Environment Standard
+
+
+                      Section 2: Event Signalling
+
+   Central to the IMP language and its environment is a mechanism for
+reporting and handling exceptional circumstances which may occur during
+the execution of a program.  These exceptions (called <EM>events</EM> by IMP) may
+be <EM>signalled</EM> in two ways.  Firstly, the programmer may use an explicit
+<EM>signal</EM> statement: this technique is often used to report errors from
+libraries and packages such as the EDWIN graphics package.  The
+definition of the IMP environment in this standard contains several
+examples of this: an event is signalled on an attempt to read characters
+past the end of a file, for example.  The second possibility for an
+event being signalled is as a result of an error condition being
+detected by the underlying hardware or operating system.  Most
+implementations of IMP attempt to translate such hardware exceptions as
+floating-point overflow into a corresponding event.
+
+   Note that this section of the core environment standard is intended
+to define and standardise the event mechanism as it is currently
+implemented.  Alternate proposals and extensions are being considered in
+another document by Alan Culloch of Lattice Logic, Document_IMP_Signals.
+Furthermore, details of the propagation of events and other
+language-related issues are to be found in the language manual rather
+than in this standard.
+
+
+*       <EM>record</EM> <EM>format</EM> Event FM ( ... {see text} ... )
+
+           The pre-declared record format EVENT FM must contain the
+        following field definitions:
+
+         <EM>integer</EM>     Event
+         <EM>integer</EM>     Sub
+         <EM>integer</EM>     Extra
+         <EM>string</EM>(255) Message
+
+        Note that the exact definition of the EVENT FM record format is
+        implementation defined (DEF0002; definition of EVENT FM).  Thus
+        the order of these fields within the record format is also
+        implementation defined.  In addition, a conforming
+        implementation is free to include other fields within this
+        record format for its own purposes, although if it does so a
+        method must be available to specify that the implementation
+        reject use of such identifiers as non-standard.  This condition
+        is a special case of the general rule concerning "extension"
+        identifiers given in section 1.3.2 on implementation
+        conformance.
+
+
+*       <EM>record</EM>(Event Fm) Event
+
+           A single record of type EVENT FM is pre-declared.
+
+</PRE></BODY></HTML>
